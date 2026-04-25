@@ -1,323 +1,499 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-lang="en">
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="Rizky Adi Satria — Full Stack Developer with 4+ years of experience building web applications, e-commerce platforms, and freelance projects.">
+    <meta name="keywords" content="Rizky Adi Satria, Full Stack Developer, React, Laravel, Node.js, MERN, Web Developer, Mataram, NTB">
+    <meta property="og:title" content="Rizky Adi Satria — Full Stack Developer">
+    <meta property="og:description" content="Portfolio of Rizky Adi Satria, Full Stack Developer specializing in web development.">
+    <meta property="og:type" content="website">
 
-    <!-- Boxicons.com -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/boxicons@latest/css/boxicons.min.css">
-
-    <!-- CSS -->
     <link rel="stylesheet" href="assets/css/styles.css">
 
-    <title>Rizky Adi Satria - Portofolio</title>
+    <title>Rizky Adi Satria — Full Stack Developer</title>
 </head>
 
 <body>
-    <!-- Header -->
+
+    <!-- ===== HEADER ===== -->
     <header class="l-header" id="header">
         <nav class="nav bd-container">
-            <a href="#" class="nav__logo">Rizky</a>
+            <a href="#" class="nav__logo">Rizky<span class="nav__logo-dot">.</span></a>
 
             <div class="nav__menu" id="nav-menu">
                 <ul class="nav__list">
                     <li class="nav__item">
                         <a href="#home" class="nav__link active-link">
-                            <i class="bx bx-home-circle nav__icon"></i>Home
+                            <i class="bx bx-home nav__icon"></i>
+                            <span data-i18n="nav.home">Home</span>
                         </a>
                     </li>
                     <li class="nav__item">
                         <a href="#profile" class="nav__link">
-                            <i class='bx bx-user-circle nav__icon'></i>Profile
-                        </a>
-                    </li>
-                    <li class="nav__item">
-                        <a href="#education" class="nav__link">
-                            <i class='bx bx-book nav__icon'></i>Education
-                        </a>
-                    </li>
-                    <li class="nav__item">
-                        <a href="#skills" class="nav__link">
-                            <i class='bx bx-receipt nav__icon'></i>Skills
+                            <i class="bx bx-user nav__icon"></i>
+                            <span data-i18n="nav.about">About</span>
                         </a>
                     </li>
                     <li class="nav__item">
                         <a href="#experience" class="nav__link">
-                            <i class='bx bx-briefcase nav__icon'></i>Experience
+                            <i class="bx bx-briefcase nav__icon"></i>
+                            <span data-i18n="nav.experience">Experience</span>
+                        </a>
+                    </li>
+                    <li class="nav__item">
+                        <a href="#skills" class="nav__link">
+                            <i class="bx bx-code-alt nav__icon"></i>
+                            <span data-i18n="nav.skills">Skills</span>
                         </a>
                     </li>
                     <li class="nav__item">
                         <a href="#certificates" class="nav__link">
-                            <i class='bx bx-award nav__icon'></i>Project
+                            <i class="bx bx-folder nav__icon"></i>
+                            <span data-i18n="nav.projects">Projects</span>
                         </a>
                     </li>
                 </ul>
             </div>
-            <div class="nav__toggle" id="nav-toggle">
-                <i class='bx bxs-grid-alt'></i>
+
+            <div class="nav__actions">
+                <button class="lang-toggle" id="lang-toggle" title="Switch Language">ID</button>
+                <i class="bx bx-moon change-theme" id="theme-button" title="Toggle theme"></i>
+                <i class="bx bxs-file-pdf generate-pdf" id="resume-button" title="Download PDF"></i>
+                <button class="nav__toggle" id="nav-toggle" aria-label="Toggle menu">
+                    <i class="bx bx-menu"></i>
+                </button>
             </div>
         </nav>
-
     </header>
 
-    <main class="l-main bd-container">
-        <!-- All elements within this div, is generated in PDF -->
-        <div class="resume" id="area-cv">
-            <div class="resume__left">
-                <!-- Home -->
-                <section class="home" id="home">
-                    <div class="home__container section bd-grid">
-                        <div class="home__data bd-grid">
-                            <img src="assets/img/profile.jpg" alt="" class="home__img">
+    <main class="l-main">
+        <div id="area-cv">
 
-                            <h1 class="home__title"><b>RIZKY ADI SATRIA</b></h1>
-                            <h3 class="home__profession">Full Stack Developer</h3>
-
-                            <!-- download button pdf -->
-                            <div>
-                                <a download="" href="assets/pdf/RizkyAdiSatria_Portofolio.pdf"
-                                    class="home__button-movil">Download</a>
+            <!-- ===== HOME / HERO ===== -->
+            <section class="home section" id="home">
+                <div class="home__container bd-container">
+                    <div class="home__visual">
+                        <div class="home__img-wrap">
+                            <img src="assets/img/profile.jpg" alt="Rizky Adi Satria" class="home__img">
+                        </div>
+                        <!-- Stats: desktop only (below photo) -->
+                        <div class="home__stats home__stats--desktop">
+                            <div class="home__stat">
+                                <span class="home__stat-num">4+</span>
+                                <span class="home__stat-label" data-i18n="stat.years">Years Exp.</span>
+                            </div>
+                            <div class="home__stat-divider"></div>
+                            <div class="home__stat">
+                                <span class="home__stat-num">8+</span>
+                                <span class="home__stat-label" data-i18n="stat.projects">Projects</span>
+                            </div>
+                            <div class="home__stat-divider"></div>
+                            <div class="home__stat">
+                                <span class="home__stat-num">7</span>
+                                <span class="home__stat-label" data-i18n="stat.companies">Companies</span>
                             </div>
                         </div>
-
-                        <div class="home__address bd-grid">
-                            <span class="home__information">
-                                <i class='bx bx-map home__icon'></i>Karang Rundun, 01/312, Bertais, Sandubaya, Mataram -
-                                Nusa Tenggara Barat
-                            </span>
-                            <span class="home__information">
-                                <i class='bx bx-envelope home__icon'></i>rizkyadsatria@gmail.com
-                            </span>
-                            <span class="home__information">
-                                <i class='bx bx-phone home__icon'></i><a href="https://wa.me/6285933005036">+62 859-3300-5036</a>
-                            </span>
-                        </div>
                     </div>
-                    <!-- Theme change button -->
-                    <i class='bx bx-moon change-theme' title="Theme" id="theme-button"></i>
 
-                    <!-- Button to generate and download the pdf. Available for desktop. -->
-                    <i class='bx bx-cloud-download generate-pdf' title="Generate PDF" id="resume-button"></i>
-
-                </section>
-
-                <!-- Profile -->
-                <section class="profile section" id="profile">
-                    <h2 class="section-title">Profile</h2>
-                    <p class="profile__description">I am a full stack developer with 3 years experience. Focuses on developing
-                        e-commerce websites, and has developed, maintained, created various kinds of websites. I enjoy
-                        doing something new, and finishing it as best I can. Completing difficult challenges on a
-                        website is fun.</p>
-                </section>
-
-                <!-- Skills -->
-                <section class="skills section" id="skills">
-                    <h2 class="section-title">Skills</h2>
-                    <div class="skills__content bd-grid">
-                        <ul class="skills__data">
-                            <li class="skills__name">
-                                <span class="skills__circle"></span>HTML & CSS
+                    <div class="home__data">
+                        <span class="home__badge">
+                            <span class="home__badge-dot"></span>
+                            <span data-i18n="hero.badge">Available for work</span>
+                        </span>
+                        <span class="home__greeting" data-i18n="hero.greeting">Hi there, I'm</span>
+                        <h1 class="home__title">Rizky Adi Satria</h1>
+                        <p class="home__profession" data-i18n="hero.profession">Full Stack Developer</p>
+                        <p class="home__bio" data-i18n="hero.bio">Full Stack Developer with 4+ years of experience building scalable web applications and e-commerce platforms. I enjoy turning complex problems into clean, elegant solutions.</p>
+                        <ul class="home__meta">
+                            <li>
+                                <i class="bx bx-map-pin"></i>
+                                <span>Mataram, Nusa Tenggara Barat</span>
                             </li>
-                            <li class="skills__name">
-                                <span class="skills__circle"></span>JavaScript
+                            <li>
+                                <a href="mailto:rizkyadsatria@gmail.com">
+                                    <i class="bx bx-envelope"></i>
+                                    <span>rizkyadsatria@gmail.com</span>
+                                </a>
                             </li>
-                            <li class="skills__name">
-                                <span class="skills__circle"></span>React.js
-                            </li>
-                            <li class="skills__name">
-                                <span class="skills__circle"></span>Laravel
+                            <li>
+                                <a href="https://wa.me/6285933005036" target="_blank">
+                                    <i class="bx bx-phone"></i>
+                                    <span>+62 859-3300-5036</span>
+                                </a>
                             </li>
                         </ul>
-                        <ul class="skills__data">
-                            <li class="skills__name">
-                                <span class="skills__circle"></span>MongoDB
-                            </li>
-                            <li class="skills__name">
-                                <span class="skills__circle"></span>Express
-                            </li>
-                            <li class="skills__name">
-                                <span class="skills__circle"></span>Node.js
-                            </li>
-                            <li class="skills__name">
-                                <span class="skills__circle"></span>MySQL
-                            </li>
-                        </ul>
-                    </div>
-                </section>
-
-                <!-- Education -->
-                <section class="education section" id="education">
-                    <h2 class="section-title">Education</h2>
-                    <div class="education_container bd-grid">
-                        <span class="education__line"></span>
-                        <div class="education__content">
-                            <div class="education__time">
-                                <span class="education__rounder"></span>
-                                <span class="education__line"></span>
-                            </div>
-                            <div class="education__data bd-grid">
-                                <h3 class="education__title">NETWORK ENGINEER</h3>
-                                <span class="education__studies">Vocational High School 6 Mataram</span>
-                                <span class="education__year">2015 - 2018</span>
-                            </div>
+                        <div class="home__btns">
+                            <button class="btn btn--primary" id="download-cv-btn">
+                                <i class="bx bx-file-blank"></i>
+                                <span data-i18n="btn.download">Download CV</span>
+                            </button>
+                            <a href="#certificates" class="btn btn--outline" data-i18n="btn.projects">See Projects</a>
                         </div>
-                        <div class="education__content">
-                            <div class="education__time">
-                                <span class="education__rounder"></span>
-                                <!-- <span class="education__line"></span> -->
+                        <!-- Stats: mobile only (below buttons) -->
+                        <div class="home__stats home__stats--mobile">
+                            <div class="home__stat">
+                                <span class="home__stat-num">4+</span>
+                                <span class="home__stat-label" data-i18n="stat.years">Years Exp.</span>
                             </div>
-                            <div class="education__data bd-grid">
-                                <h3 class="education__title">BACHELOR OF COMPUTER SCIENCE</h3>
-                                <span class="education__studies">University of Bumigora</span>
-                                <span class="education__year">2018 - 2022</span>
+                            <div class="home__stat-divider"></div>
+                            <div class="home__stat">
+                                <span class="home__stat-num">8+</span>
+                                <span class="home__stat-label" data-i18n="stat.projects">Projects</span>
+                            </div>
+                            <div class="home__stat-divider"></div>
+                            <div class="home__stat">
+                                <span class="home__stat-num">7</span>
+                                <span class="home__stat-label" data-i18n="stat.companies">Companies</span>
                             </div>
                         </div>
                     </div>
-                </section>
+                </div>
+            </section>
 
-                <!-- Social -->
-                <section class="social section">
-                    <h2 class="section-title">Social</h2>
+            <!-- ===== ABOUT ===== -->
+            <section class="profile section" id="profile">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.about">About Me</h2>
+                    <p class="profile__description" data-i18n="about.text">I'm a Full Stack Developer with over 4 years of professional experience building end-to-end web solutions. I specialize in e-commerce platforms and have a strong command of both frontend and backend technologies. I enjoy tackling complex challenges and delivering clean, performant code. Outside of my main role, I take on freelance projects ranging from hotel booking systems and company profiles to VPS deployment and network management.</p>
+                </div>
+            </section>
 
-                    <div class="social__container bd-grid">
-                        <a href="https://facebook.com/rzkydst" target="_blank" class="social__link">
-                            <i class='bx bxl-facebook-square social__icon'></i> Rizky Adi Satria
-                        </a>
-                        <a href="https://instagram.com/rzkydst/ " target="_blank" class="social__link">
-                            <i class='bx bxl-instagram social__icon'></i> @rzkydst
-                        </a>
-                    </div>
-                </section>
-
-            </div>
-
-            <div class="resume__right">
-                <!-- Experience -->
-                <section class="experience section" id="experience">
-                    <h2 class="section-title">Experience</h2>
-                    <div class="experience__container bd-grid">
-                        <div class="experience__content">
-                            <div class="experience__time">
-                                <span class="experience__rounder"></span>
-                                <span class="experience__line"></span>
-                            </div>
-                            <div class="experience__data bd-grid">
-                                <h3 class="experience__title">TECHNICAL SUPPORT</h3>
-                                <span class="experience__company">From August, 15th 2021 to February, 28th 2022 |
-                                    CV. Data Digital Indonesia</span>
-                                <p class="experience__description">I Work as technical support in <a
-                                        href="https://dewahoster.co.id">dewahoster.co.id</a> and I do solved client problem with
-                                    their own domain and hosting. Sometimes I help client solved their website problem
-                                    especially website that use WordPress.
-                                </p>
+            <!-- ===== EXPERIENCE ===== -->
+            <section class="experience section" id="experience">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.experience">Experience</h2>
+                    <div class="timeline">
+                        <div class="timeline__item">
+                            <div class="timeline__dot"></div>
+                            <div class="timeline__body">
+                                <div class="timeline__row">
+                                    <h3 class="timeline__title" data-i18n="exp1.title">Technical Support</h3>
+                                    <span class="timeline__badge" data-i18n="exp.badge1">Aug 2021 – Feb 2022</span>
+                                </div>
+                                <p class="timeline__company">CV. Data Digital Indonesia &mdash; <a href="https://dewahoster.co.id" target="_blank">dewahoster.co.id</a></p>
+                                <p class="timeline__desc" data-i18n="exp1.desc">Resolved client issues related to domain management, hosting configuration, and WordPress websites. Provided step-by-step technical guidance and troubleshooting support.</p>
                             </div>
                         </div>
-                        <div class="experience__content">
-                            <div class="experience__time">
-                                <span class="experience__rounder"></span>
-                                <span class="experience__line"></span>
-                            </div>
-                            <div class="experience__data bd-grid">
-                                <h3 class="experience__title">FULL STACK DEVELOPER</h3>
-                                <span class="experience__company">From March, 1st 2022 until now |
-                                    PT. Bumigora Karya Mandiri</span>
-                                <p class="experience__description">I Work as Full Stack Developer in <a
-                                        href="https://bumigorashop.com">bumigorashop.com</a> I developed, maintained and built
-                                    the bumigorashop website from scratch, assisted by my friend as a designer.
-                                    Bumigorashop exists to help people market their various products.
-                                </p>
+                        <div class="timeline__item">
+                            <div class="timeline__dot"></div>
+                            <div class="timeline__body">
+                                <div class="timeline__row">
+                                    <h3 class="timeline__title" data-i18n="exp2.title">Full Stack Developer</h3>
+                                    <span class="timeline__badge" data-i18n="exp.badge2">Mar 2022 – Present</span>
+                                </div>
+                                <p class="timeline__company">PT. Bumigora Karya Mandiri &mdash; <a href="https://bumigorashop.com" target="_blank">bumigorashop.com</a></p>
+                                <p class="timeline__desc" data-i18n="exp2.desc">Built and maintained the Bumigorashop e-commerce platform from the ground up, collaborating with a designer to create a marketplace that empowers local sellers to reach wider markets.</p>
                             </div>
                         </div>
-                        <div class="experience__content">
-                            <div class="experience__time">
-                                <span class="experience__rounder"></span>
-                            </div>
-                            <div class="experience__data bd-grid">
-                                <h3 class="experience__title">FREELANCER</h3>
-                                <span class="experience__company">From August, 22nd 2023 until now</span>
-                                <p class="experience__description">I take on various types of work here, such as web and mobile app development, depending on the client's needs. Some of the websites I've worked on during my freelance journey include hotel booking systems, company profile websites, hosting order systems, remote VPN setups, Mikrotik management using Mikhmon, and VPS deployment.
-                                </p>
+                        <div class="timeline__item timeline__item--last">
+                            <div class="timeline__dot"></div>
+                            <div class="timeline__body">
+                                <div class="timeline__row">
+                                    <h3 class="timeline__title" data-i18n="exp3.title">Freelance Developer</h3>
+                                    <span class="timeline__badge" data-i18n="exp.badge3">Aug 2023 – Present</span>
+                                </div>
+                                <p class="timeline__company" data-i18n="exp3.company">Self-employed</p>
+                                <p class="timeline__desc" data-i18n="exp3.desc">Deliver end-to-end web and mobile solutions for various clients — hotel booking systems, company profiles, hosting order platforms, Mikrotik management with Mikhmon, remote VPN setups, and VPS deployment.</p>
                             </div>
                         </div>
                     </div>
-                </section>
+                </div>
+            </section>
 
-                <!-- Certificates -->
-                <section class="certificate section" id="certificates">
-                    <h2 class="section-title">Project</h2>
-                    <div class="certificate__container bd-grid">
-                        <div class="certificate__content">
-                            <h3 class="certificate__title">GOOGLE CLONE (2021)</h3>
-                            <p class="certificate__description">I try to copy <a
-                                    href="https://googlesearch-rizkyadisatria.vercel.app/">Google</a> website from how
-                                its
-                                look until seaching web, and I made it with react.js, tailwindcss and
-                                google search api.</p>
+            <!-- ===== EDUCATION ===== -->
+            <section class="education section" id="education">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.education">Education</h2>
+                    <div class="timeline">
+                        <div class="timeline__item">
+                            <div class="timeline__dot"></div>
+                            <div class="timeline__body">
+                                <div class="timeline__row">
+                                    <h3 class="timeline__title" data-i18n="edu1.title">Network Engineering</h3>
+                                    <span class="timeline__badge">2015 – 2018</span>
+                                </div>
+                                <p class="timeline__company">SMK Negeri 6 Mataram</p>
+                            </div>
                         </div>
-                        <div class="certificate__content">
-                            <h3 class="certificate__title">LUXSPACE (2022)</h3>
-                            <p class="certificate__description"><a
-                                    href="https://luxspace-rizkyadisatria.vercel.app/">LuxSpace</a> is end of project
-                                course from <a href="https://buildwithangga.com">BWA</a> I buid the web from scratch base on the
-                                design in figma and I made it with HTML, CSS and JavaScript.</p>
-                        </div>
-                        <div class="certificate__content">
-                            <h3 class="certificate__title">AROMA BUMI (2022)</h3>
-                            <p class="certificate__description"><a
-                                    href="https://coffee-rizkyadisatria.vercel.app/">Aroma Bumi</a> is end of project
-                                course from <a href="https://progate.com">Progate</a> I buid the web from scratch base on the
-                                design in figma and I made it with HTML, CSS and JavaScript.</p>
-                        </div>
-                        <div class="certificate__content">
-                            <h3 class="certificate__title">POKEMON CATCH (2023)</h3>
-                            <p class="certificate__description"><a
-                                    href="https://pokemon-rizkyadisatria.vercel.app/">Pokemon</a> is fun project that I
-                                build from scratch using public API and I made it with HTML, CSS and JavaScript.</p>
-                        </div>
-                        <div class="certificate__content">
-                            <h3 class="certificate__title">LINA BOUTIQUE VILLAS & SPA (2023)</h3>
-                            <p class="certificate__description"><a href="https://linalombok.com">Lina Boutique Villas & Spa</a> is freelance
-                                project for booking hotel in kuta and I made it with WordPress and third party for
-                                payment
-                                gateway.</p>
-                        </div>
-                        <div class="certificate__content">
-                            <h3 class="certificate__title">THE LOMBOK VILLAS (2025)</h3>
-                            <p class="certificate__description"><a href="https://thelombokhouses.com">The Lombok Villas</a>, this website was created through a connection established with Lina Boutique Villas & Spa. The owner of this site is a relative of the team behind Lina Boutique, and this collaboration is part of an ongoing partnership focused on the development of villas in Lombok. We are proud to be part of the same network, working together to create exceptional accommodation experiences on this beautiful island.</p>
-                        </div>
-                        <div class="certificate__content">
-                            <h3 class="certificate__title">TUNNELS (2025)</h3>
-                            <p class="certificate__description"><a href="https://tunnels-phi.vercel.app/">Tunnels</a>, is a freelance project I developed using the MERN Stack (MongoDB, Express.js, React.js, and Node.js). The website is fairly complex, featuring a comprehensive company profile, a detailed product catalog, user registration and login system, an admin dashboard, purchasing system, integrated payment gateway, and API support for the listed products. This project showcases both frontend and backend functionalities, tailored to deliver a seamless user and admin experience.</p>
+                        <div class="timeline__item timeline__item--last">
+                            <div class="timeline__dot"></div>
+                            <div class="timeline__body">
+                                <div class="timeline__row">
+                                    <h3 class="timeline__title" data-i18n="edu2.title">Bachelor of Computer Science</h3>
+                                    <span class="timeline__badge">2018 – 2022</span>
+                                </div>
+                                <p class="timeline__company">Universitas Bumigora</p>
+                            </div>
                         </div>
                     </div>
-                </section>
-                <!-- Languages -->
-                <section class="languages section">
-                    <h2 class="section-title">Languages</h2>
-                    <div class="languages__container">
-                        <ul class="languages__content bd-grid">
-                            <li class="languages">
-                                <span class="languages__circle"></span> Indonesia
-                            </li>
-                            <li class="languages">
-                                <span class="languages__circle"></span> English
-                            </li>
-                        </ul>
+                </div>
+            </section>
+
+            <!-- ===== SKILLS ===== -->
+            <section class="skills section" id="skills">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.skills">Skills</h2>
+                    <div class="skills__wrap">
+                        <span class="skill-tag">HTML & CSS</span>
+                        <span class="skill-tag">JavaScript</span>
+                        <span class="skill-tag">React.js</span>
+                        <span class="skill-tag">Laravel</span>
+                        <span class="skill-tag">Node.js</span>
+                        <span class="skill-tag">Express.js</span>
+                        <span class="skill-tag">MongoDB</span>
+                        <span class="skill-tag">MySQL</span>
+                        <span class="skill-tag">WordPress</span>
+                        <span class="skill-tag">Tailwind CSS</span>
+                        <span class="skill-tag">Git & GitHub</span>
+                        <span class="skill-tag">Linux / VPS</span>
                     </div>
-                </section>
-            </div>
-        </div>
+                </div>
+            </section>
+
+            <!-- ===== PROJECTS ===== -->
+            <section class="certificate section" id="certificates">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.projects">Projects</h2>
+                    <div class="projects__grid">
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-code-alt project-card__icon"></i>
+                                <span class="project-card__year">2021</span>
+                            </div>
+                            <h3 class="project-card__title">Google Clone</h3>
+                            <p class="project-card__desc" data-i18n="proj1.desc">A functional clone of Google Search built with React.js, Tailwind CSS, and the Google Search API — replicating the UI and delivering real-time search results.</p>
+                            <a href="https://googlesearch-rizkyadisatria.vercel.app/" target="_blank" class="project-card__link">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-shopping-bag project-card__icon"></i>
+                                <span class="project-card__year">2022</span>
+                            </div>
+                            <h3 class="project-card__title">LuxSpace</h3>
+                            <p class="project-card__desc" data-i18n="proj2.desc">A furniture e-commerce landing page built from a Figma design using HTML, CSS, and vanilla JavaScript. Course final project from BuildWithAngga.</p>
+                            <a href="https://luxspace-rizkyadisatria.vercel.app/" target="_blank" class="project-card__link">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-coffee project-card__icon"></i>
+                                <span class="project-card__year">2022</span>
+                            </div>
+                            <h3 class="project-card__title">Aroma Bumi</h3>
+                            <p class="project-card__desc" data-i18n="proj3.desc">A coffee shop landing page built from a Figma design using HTML, CSS, and JavaScript. Course final project from Progate.</p>
+                            <a href="https://coffee-rizkyadisatria.vercel.app/" target="_blank" class="project-card__link">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bxs-game project-card__icon"></i>
+                                <span class="project-card__year">2023</span>
+                            </div>
+                            <h3 class="project-card__title">Pokémon Catch</h3>
+                            <p class="project-card__desc" data-i18n="proj4.desc">A Pokédex web app integrating the public PokéAPI, allowing users to browse and "catch" Pokémon. Built with HTML, CSS, and JavaScript.</p>
+                            <a href="https://pokemon-rizkyadisatria.vercel.app/" target="_blank" class="project-card__link">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-hotel project-card__icon"></i>
+                                <span class="project-card__year">2023</span>
+                            </div>
+                            <h3 class="project-card__title">Lina Boutique Villas & Spa</h3>
+                            <p class="project-card__desc" data-i18n="proj5.desc">A hotel booking website for a property in Kuta, Lombok. Built with WordPress and integrated with a third-party payment gateway.</p>
+                            <a href="https://linalombok.com" target="_blank" class="project-card__link">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-buildings project-card__icon"></i>
+                                <span class="project-card__year">2025</span>
+                            </div>
+                            <h3 class="project-card__title">The Lombok Villas</h3>
+                            <p class="project-card__desc" data-i18n="proj6.desc">A villa booking website built with WordPress, developed through a referral partnership with Lina Boutique Villas & Spa for properties in Lombok.</p>
+                            <a href="https://thelombokhouses.com" target="_blank" class="project-card__link">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-store project-card__icon"></i>
+                                <span class="project-card__year">2025</span>
+                            </div>
+                            <h3 class="project-card__title">Tunnels</h3>
+                            <p class="project-card__desc" data-i18n="proj7.desc">A full-featured B2B platform built with the MERN stack. Features product catalog, user authentication, admin dashboard, purchasing system, and payment gateway.</p>
+                            <a href="https://tunnels-phi.vercel.app/" target="_blank" class="project-card__link">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-book-open project-card__icon"></i>
+                                <span class="project-card__year">2026</span>
+                            </div>
+                            <h3 class="project-card__title">Seqolah</h3>
+                            <p class="project-card__desc" data-i18n="proj8.desc">A SaaS platform combining an AI-assisted website builder with a school fee management system (SPP). Supports invoice generation, multi-gateway payments, WhatsApp notifications, and subscription billing. Built with Laravel 12, React, Inertia.js, and Firebase.</p>
+                            <a href="https://seqolah.com/" target="_blank" class="project-card__link">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SOCIAL + LANGUAGES ===== -->
+            <section class="bottom-row section">
+                <div class="bd-container bottom-row__grid">
+                    <div>
+                        <h2 class="section-title" data-i18n="section.social">Social</h2>
+                        <div class="social-links">
+                            <a href="https://github.com/rizkyadisatria" target="_blank" class="social-link">
+                                <i class="bx bxl-github"></i><span>rizkyadisatria</span>
+                            </a>
+                            <a href="https://instagram.com/rzkydst" target="_blank" class="social-link">
+                                <i class="bx bxl-instagram"></i><span>@rzkydst</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="section-title" data-i18n="section.languages">Languages</h2>
+                        <div class="lang-list">
+                            <div class="lang-item">
+                                <i class="bx bx-check-circle"></i>
+                                <span data-i18n="lang.id">Indonesian — Native</span>
+                            </div>
+                            <div class="lang-item">
+                                <i class="bx bx-check-circle"></i>
+                                <span data-i18n="lang.en">English — Conversational</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div><!-- #area-cv -->
     </main>
 
-    <!-- Scroll Top -->
-    <a href="#" class="scrolltop" id="scroll-top">
-        <i class='bx bx-up-arrow-circle scrolltop__icon'></i>
-    </a>
-    <!-- Html2Pdf -->
-    <script src="assets/js/html2pdf.bundle.min.js"></script>
+    <!-- ===== CV PRINT TEMPLATE (hidden, PDF only) ===== -->
+    <div id="cv-print">
+        <div class="cv-wrap">
+            <div class="cv-left">
+                <div class="cv-photo-wrap">
+                    <img src="assets/img/profile.jpg" alt="Rizky Adi Satria" class="cv-photo">
+                </div>
+                <div class="cv-block">
+                    <h3 class="cv-block__title">Contact</h3>
+                    <ul class="cv-list">
+                        <li><i class="bx bx-map-pin"></i> Mataram, NTB</li>
+                        <li><i class="bx bx-envelope"></i> rizkyadsatria@gmail.com</li>
+                        <li><i class="bx bx-phone"></i> +62 859-3300-5036</li>
+                        <li><i class="bx bxl-github"></i> github.com/rizkyadisatria</li>
+                    </ul>
+                </div>
+                <div class="cv-block">
+                    <h3 class="cv-block__title">Skills</h3>
+                    <ul class="cv-list">
+                        <li>HTML & CSS</li>
+                        <li>JavaScript</li>
+                        <li>React.js</li>
+                        <li>Laravel</li>
+                        <li>Node.js / Express.js</li>
+                        <li>MongoDB / MySQL</li>
+                        <li>WordPress</li>
+                        <li>Tailwind CSS</li>
+                        <li>Git & GitHub</li>
+                        <li>Linux / VPS</li>
+                    </ul>
+                </div>
+                <div class="cv-block">
+                    <h3 class="cv-block__title">Languages</h3>
+                    <ul class="cv-list">
+                        <li>Indonesian — Native</li>
+                        <li>English — Conversational</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="cv-right">
+                <div class="cv-header">
+                    <h1 class="cv-name">Rizky Adi Satria</h1>
+                    <p class="cv-title">Full Stack Developer</p>
+                </div>
+                <div class="cv-section">
+                    <h2 class="cv-section__title">Profile</h2>
+                    <p class="cv-text">Full Stack Developer with 4+ years of professional experience building end-to-end web solutions. Specializes in e-commerce platforms with a strong command of both frontend and backend technologies. Passionate about clean, performant code and tackling complex technical challenges.</p>
+                </div>
+                <div class="cv-section">
+                    <h2 class="cv-section__title">Experience</h2>
+                    <div class="cv-item">
+                        <div class="cv-item__row">
+                            <strong class="cv-item__title">Technical Support</strong>
+                            <span class="cv-item__period">Aug 2021 – Feb 2022</span>
+                        </div>
+                        <p class="cv-item__sub">CV. Data Digital Indonesia &bull; dewahoster.co.id</p>
+                        <p class="cv-text">Resolved client issues related to domain management, hosting configuration, and WordPress websites. Provided step-by-step technical guidance and troubleshooting support.</p>
+                    </div>
+                    <div class="cv-item">
+                        <div class="cv-item__row">
+                            <strong class="cv-item__title">Full Stack Developer</strong>
+                            <span class="cv-item__period">Mar 2022 – Present</span>
+                        </div>
+                        <p class="cv-item__sub">PT. Bumigora Karya Mandiri &bull; bumigorashop.com</p>
+                        <p class="cv-text">Built and maintained the Bumigorashop e-commerce platform from the ground up, collaborating with a designer to create a marketplace empowering local sellers to reach wider markets.</p>
+                    </div>
+                    <div class="cv-item">
+                        <div class="cv-item__row">
+                            <strong class="cv-item__title">Freelance Developer</strong>
+                            <span class="cv-item__period">Aug 2023 – Present</span>
+                        </div>
+                        <p class="cv-item__sub">Self-employed</p>
+                        <p class="cv-text">Deliver end-to-end web and mobile solutions — hotel booking systems, company profiles, hosting order platforms, Mikrotik management, VPN setups, and VPS deployment.</p>
+                    </div>
+                </div>
+                <div class="cv-section">
+                    <h2 class="cv-section__title">Education</h2>
+                    <div class="cv-item">
+                        <div class="cv-item__row">
+                            <strong class="cv-item__title">Network Engineering</strong>
+                            <span class="cv-item__period">2015 – 2018</span>
+                        </div>
+                        <p class="cv-item__sub">SMK Negeri 6 Mataram</p>
+                    </div>
+                    <div class="cv-item">
+                        <div class="cv-item__row">
+                            <strong class="cv-item__title">Bachelor of Computer Science</strong>
+                            <span class="cv-item__period">2018 – 2022</span>
+                        </div>
+                        <p class="cv-item__sub">Universitas Bumigora</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <!-- Main JS -->
+    <a href="#" class="scrolltop" id="scroll-top">
+        <i class="bx bx-chevron-up"></i>
+    </a>
+
+    <script src="assets/js/html2pdf.bundle.min.js"></script>
     <script src="assets/js/main.js"></script>
 </body>
 
