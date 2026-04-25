@@ -302,7 +302,7 @@ img { max-width: 100%; height: auto; display: block; }
   font-size: var(--fs-xs);
   color: var(--clr-muted);
   text-align: center;
-  white-space: nowrap;
+  line-height: 1.3;
 }
 
 .home__stat-divider {

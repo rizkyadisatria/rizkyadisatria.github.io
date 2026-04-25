@@ -68,9 +68,9 @@ const i18n = {
     'hero.profession': 'Full Stack Developer',
     'hero.bio':        'Full Stack Developer dengan 4+ tahun pengalaman membangun aplikasi web dan platform e-commerce yang skalabel. Saya senang mengubah masalah kompleks menjadi solusi yang bersih dan elegan.',
 
-    'stat.years':      'Thn Pengalaman',
-    'stat.projects':   'Proyek',
-    'stat.companies':  'Perusahaan',
+    'stat.years':      'Pengalaman',
+        'stat.projects':   'Proyek',
+        'stat.companies':  'Perusahaan',
 
     'btn.download':    'Unduh CV',
     'btn.projects':    'Lihat Proyek',
