@@ -316,100 +316,39 @@ function initCounters() {
 initScrollReveal()
 initCounters()
 
-/*==================== HERO PARTICLES ====================*/
-function initParticles() {
-  const canvas = document.getElementById('hero-canvas')
-  if (!canvas) return
+/*==================== HERO LOTTIE ====================*/
+;(function () {
+  const el = document.getElementById('hero-lottie')
+  if (!el || typeof lottie === 'undefined') return
 
-  const ctx    = canvas.getContext('2d')
-  const section = canvas.parentElement
-  const COUNT   = window.innerWidth > 600 ? 25 : 14
-  const MAX_DIST = 120
-  const SPEED    = 0.22
-  let W, H, rafId
-  const particles = []
+  let anim = null
 
-  function resize() {
-    W = canvas.width  = section.offsetWidth
-    H = canvas.height = section.offsetHeight
-  }
-
-  function mkParticle() {
-    const angle = Math.random() * Math.PI * 2
-    const spd   = SPEED * (0.5 + Math.random() * 0.8)
-    return {
-      x:  Math.random() * W,
-      y:  Math.random() * H,
-      vx: Math.cos(angle) * spd,
-      vy: Math.sin(angle) * spd,
-      r:  1 + Math.random() * 1.5,
-    }
-  }
-
-  function init() {
-    resize()
-    particles.length = 0
-    for (let i = 0; i < COUNT; i++) particles.push(mkParticle())
-  }
-
-  function rgb() {
+  function isDark() {
     return document.body.classList.contains('dark-theme')
-      ? '96,165,250'   /* blue-400 */
-      : '37,99,235'    /* accent */
   }
 
-  function frame() {
-    ctx.clearRect(0, 0, W, H)
-    const c = rgb()
-
-    /* update + draw dots */
-    for (const p of particles) {
-      p.x += p.vx; p.y += p.vy
-      if (p.x < p.r)     { p.x = p.r;     p.vx =  Math.abs(p.vx) }
-      if (p.x > W - p.r) { p.x = W - p.r; p.vx = -Math.abs(p.vx) }
-      if (p.y < p.r)     { p.y = p.r;     p.vy =  Math.abs(p.vy) }
-      if (p.y > H - p.r) { p.y = H - p.r; p.vy = -Math.abs(p.vy) }
-
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-      ctx.fillStyle = `rgba(${c},.45)`
-      ctx.fill()
-    }
-
-    /* draw bonds between nearby particles */
-    for (let i = 0; i < particles.length - 1; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const dx = particles[i].x - particles[j].x
-        const dy = particles[i].y - particles[j].y
-        const d  = Math.sqrt(dx * dx + dy * dy)
-        if (d >= MAX_DIST) continue
-        const alpha = ((1 - d / MAX_DIST) * 0.18).toFixed(3)
-        ctx.beginPath()
-        ctx.moveTo(particles[i].x, particles[i].y)
-        ctx.lineTo(particles[j].x, particles[j].y)
-        ctx.strokeStyle = `rgba(${c},${alpha})`
-        ctx.lineWidth   = 0.8
-        ctx.stroke()
-      }
-    }
-
-    rafId = requestAnimationFrame(frame)
+  function load() {
+    if (anim) { anim.destroy(); anim = null }
+    anim = lottie.loadAnimation({
+      container: el,
+      renderer : 'svg',
+      loop     : true,
+      autoplay : true,
+      path     : isDark()
+        ? 'assets/lottie/background01-dark.json'
+        : 'assets/lottie/background01.json',
+      rendererSettings: { preserveAspectRatio: 'xMidYMid slice' },
+    })
   }
 
-  init()
-  frame()
+  load()
 
-  window.addEventListener('resize', init)
-
-  /* pause / resume on PDF export */
   new MutationObserver(() => {
     if (document.body.classList.contains('scale-cv')) {
-      cancelAnimationFrame(rafId)
+      anim && anim.pause()
     } else {
-      cancelAnimationFrame(rafId)
-      frame()
+      load()
     }
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] })
-}
+})()
 
-initParticles()

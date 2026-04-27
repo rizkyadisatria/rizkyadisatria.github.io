@@ -1028,20 +1028,28 @@ body.scale-cv {
   50%       { opacity: 0; }
 }
 
-/* ----- Hero: particle canvas ----- */
-.home {
-  position: relative;
-  overflow: hidden;
-}
-.hero-canvas {
+.home { position: relative; overflow: hidden; }
+
+.hero-lottie {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
   z-index: 0;
+  opacity: .22;
+  -webkit-mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
 }
+body.dark-theme .hero-lottie {
+  opacity: .28;
+  -webkit-mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 30%, transparent 100%);
+}
+
 .home__container { position: relative; z-index: 1; }
+
+.scale-cv .hero-lottie { display: none; }
 
 /* ----- Hero text: staggered entrance ----- */
 .home__badge      { animation: fadeInUp .6s ease both .15s; }
@@ -1114,8 +1122,7 @@ body.scale-cv {
 }
 
 /* ----- Disable all animations during PDF export ----- */
-.scale-cv .hero-canvas { display: none; }
-.scale-cv .home { overflow: visible; }
+/* PDF overrides for hero moved to the hero section above */
 
 .scale-cv .home__img-wrap,
 .scale-cv .home__img-wrap::before,
