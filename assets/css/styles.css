@@ -15,6 +15,7 @@
   --clr-accent:    #2563eb;
   --clr-accent-dk: #1d4ed8;
   --clr-accent-lt: rgba(37, 99, 235, .10);
+  --clr-secondary: #1e3a5f;
 
   /* Typography */
   --font: 'Poppins', sans-serif;
@@ -56,11 +57,51 @@
 body.dark-theme {
   --clr-bg:        #0f172a;
   --clr-bg-alt:    #1e293b;
-  --clr-border:    #334155;
+  --clr-border:    #2d4163;
   --clr-title:     #f1f5f9;
-  --clr-text:      #94a3b8;
-  --clr-muted:     #64748b;
-  --clr-accent-lt: rgba(37,99,235,.20);
+  --clr-text:      #c1cfe0;
+  --clr-muted:     #8ba0b8;
+  --clr-accent:    #60a5fa;
+  --clr-accent-dk: #3b82f6;
+  --clr-accent-lt: rgba(96,165,250,.15);
+  --clr-secondary: #ffffff;
+}
+
+body.dark-theme .bottom-row {
+  background: #060d1a;
+  border-color: var(--clr-border);
+}
+
+/* Badge "Available" — hijau lebih terang di dark mode */
+body.dark-theme .home__badge {
+  background: rgba(74,222,128,.10);
+  border-color: rgba(74,222,128,.30);
+  color: #4ade80;
+}
+body.dark-theme .home__badge-dot { background: #4ade80; }
+
+/* Scroll top dark mode */
+body.dark-theme .scrolltop { background: #1d4ed8; }
+
+/* Button dark mode — warna dasar #1d4ed8, hover lebih gelap */
+body.dark-theme .btn--primary {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: var(--clr-secondary);
+}
+body.dark-theme .btn--primary:hover {
+  background: #1e40af;
+  border-color: #1e40af;
+  color: var(--clr-secondary);
+}
+body.dark-theme .btn--outline {
+  color: var(--clr-secondary);
+  border-color: #1d4ed8;
+}
+body.dark-theme .btn--outline:hover {
+  background: #1e40af;
+  border-color: #1e40af;
+  color: var(--clr-secondary);
 }
 
 /*===== RESET =====*/
