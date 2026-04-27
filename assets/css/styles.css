@@ -245,6 +245,7 @@ img { max-width: 100%; height: auto; display: block; }
 .home__img-wrap {
   position: relative;
   display: inline-flex;
+  animation: fadeInUp .7s ease both, float 5s ease-in-out 1.2s infinite;
 }
 .home__img-wrap::before {
   content: '';
@@ -253,6 +254,7 @@ img { max-width: 100%; height: auto; display: block; }
   border-radius: 50%;
   background: var(--clr-accent-lt);
   z-index: 0;
+  animation: ring-pulse 3.5s ease-in-out infinite;
 }
 
 .home__img {
@@ -537,10 +539,15 @@ img { max-width: 100%; height: auto; display: block; }
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
   color: var(--clr-text);
-  transition: background .2s, border-color .2s, color .2s;
+  opacity: 0;
+  translate: 0 8px;
+  scale: .9;
+  transition: opacity .35s ease, translate .35s ease, scale .35s ease,
+              background .2s, border-color .2s, color .2s;
   cursor: default;
 }
 .skill-tag:hover {
+  scale: 1.06;
   background: var(--clr-accent-lt);
   border-color: var(--clr-accent);
   color: var(--clr-accent);
@@ -560,7 +567,10 @@ img { max-width: 100%; height: auto; display: block; }
   border: 1px solid var(--clr-border);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
-  transition: transform .25s, box-shadow .25s, border-color .25s;
+  opacity: 0;
+  translate: 0 18px;
+  transition: opacity .5s ease, translate .5s ease,
+              transform .25s, box-shadow .25s, border-color .25s;
 }
 .project-card:hover {
   transform: translateY(-4px);
@@ -991,4 +1001,143 @@ body.scale-cv {
 /* Wide screen (1200px+) */
 @media screen and (min-width: 1200px) {
   .bd-container { max-width: 1024px; }
+}
+
+/*==========================================================
+  ANIMATIONS
+==========================================================*/
+
+/* ----- Keyframes ----- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes float {
+  0%, 100% { translate: 0 0; }
+  50%       { translate: 0 -10px; }
+}
+
+@keyframes ring-pulse {
+  0%, 100% { opacity: 1; scale: 1; }
+  50%       { opacity: .45; scale: 1.14; }
+}
+
+@keyframes blink-caret {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ----- Hero: particle canvas ----- */
+.home {
+  position: relative;
+  overflow: hidden;
+}
+.hero-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+.home__container { position: relative; z-index: 1; }
+
+/* ----- Hero text: staggered entrance ----- */
+.home__badge      { animation: fadeInUp .6s ease both .15s; }
+.home__greeting   { animation: fadeInUp .6s ease both .25s; }
+.home__title      { animation: fadeInUp .6s ease both .35s; }
+.home__profession { animation: fadeInUp .6s ease both .45s; }
+.home__bio        { animation: fadeInUp .6s ease both .55s; }
+.home__meta       { animation: fadeInUp .6s ease both .65s; }
+.home__btns       { animation: fadeInUp .6s ease both .75s; }
+.home__stats      { animation: fadeInUp .6s ease both .85s; }
+
+/* Blinking cursor after profession title */
+.home__profession::after {
+  content: '|';
+  color: var(--clr-accent);
+  font-weight: 300;
+  margin-left: 2px;
+  animation: blink-caret .85s step-end infinite;
+}
+
+/* ----- Scroll reveal: section headings & generic blocks ----- */
+.reveal {
+  opacity: 0;
+  translate: 0 26px;
+  transition: opacity .65s ease, translate .65s ease;
+  will-change: opacity, translate;
+}
+.reveal.visible {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* Timeline items: slide from left */
+.reveal-left {
+  opacity: 0;
+  translate: -18px 0;
+  transition: opacity .55s ease, translate .55s ease;
+  will-change: opacity, translate;
+}
+.reveal-left.visible {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* Skill tags: visible state */
+.skill-tag.visible {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+}
+
+/* Project cards: visible state */
+.project-card.visible {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* Social & language items */
+.social-link,
+.lang-item {
+  opacity: 0;
+  translate: 0 14px;
+  transition: opacity .45s ease, translate .45s ease,
+              color .2s, gap .2s;
+}
+.social-link.visible,
+.lang-item.visible {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* ----- Disable all animations during PDF export ----- */
+.scale-cv .hero-canvas { display: none; }
+.scale-cv .home { overflow: visible; }
+
+.scale-cv .home__img-wrap,
+.scale-cv .home__img-wrap::before,
+.scale-cv .home__badge,
+.scale-cv .home__greeting,
+.scale-cv .home__title,
+.scale-cv .home__profession,
+.scale-cv .home__bio,
+.scale-cv .home__meta,
+.scale-cv .home__btns,
+.scale-cv .home__stats { animation: none !important; }
+
+.scale-cv .home__profession::after { display: none; }
+
+.scale-cv .reveal,
+.scale-cv .reveal-left,
+.scale-cv .skill-tag,
+.scale-cv .project-card,
+.scale-cv .social-link,
+.scale-cv .lang-item {
+  opacity: 1 !important;
+  translate: none !important;
+  scale: none !important;
+  transition: none !important;
 }

@@ -234,3 +234,182 @@ if (resumeButton) resumeButton.addEventListener('click', generateCV)
 // Hero Download CV button
 const downloadCvBtn = document.getElementById('download-cv-btn')
 if (downloadCvBtn) downloadCvBtn.addEventListener('click', generateCV)
+
+/*==================== SCROLL REVEAL ====================*/
+function initScrollReveal() {
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return
+      entry.target.classList.add('visible')
+      observer.unobserve(entry.target)
+    })
+  }, { threshold: 0.12, rootMargin: '0px 0px -30px 0px' })
+
+  // Section titles
+  document.querySelectorAll('.section-title').forEach(el => {
+    el.classList.add('reveal')
+    observer.observe(el)
+  })
+
+  // About description
+  document.querySelectorAll('.profile__description').forEach(el => {
+    el.classList.add('reveal')
+    observer.observe(el)
+  })
+
+  // Timeline items: staggered slide from left
+  document.querySelectorAll('.timeline__item').forEach((el, i) => {
+    el.classList.add('reveal-left')
+    el.style.transitionDelay = `${i * 0.1}s`
+    observer.observe(el)
+  })
+
+  // Skill tags: staggered fade-in
+  document.querySelectorAll('.skill-tag').forEach((el, i) => {
+    el.style.transitionDelay = `${i * 0.06}s`
+    observer.observe(el)
+  })
+
+  // Project cards: staggered slide up
+  document.querySelectorAll('.project-card').forEach((el, i) => {
+    el.style.transitionDelay = `${i * 0.08}s`
+    observer.observe(el)
+  })
+
+  // Social links & language items: staggered
+  document.querySelectorAll('.social-link, .lang-item').forEach((el, i) => {
+    el.style.transitionDelay = `${i * 0.1}s`
+    observer.observe(el)
+  })
+}
+
+/*==================== COUNTER ANIMATION ====================*/
+function animateCount(el) {
+  const raw    = el.textContent.trim()
+  const target = parseInt(raw, 10)
+  const suffix = raw.replace(/[0-9]/g, '')
+  if (isNaN(target)) return
+
+  const duration = 1200
+  const start    = performance.now()
+
+  ;(function tick(now) {
+    const t     = Math.min((now - start) / duration, 1)
+    const eased = 1 - Math.pow(1 - t, 3)
+    el.textContent = Math.round(eased * target) + suffix
+    if (t < 1) requestAnimationFrame(tick)
+  })(start)
+}
+
+function initCounters() {
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return
+      animateCount(entry.target)
+      observer.unobserve(entry.target)
+    })
+  }, { threshold: 0.5 })
+
+  document.querySelectorAll('.home__stat-num').forEach(el => observer.observe(el))
+}
+
+initScrollReveal()
+initCounters()
+
+/*==================== HERO PARTICLES ====================*/
+function initParticles() {
+  const canvas = document.getElementById('hero-canvas')
+  if (!canvas) return
+
+  const ctx    = canvas.getContext('2d')
+  const section = canvas.parentElement
+  const COUNT   = window.innerWidth > 600 ? 25 : 14
+  const MAX_DIST = 120
+  const SPEED    = 0.22
+  let W, H, rafId
+  const particles = []
+
+  function resize() {
+    W = canvas.width  = section.offsetWidth
+    H = canvas.height = section.offsetHeight
+  }
+
+  function mkParticle() {
+    const angle = Math.random() * Math.PI * 2
+    const spd   = SPEED * (0.5 + Math.random() * 0.8)
+    return {
+      x:  Math.random() * W,
+      y:  Math.random() * H,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd,
+      r:  1 + Math.random() * 1.5,
+    }
+  }
+
+  function init() {
+    resize()
+    particles.length = 0
+    for (let i = 0; i < COUNT; i++) particles.push(mkParticle())
+  }
+
+  function rgb() {
+    return document.body.classList.contains('dark-theme')
+      ? '96,165,250'   /* blue-400 */
+      : '37,99,235'    /* accent */
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, W, H)
+    const c = rgb()
+
+    /* update + draw dots */
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy
+      if (p.x < p.r)     { p.x = p.r;     p.vx =  Math.abs(p.vx) }
+      if (p.x > W - p.r) { p.x = W - p.r; p.vx = -Math.abs(p.vx) }
+      if (p.y < p.r)     { p.y = p.r;     p.vy =  Math.abs(p.vy) }
+      if (p.y > H - p.r) { p.y = H - p.r; p.vy = -Math.abs(p.vy) }
+
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
+      ctx.fillStyle = `rgba(${c},.45)`
+      ctx.fill()
+    }
+
+    /* draw bonds between nearby particles */
+    for (let i = 0; i < particles.length - 1; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x
+        const dy = particles[i].y - particles[j].y
+        const d  = Math.sqrt(dx * dx + dy * dy)
+        if (d >= MAX_DIST) continue
+        const alpha = ((1 - d / MAX_DIST) * 0.18).toFixed(3)
+        ctx.beginPath()
+        ctx.moveTo(particles[i].x, particles[i].y)
+        ctx.lineTo(particles[j].x, particles[j].y)
+        ctx.strokeStyle = `rgba(${c},${alpha})`
+        ctx.lineWidth   = 0.8
+        ctx.stroke()
+      }
+    }
+
+    rafId = requestAnimationFrame(frame)
+  }
+
+  init()
+  frame()
+
+  window.addEventListener('resize', init)
+
+  /* pause / resume on PDF export */
+  new MutationObserver(() => {
+    if (document.body.classList.contains('scale-cv')) {
+      cancelAnimationFrame(rafId)
+    } else {
+      cancelAnimationFrame(rafId)
+      frame()
+    }
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] })
+}
+
+initParticles()
