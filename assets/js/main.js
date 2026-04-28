@@ -69,8 +69,8 @@ const i18n = {
     'hero.bio':        'Full Stack Developer dengan 4+ tahun pengalaman membangun aplikasi web dan platform e-commerce yang skalabel. Saya senang mengubah masalah kompleks menjadi solusi yang bersih dan elegan.',
 
     'stat.years':      'Pengalaman',
-        'stat.projects':   'Proyek',
-        'stat.companies':  'Perusahaan',
+    'stat.projects':   'Proyek',
+    'stat.companies':  'Perusahaan',
 
     'btn.download':    'Unduh CV',
     'btn.projects':    'Lihat Proyek',
@@ -130,7 +130,21 @@ function applyLanguage(lang) {
   currentLang = lang
 
   const btn = document.getElementById('lang-toggle')
-  if (btn) btn.textContent = lang === 'en' ? 'ID' : 'EN'
+  if (btn) {
+    btn.textContent = lang === 'en' ? 'ID' : 'EN'
+    btn.setAttribute('aria-label', lang === 'en' ? 'Switch language to Indonesian' : 'Ganti bahasa ke Inggris')
+  }
+
+  // Update meta tags
+  const metaDesc = document.querySelector('meta[name="description"]')
+  if (metaDesc) {
+    metaDesc.setAttribute('content', lang === 'id'
+      ? 'Rizky Adi Satria — Full Stack Developer dengan 4+ tahun pengalaman membangun aplikasi web, platform e-commerce, dan proyek freelance.'
+      : 'Rizky Adi Satria — Full Stack Developer with 4+ years of experience building web applications, e-commerce platforms, and freelance projects.')
+  }
+  document.title = lang === 'id'
+    ? 'Rizky Adi Satria — Full Stack Developer'
+    : 'Rizky Adi Satria — Full Stack Developer'
 }
 
 // Apply on load
@@ -143,20 +157,28 @@ if (langToggle) {
   })
 }
 
-/*==================== SHOW MENU ====================*/
-const showMenu = (toggleId, navId) => {
-  const toggle = document.getElementById(toggleId)
-  const nav    = document.getElementById(navId)
-  if (toggle && nav) {
-    toggle.addEventListener('click', () => nav.classList.toggle('show-menu'))
-  }
+/*==================== SHOW MENU (with aria-expanded) ====================*/
+const navToggle = document.getElementById('nav-toggle')
+const navMenu   = document.getElementById('nav-menu')
+
+if (navToggle && navMenu) {
+  navToggle.addEventListener('click', () => {
+    navMenu.classList.toggle('show-menu')
+    const expanded = navMenu.classList.contains('show-menu')
+    navToggle.setAttribute('aria-expanded', expanded)
+    navToggle.setAttribute('aria-label', expanded ? 'Close menu' : 'Open menu')
+  })
 }
-showMenu('nav-toggle', 'nav-menu')
 
 /*==================== CLOSE MENU ON LINK CLICK ====================*/
 document.querySelectorAll('.nav__link').forEach(link => {
   link.addEventListener('click', () => {
     document.getElementById('nav-menu').classList.remove('show-menu')
+    const tgl = document.getElementById('nav-toggle')
+    if (tgl) {
+      tgl.setAttribute('aria-expanded', 'false')
+      tgl.setAttribute('aria-label', 'Open menu')
+    }
   })
 })
 
@@ -308,7 +330,7 @@ function initCounters() {
       animateCount(entry.target)
       observer.unobserve(entry.target)
     })
-  }, { threshold: 0.5 })
+  }, { threshold: 0.2 })
 
   document.querySelectorAll('.home__stat-num').forEach(el => observer.observe(el))
 }
@@ -350,5 +372,54 @@ initCounters()
       load()
     }
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] })
+})()
+
+/*==================== TYPEWRITER LOOP ====================*/
+;(function () {
+  const el = document.querySelector('.home__profession')
+  if (!el) return
+
+  const roles = {
+    en: ['Full Stack Developer', 'Laravel Developer', 'React Developer', 'MERN Stack Developer'],
+    id: ['Full Stack Developer', 'Laravel Developer', 'React Developer', 'MERN Stack Developer'],
+  }
+
+  const lang = currentLang === 'id' ? 'id' : 'en'
+  let roleIdx = 0
+  let charIdx = roles[lang][0].length  // start with full text visible, then delete
+  let deleting = true
+  const typeSpeed = 65
+  const deleteSpeed = 35
+  const pauseAfterType = 1800
+  const pauseAfterDelete = 300
+
+  function tick() {
+    const lang = currentLang === 'id' ? 'id' : 'en'
+    const role = roles[lang][roleIdx]
+
+    if (!deleting) {
+      charIdx++
+      el.textContent = role.slice(0, charIdx)
+      if (charIdx === role.length) {
+        deleting = true
+        setTimeout(tick, pauseAfterType)
+        return
+      }
+      setTimeout(tick, typeSpeed)
+    } else {
+      charIdx--
+      el.textContent = role.slice(0, charIdx)
+      if (charIdx === 0) {
+        deleting = false
+        roleIdx = (roleIdx + 1) % roles[lang].length
+        setTimeout(tick, pauseAfterDelete)
+        return
+      }
+      setTimeout(tick, deleteSpeed)
+    }
+  }
+
+  // Start after initial entrance animation
+  setTimeout(tick, 1400)
 })()
 

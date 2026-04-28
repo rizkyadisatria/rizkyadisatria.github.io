@@ -11,7 +11,8 @@
   --clr-border:    #e2e8f0;
   --clr-title:     #0f172a;
   --clr-text:      #475569;
-  --clr-muted:     #94a3b8;
+  /* Default muted slightly darker for better contrast (WCAG AA) */
+  --clr-muted:     #64748b;
   --clr-accent:    #2563eb;
   --clr-accent-dk: #1d4ed8;
   --clr-accent-lt: rgba(37, 99, 235, .10);
@@ -131,6 +132,35 @@ a {
 a:hover { color: var(--clr-accent-dk); }
 
 img { max-width: 100%; height: auto; display: block; }
+
+/*===== FOCUS VISIBLE =====*/
+:focus-visible {
+  outline: 2.5px solid var(--clr-accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/*===== SKIP TO CONTENT =====*/
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  z-index: calc(var(--z-fixed) + 1);
+  padding: .6rem 1.2rem;
+  background: var(--clr-accent);
+  color: #fff;
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-sm);
+  border-radius: var(--radius);
+  text-decoration: none;
+  transition: top .2s;
+}
+.skip-link:focus {
+  top: .5rem;
+  color: #fff;
+  outline: 3px solid var(--clr-accent-dk);
+  outline-offset: 2px;
+}
 
 /*===== LAYOUT =====*/
 .bd-container {
@@ -412,9 +442,7 @@ img { max-width: 100%; height: auto; display: block; }
   font-weight: var(--fw-medium);
   color: var(--clr-text);
   margin-bottom: var(--sp-2);
-  overflow: hidden;
   white-space: nowrap;
-  width: 0;
 }
 
 .home__bio {
@@ -1064,20 +1092,9 @@ body.scale-cv {
   to   { opacity: 1; transform: none; }
 }
 
-@keyframes float {
-  0%, 100% { translate: 0 0; }
-  50%       { translate: 0 -10px; }
-}
-
-
 @keyframes ring-pulse {
   0%   { opacity: .8; scale: 1; }
   100% { opacity: 0;  scale: 1.25; }
-}
-
-@keyframes typing {
-  from { width: 0; }
-  to   { width: 19ch; }
 }
 
 @keyframes blink-caret {
@@ -1112,7 +1129,7 @@ body.dark-theme .hero-lottie {
 .home__badge      { animation: fadeInUp .6s ease both .15s; }
 .home__greeting   { animation: fadeInUp .6s ease both .25s; }
 .home__title      { animation: fadeInUp .6s ease both .35s; }
-.home__profession { animation: typing 1.4s steps(19) both .7s; }
+.home__profession { animation: fadeInUp .6s ease both .45s; }
 .home__bio        { animation: fadeInUp .6s ease both .55s; }
 .home__meta       { animation: fadeInUp .6s ease both .65s; }
 .home__btns       { animation: fadeInUp .6s ease both .75s; }
@@ -1124,8 +1141,7 @@ body.dark-theme .hero-lottie {
   color: var(--clr-accent);
   font-weight: 300;
   margin-left: 2px;
-  opacity: 0;
-  animation: blink-caret .85s step-end infinite .7s;
+  animation: blink-caret .85s step-end infinite;
 }
 
 /* ----- Scroll reveal: section headings & generic blocks ----- */

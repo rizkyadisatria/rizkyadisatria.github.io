@@ -7,9 +7,22 @@
     <meta name="theme-color" content="#2563eb">
     <meta name="description" content="Rizky Adi Satria — Full Stack Developer with 4+ years of experience building web applications, e-commerce platforms, and freelance projects.">
     <meta name="keywords" content="Rizky Adi Satria, Full Stack Developer, React, Laravel, Node.js, MERN, Web Developer, Mataram, NTB">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://rizkyadisatria.github.io/">
+
     <meta property="og:title" content="Rizky Adi Satria — Full Stack Developer">
     <meta property="og:description" content="Portfolio of Rizky Adi Satria, Full Stack Developer specializing in web development.">
     <meta property="og:type" content="website">
+    <meta property="og:url" content="https://rizkyadisatria.github.io/">
+    <meta property="og:image" content="https://rizkyadisatria.github.io/assets/img/profile.jpg">
+
+    <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+    <link rel="apple-touch-icon" href="assets/img/favicon.svg">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/boxicons@latest/css/boxicons.min.css">
     <link rel="stylesheet" href="assets/css/styles.css">
@@ -18,6 +31,7 @@
 </head>
 
 <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
 
     <!-- ===== HEADER ===== -->
     <header class="l-header" id="header">
@@ -51,7 +65,7 @@
                         </a>
                     </li>
                     <li class="nav__item">
-                        <a href="#certificates" class="nav__link">
+                        <a href="#projects" class="nav__link">
                             <i class="bx bx-folder nav__icon"></i>
                             <span data-i18n="nav.projects">Projects</span>
                         </a>
@@ -60,7 +74,7 @@
             </div>
 
             <div class="nav__actions">
-                <button class="lang-toggle" id="lang-toggle" title="Switch Language">ID</button>
+                <button class="lang-toggle" id="lang-toggle" title="Switch Language" aria-label="Switch language to Indonesian">ID</button>
                 <i class="bx bx-moon change-theme" id="theme-button" title="Toggle theme"></i>
                 <i class="bx bxs-file-pdf generate-pdf" id="resume-button" title="Download PDF"></i>
                 <button class="nav__toggle" id="nav-toggle" aria-label="Toggle menu">
@@ -70,7 +84,7 @@
         </nav>
     </header>
 
-    <main class="l-main">
+    <main class="l-main" id="main-content">
         <div id="area-cv">
 
             <!-- ===== HOME / HERO ===== -->
@@ -121,7 +135,7 @@
                                 </a>
                             </li>
                             <li>
-                                <a href="https://wa.me/6285933005036" target="_blank">
+                                <a href="https://wa.me/6285933005036" target="_blank" rel="noopener noreferrer">
                                     <i class="bx bx-phone"></i>
                                     <span>+62 859-3300-5036</span>
                                 </a>
@@ -132,7 +146,7 @@
                                 <i class="bx bx-file-blank"></i>
                                 <span data-i18n="btn.download">Download CV</span>
                             </button>
-                            <a href="#certificates" class="btn btn--outline" data-i18n="btn.projects">See Projects</a>
+                            <a href="#projects" class="btn btn--outline" data-i18n="btn.projects">See Projects</a>
                         </div>
                         <!-- Stats: mobile only (below buttons) -->
                         <div class="home__stats home__stats--mobile">
@@ -175,7 +189,7 @@
                                     <h3 class="timeline__title" data-i18n="exp1.title">Technical Support</h3>
                                     <span class="timeline__badge" data-i18n="exp.badge1">Aug 2021 – Feb 2022</span>
                                 </div>
-                                <p class="timeline__company">CV. Data Digital Indonesia &mdash; <a href="https://dewahoster.co.id" target="_blank">dewahoster.co.id</a></p>
+                                <p class="timeline__company">CV. Data Digital Indonesia &mdash; <a href="https://dewahoster.co.id" target="_blank" rel="noopener noreferrer">dewahoster.co.id</a></p>
                                 <p class="timeline__desc" data-i18n="exp1.desc">Resolved client issues related to domain management, hosting configuration, and WordPress websites. Provided step-by-step technical guidance and troubleshooting support.</p>
                             </div>
                         </div>
@@ -186,7 +200,7 @@
                                     <h3 class="timeline__title" data-i18n="exp2.title">Full Stack Developer</h3>
                                     <span class="timeline__badge" data-i18n="exp.badge2">Mar 2022 – Present</span>
                                 </div>
-                                <p class="timeline__company">PT. Bumigora Karya Mandiri &mdash; <a href="https://bumigorashop.com" target="_blank">bumigorashop.com</a></p>
+                                <p class="timeline__company">PT. Bumigora Karya Mandiri &mdash; <a href="https://bumigorashop.com" target="_blank" rel="noopener noreferrer">bumigorashop.com</a></p>
                                 <p class="timeline__desc" data-i18n="exp2.desc">Built and maintained the Bumigorashop e-commerce platform from the ground up, collaborating with a designer to create a marketplace that empowers local sellers to reach wider markets.</p>
                             </div>
                         </div>
@@ -256,7 +270,7 @@
             </section>
 
             <!-- ===== PROJECTS ===== -->
-            <section class="certificate section" id="certificates">
+            <section class="certificate section" id="projects">
                 <div class="bd-container">
                     <h2 class="section-title" data-i18n="section.projects">Projects</h2>
                     <div class="projects__grid">
@@ -268,7 +282,7 @@
                             </div>
                             <h3 class="project-card__title">Google Clone</h3>
                             <p class="project-card__desc" data-i18n="proj1.desc">A functional clone of Google Search built with React.js, Tailwind CSS, and the Google Search API — replicating the UI and delivering real-time search results.</p>
-                            <a href="https://googlesearch-rizkyadisatria.vercel.app/" target="_blank" class="project-card__link">
+                            <a href="https://googlesearch-rizkyadisatria.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Google Clone project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
                         </article>
@@ -280,7 +294,7 @@
                             </div>
                             <h3 class="project-card__title">LuxSpace</h3>
                             <p class="project-card__desc" data-i18n="proj2.desc">A furniture e-commerce landing page built from a Figma design using HTML, CSS, and vanilla JavaScript. Course final project from BuildWithAngga.</p>
-                            <a href="https://luxspace-rizkyadisatria.vercel.app/" target="_blank" class="project-card__link">
+                            <a href="https://luxspace-rizkyadisatria.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View LuxSpace project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
                         </article>
@@ -292,7 +306,7 @@
                             </div>
                             <h3 class="project-card__title">Aroma Bumi</h3>
                             <p class="project-card__desc" data-i18n="proj3.desc">A coffee shop landing page built from a Figma design using HTML, CSS, and JavaScript. Course final project from Progate.</p>
-                            <a href="https://coffee-rizkyadisatria.vercel.app/" target="_blank" class="project-card__link">
+                            <a href="https://coffee-rizkyadisatria.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Aroma Bumi project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
                         </article>
@@ -304,7 +318,7 @@
                             </div>
                             <h3 class="project-card__title">Pokémon Catch</h3>
                             <p class="project-card__desc" data-i18n="proj4.desc">A Pokédex web app integrating the public PokéAPI, allowing users to browse and "catch" Pokémon. Built with HTML, CSS, and JavaScript.</p>
-                            <a href="https://pokemon-rizkyadisatria.vercel.app/" target="_blank" class="project-card__link">
+                            <a href="https://pokemon-rizkyadisatria.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Pokémon Catch project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
                         </article>
@@ -316,7 +330,7 @@
                             </div>
                             <h3 class="project-card__title">Lina Boutique Villas & Spa</h3>
                             <p class="project-card__desc" data-i18n="proj5.desc">A hotel booking website for a property in Kuta, Lombok. Built with WordPress and integrated with a third-party payment gateway.</p>
-                            <a href="https://linalombok.com" target="_blank" class="project-card__link">
+                            <a href="https://linalombok.com" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Lina Boutique Villas project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
                         </article>
@@ -328,7 +342,7 @@
                             </div>
                             <h3 class="project-card__title">The Lombok Villas</h3>
                             <p class="project-card__desc" data-i18n="proj6.desc">A villa booking website built with WordPress, developed through a referral partnership with Lina Boutique Villas & Spa for properties in Lombok.</p>
-                            <a href="https://thelombokhouses.com" target="_blank" class="project-card__link">
+                            <a href="https://thelombokhouses.com" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View The Lombok Villas project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
                         </article>
@@ -340,7 +354,7 @@
                             </div>
                             <h3 class="project-card__title">Tunnels</h3>
                             <p class="project-card__desc" data-i18n="proj7.desc">A full-featured B2B platform built with the MERN stack. Features product catalog, user authentication, admin dashboard, purchasing system, and payment gateway.</p>
-                            <a href="https://tunnels-phi.vercel.app/" target="_blank" class="project-card__link">
+                            <a href="https://tunnels-phi.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Tunnels project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
                         </article>
@@ -352,7 +366,7 @@
                             </div>
                             <h3 class="project-card__title">Seqolah</h3>
                             <p class="project-card__desc" data-i18n="proj8.desc">A SaaS platform combining an AI-assisted website builder with a school fee management system (SPP). Supports invoice generation, multi-gateway payments, WhatsApp notifications, and subscription billing. Built with Laravel 12, React, Inertia.js, and Firebase.</p>
-                            <a href="https://seqolah.com/" target="_blank" class="project-card__link">
+                            <a href="https://seqolah.com/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Seqolah project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
                         </article>
@@ -367,10 +381,10 @@
                     <div>
                         <h2 class="section-title" data-i18n="section.social">Social</h2>
                         <div class="social-links">
-                            <a href="https://github.com/rizkyadisatria" target="_blank" class="social-link">
+                            <a href="https://github.com/rizkyadisatria" target="_blank" rel="noopener noreferrer" class="social-link">
                                 <i class="bx bxl-github"></i><span>rizkyadisatria</span>
                             </a>
-                            <a href="https://instagram.com/rzkydst" target="_blank" class="social-link">
+                            <a href="https://instagram.com/rzkydst" target="_blank" rel="noopener noreferrer" class="social-link">
                                 <i class="bx bxl-instagram"></i><span>@rzkydst</span>
                             </a>
                         </div>
@@ -493,6 +507,34 @@
     <a href="#" class="scrolltop" id="scroll-top">
         <i class="bx bx-chevron-up"></i>
     </a>
+
+    <!-- ===== JSON-LD Structured Data ===== -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "name": "Rizky Adi Satria",
+      "jobTitle": "Full Stack Developer",
+      "url": "https://rizkyadisatria.github.io/",
+      "email": "rizkyadsatria@gmail.com",
+      "telephone": "+6285933005036",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Mataram",
+        "addressRegion": "Nusa Tenggara Barat",
+        "addressCountry": "ID"
+      },
+      "sameAs": [
+        "https://github.com/rizkyadisatria",
+        "https://instagram.com/rzkydst"
+      ],
+      "knowsAbout": ["React.js", "Laravel", "Node.js", "MongoDB", "MySQL", "WordPress", "Tailwind CSS", "Linux", "MERN Stack"],
+      "alumniOf": {
+        "@type": "CollegeOrUniversity",
+        "name": "Universitas Bumigora"
+      }
+    }
+    </script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
     <script src="assets/js/html2pdf.bundle.min.js"></script>
