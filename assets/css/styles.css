@@ -412,6 +412,9 @@ img { max-width: 100%; height: auto; display: block; }
   font-weight: var(--fw-medium);
   color: var(--clr-text);
   margin-bottom: var(--sp-2);
+  overflow: hidden;
+  white-space: nowrap;
+  width: 0;
 }
 
 .home__bio {
@@ -1072,6 +1075,11 @@ body.scale-cv {
   100% { opacity: 0;  scale: 1.25; }
 }
 
+@keyframes typing {
+  from { width: 0; }
+  to   { width: 19ch; }
+}
+
 @keyframes blink-caret {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0; }
@@ -1104,7 +1112,7 @@ body.dark-theme .hero-lottie {
 .home__badge      { animation: fadeInUp .6s ease both .15s; }
 .home__greeting   { animation: fadeInUp .6s ease both .25s; }
 .home__title      { animation: fadeInUp .6s ease both .35s; }
-.home__profession { animation: fadeInUp .6s ease both .45s; }
+.home__profession { animation: typing 1.4s steps(19) both .7s; }
 .home__bio        { animation: fadeInUp .6s ease both .55s; }
 .home__meta       { animation: fadeInUp .6s ease both .65s; }
 .home__btns       { animation: fadeInUp .6s ease both .75s; }
@@ -1116,7 +1124,8 @@ body.dark-theme .hero-lottie {
   color: var(--clr-accent);
   font-weight: 300;
   margin-left: 2px;
-  animation: blink-caret .85s step-end infinite;
+  opacity: 0;
+  animation: blink-caret .85s step-end infinite .7s;
 }
 
 /* ----- Scroll reveal: section headings & generic blocks ----- */
