@@ -264,6 +264,9 @@ img { max-width: 100%; height: auto; display: block; }
 .home {
   padding-top: var(--sp-4);
   padding-bottom: var(--sp-5);
+  min-height: calc(95dvh - var(--nav-h));
+  display: flex;
+  align-items: center;
 }
 
 .home__container {
@@ -916,7 +919,7 @@ body.scale-cv {
 .scale-cv .home__btns,
 .scale-cv .scrolltop { display: none !important; }
 .scale-cv .section { padding: 1rem 0; }
-.scale-cv .home { padding-top: 1rem; padding-bottom: 1rem; }
+.scale-cv .home { padding-top: 1rem; padding-bottom: 1rem; min-height: 0; }
 .scale-cv .home__img { width: 80px; height: 80px; }
 .scale-cv .bd-container { padding: 0 1rem; }
 .scale-cv body { margin: 0; }
