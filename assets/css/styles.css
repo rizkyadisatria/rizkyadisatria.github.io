@@ -1069,7 +1069,7 @@ body.scale-cv {
 
 @keyframes ring-pulse {
   0%   { opacity: .8; scale: 1; }
-  100% { opacity: 0;  scale: 1.5; }
+  100% { opacity: 0;  scale: 1.25; }
 }
 
 @keyframes blink-caret {
