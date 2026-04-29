@@ -81,6 +81,9 @@ const i18n = {
     'contact.message': 'Message',
     'contact.send': 'Send Message',
     'contact.note': 'Or reach me directly via <a href="mailto:rizkyadsatria@gmail.com">email</a> or <a href="https://wa.me/6285933005036" target="_blank" rel="noopener noreferrer">WhatsApp</a>.',
+    'contact.namePlaceholder': 'Your name',
+    'contact.emailPlaceholder': 'your@email.com',
+    'contact.messagePlaceholder': 'Tell me about your project...',
   },
   id: {
     'nav.home':        'Beranda',
@@ -163,6 +166,9 @@ const i18n = {
     'contact.message': 'Pesan',
     'contact.send': 'Kirim Pesan',
     'contact.note': 'Atau hubungi langsung via <a href="mailto:rizkyadsatria@gmail.com">email</a> atau <a href="https://wa.me/6285933005036" target="_blank" rel="noopener noreferrer">WhatsApp</a>.',
+    'contact.namePlaceholder': 'Nama Anda',
+    'contact.emailPlaceholder': 'email@anda.com',
+    'contact.messagePlaceholder': 'Ceritakan tentang proyek Anda...',
   }
 }
 
@@ -178,6 +184,12 @@ function applyLanguage(lang) {
       } else {
         el.textContent = i18n[lang][key]
       }
+    }
+  })
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder')
+    if (i18n[lang][key] !== undefined) {
+      el.setAttribute('placeholder', i18n[lang][key])
     }
   })
   document.documentElement.setAttribute('data-lang', lang)
