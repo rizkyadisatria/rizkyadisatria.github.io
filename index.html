@@ -53,6 +53,12 @@
                         </a>
                     </li>
                     <li class="nav__item">
+                        <a href="#services" class="nav__link">
+                            <i class="bx bx-bulb nav__icon"></i>
+                            <span data-i18n="nav.services">Services</span>
+                        </a>
+                    </li>
+                    <li class="nav__item">
                         <a href="#experience" class="nav__link">
                             <i class="bx bx-briefcase nav__icon"></i>
                             <span data-i18n="nav.experience">Experience</span>
@@ -68,6 +74,12 @@
                         <a href="#projects" class="nav__link">
                             <i class="bx bx-folder nav__icon"></i>
                             <span data-i18n="nav.projects">Projects</span>
+                        </a>
+                    </li>
+                    <li class="nav__item">
+                        <a href="#contact" class="nav__link">
+                            <i class="bx bx-envelope nav__icon"></i>
+                            <span data-i18n="nav.contact">Contact</span>
                         </a>
                     </li>
                 </ul>
@@ -177,6 +189,45 @@
                 </div>
             </section>
 
+            <!-- ===== SERVICES ===== -->
+            <section class="services section" id="services">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.services">Services</h2>
+                    <div class="services__grid">
+                        <div class="service-card">
+                            <i class="bx bx-shopping-bag service-card__icon"></i>
+                            <h3 class="service-card__title" data-i18n="svc1.title">E-Commerce</h3>
+                            <p class="service-card__desc" data-i18n="svc1.desc">Custom online stores with product management, payment gateways, and admin dashboards.</p>
+                        </div>
+                        <div class="service-card">
+                            <i class="bx bx-buildings service-card__icon"></i>
+                            <h3 class="service-card__title" data-i18n="svc2.title">Company Profile</h3>
+                            <p class="service-card__desc" data-i18n="svc2.desc">Professional landing pages and company websites that showcase your brand and services.</p>
+                        </div>
+                        <div class="service-card">
+                            <i class="bx bx-hotel service-card__icon"></i>
+                            <h3 class="service-card__title" data-i18n="svc3.title">Booking Systems</h3>
+                            <p class="service-card__desc" data-i18n="svc3.desc">Hotel, villa, and property booking platforms with calendar management and payment integration.</p>
+                        </div>
+                        <div class="service-card">
+                            <i class="bx bx-cloud service-card__icon"></i>
+                            <h3 class="service-card__title" data-i18n="svc4.title">VPS & DevOps</h3>
+                            <p class="service-card__desc" data-i18n="svc4.desc">Linux VPS setup, deployment automation, VPN configuration, Mikrotik management, and network infrastructure.</p>
+                        </div>
+                        <div class="service-card">
+                            <i class="bx bx-wrench service-card__icon"></i>
+                            <h3 class="service-card__title" data-i18n="svc5.title">Custom Web App</h3>
+                            <p class="service-card__desc" data-i18n="svc5.desc">Tailor-made web applications — SaaS platforms, dashboards, internal tools — built to your specifications.</p>
+                        </div>
+                        <div class="service-card">
+                            <i class="bx bxl-wordpress service-card__icon"></i>
+                            <h3 class="service-card__title" data-i18n="svc6.title">WordPress</h3>
+                            <p class="service-card__desc" data-i18n="svc6.desc">WordPress site development, theme customization, plugin setup, and hosting configuration.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- ===== EXPERIENCE ===== -->
             <section class="experience section" id="experience">
                 <div class="bd-container">
@@ -252,19 +303,37 @@
             <section class="skills section" id="skills">
                 <div class="bd-container">
                     <h2 class="section-title" data-i18n="section.skills">Skills</h2>
-                    <div class="skills__wrap">
-                        <span class="skill-tag">HTML & CSS</span>
-                        <span class="skill-tag">JavaScript</span>
-                        <span class="skill-tag">React.js</span>
-                        <span class="skill-tag">Laravel</span>
-                        <span class="skill-tag">Node.js</span>
-                        <span class="skill-tag">Express.js</span>
-                        <span class="skill-tag">MongoDB</span>
-                        <span class="skill-tag">MySQL</span>
-                        <span class="skill-tag">WordPress</span>
-                        <span class="skill-tag">Tailwind CSS</span>
-                        <span class="skill-tag">Git & GitHub</span>
-                        <span class="skill-tag">Linux / VPS</span>
+                    <div class="skills__groups">
+                        <div class="skills__group">
+                            <h3 class="skills__group-title"><i class="bx bx-laptop"></i> Frontend</h3>
+                            <div class="skills__wrap">
+                                <span class="skill-tag">HTML & CSS</span>
+                                <span class="skill-tag">JavaScript</span>
+                                <span class="skill-tag">React.js</span>
+                                <span class="skill-tag">Tailwind CSS</span>
+                                <span class="skill-tag">Inertia.js</span>
+                            </div>
+                        </div>
+                        <div class="skills__group">
+                            <h3 class="skills__group-title"><i class="bx bx-server"></i> Backend</h3>
+                            <div class="skills__wrap">
+                                <span class="skill-tag">Laravel</span>
+                                <span class="skill-tag">Node.js</span>
+                                <span class="skill-tag">Express.js</span>
+                                <span class="skill-tag">MongoDB</span>
+                                <span class="skill-tag">MySQL</span>
+                                <span class="skill-tag">WordPress</span>
+                            </div>
+                        </div>
+                        <div class="skills__group">
+                            <h3 class="skills__group-title"><i class="bx bx-cog"></i> DevOps & Tools</h3>
+                            <div class="skills__wrap">
+                                <span class="skill-tag">Git & GitHub</span>
+                                <span class="skill-tag">Linux / VPS</span>
+                                <span class="skill-tag">Firebase</span>
+                                <span class="skill-tag">Mikrotik</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -282,6 +351,11 @@
                             </div>
                             <h3 class="project-card__title">Google Clone</h3>
                             <p class="project-card__desc" data-i18n="proj1.desc">A functional clone of Google Search built with React.js, Tailwind CSS, and the Google Search API — replicating the UI and delivering real-time search results.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">React.js</span>
+                                <span class="project-tag">Tailwind CSS</span>
+                                <span class="project-tag">API</span>
+                            </div>
                             <a href="https://googlesearch-rizkyadisatria.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Google Clone project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
@@ -294,6 +368,11 @@
                             </div>
                             <h3 class="project-card__title">LuxSpace</h3>
                             <p class="project-card__desc" data-i18n="proj2.desc">A furniture e-commerce landing page built from a Figma design using HTML, CSS, and vanilla JavaScript. Course final project from BuildWithAngga.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">HTML</span>
+                                <span class="project-tag">CSS</span>
+                                <span class="project-tag">JavaScript</span>
+                            </div>
                             <a href="https://luxspace-rizkyadisatria.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View LuxSpace project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
@@ -306,6 +385,11 @@
                             </div>
                             <h3 class="project-card__title">Aroma Bumi</h3>
                             <p class="project-card__desc" data-i18n="proj3.desc">A coffee shop landing page built from a Figma design using HTML, CSS, and JavaScript. Course final project from Progate.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">HTML</span>
+                                <span class="project-tag">CSS</span>
+                                <span class="project-tag">JavaScript</span>
+                            </div>
                             <a href="https://coffee-rizkyadisatria.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Aroma Bumi project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
@@ -318,6 +402,12 @@
                             </div>
                             <h3 class="project-card__title">Pokémon Catch</h3>
                             <p class="project-card__desc" data-i18n="proj4.desc">A Pokédex web app integrating the public PokéAPI, allowing users to browse and "catch" Pokémon. Built with HTML, CSS, and JavaScript.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">HTML</span>
+                                <span class="project-tag">CSS</span>
+                                <span class="project-tag">JavaScript</span>
+                                <span class="project-tag">API</span>
+                            </div>
                             <a href="https://pokemon-rizkyadisatria.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Pokémon Catch project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
@@ -330,6 +420,10 @@
                             </div>
                             <h3 class="project-card__title">Lina Boutique Villas & Spa</h3>
                             <p class="project-card__desc" data-i18n="proj5.desc">A hotel booking website for a property in Kuta, Lombok. Built with WordPress and integrated with a third-party payment gateway.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">WordPress</span>
+                                <span class="project-tag">Payment Gateway</span>
+                            </div>
                             <a href="https://linalombok.com" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Lina Boutique Villas project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
@@ -342,6 +436,10 @@
                             </div>
                             <h3 class="project-card__title">The Lombok Villas</h3>
                             <p class="project-card__desc" data-i18n="proj6.desc">A villa booking website built with WordPress, developed through a referral partnership with Lina Boutique Villas & Spa for properties in Lombok.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">WordPress</span>
+                                <span class="project-tag">Booking</span>
+                            </div>
                             <a href="https://thelombokhouses.com" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View The Lombok Villas project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
@@ -354,6 +452,12 @@
                             </div>
                             <h3 class="project-card__title">Tunnels</h3>
                             <p class="project-card__desc" data-i18n="proj7.desc">A full-featured B2B platform built with the MERN stack. Features product catalog, user authentication, admin dashboard, purchasing system, and payment gateway.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">React</span>
+                                <span class="project-tag">Node.js</span>
+                                <span class="project-tag">Express</span>
+                                <span class="project-tag">MongoDB</span>
+                            </div>
                             <a href="https://tunnels-phi.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Tunnels project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
@@ -365,13 +469,49 @@
                                 <span class="project-card__year">2026</span>
                             </div>
                             <h3 class="project-card__title">Seqolah</h3>
-                            <p class="project-card__desc" data-i18n="proj8.desc">A SaaS platform combining an AI-assisted website builder with a school fee management system (SPP). Supports invoice generation, multi-gateway payments, WhatsApp notifications, and subscription billing. Built with Laravel 12, React, Inertia.js, and Firebase.</p>
+                            <p class="project-card__desc" data-i18n="proj8.desc">A school fee management platform (SPP) with invoice generation, multi-gateway payments, WhatsApp notifications, and subscription billing. Built with Laravel 12, React, Inertia.js, and Firebase.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">Laravel 12</span>
+                                <span class="project-tag">React</span>
+                                <span class="project-tag">Inertia.js</span>
+                                <span class="project-tag">Firebase</span>
+                            </div>
                             <a href="https://seqolah.com/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Seqolah project">
                                 <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
                             </a>
                         </article>
 
                     </div>
+                </div>
+            </section>
+
+            <!-- ===== CONTACT ===== -->
+            <section class="contact section" id="contact">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.contact">Get in Touch</h2>
+                    <p class="contact__intro" data-i18n="contact.intro">Have a project in mind or want to discuss an opportunity? I'd love to hear from you.</p>
+                    <form class="contact__form" id="contact-form" action="https://formspree.io/f/mzdynjbp" method="POST">
+                        <div class="contact__row">
+                            <div class="contact__field">
+                                <label for="name" class="contact__label" data-i18n="contact.name">Name</label>
+                                <input type="text" name="name" id="name" class="contact__input" required placeholder="Your name">
+                            </div>
+                            <div class="contact__field">
+                                <label for="email" class="contact__label" data-i18n="contact.email">Email</label>
+                                <input type="email" name="email" id="email" class="contact__input" required placeholder="your@email.com">
+                            </div>
+                        </div>
+                        <div class="contact__field">
+                            <label for="message" class="contact__label" data-i18n="contact.message">Message</label>
+                            <textarea name="message" id="message" class="contact__input contact__textarea" rows="5" required placeholder="Tell me about your project..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn--primary contact__submit" id="contact-submit-btn">
+                            <i class="bx bx-send"></i>
+                            <span data-i18n="contact.send">Send Message</span>
+                        </button>
+                        <p class="contact__status" id="contact-status" aria-live="polite"></p>
+                        <p class="contact__note" data-i18n="contact.note">Or reach me directly via <a href="mailto:rizkyadsatria@gmail.com">email</a> or <a href="https://wa.me/6285933005036" target="_blank" rel="noopener noreferrer">WhatsApp</a>.</p>
+                    </form>
                 </div>
             </section>
 
