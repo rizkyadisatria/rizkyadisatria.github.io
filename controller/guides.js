@@ -10,6 +10,17 @@ window.SITE = {
 
 window.GUIDES = [
   {
+    slug: "listrik-pintar",
+    judul: "Listrik Pintar dan Biaya Rupiah",
+    ringkas: "Nyalakan dan matikan lampu atau alat lain dari HP, ukur watt dan kWh tiap alat, dan hitung biaya dalam Rupiah untuk listrik prabayar (token) 900 VA. Memakai colokan pintar ber-meter dan Home Assistant, plus opsi ESP32 membaca meteran.",
+    level: "Menengah",
+    tahap: "6 tahap + kalkulator",
+    komponen: ["Colokan pintar", "Home Assistant", "ESP32", "LDR"],
+    status: "Belum diuji di rumah, kalkulator sudah dicek",
+    gambar: "stasiun-cuaca/img/esp32.jpg",
+    diperbarui: "2026-10-09"
+  },
+  {
     slug: "home-assistant",
     judul: "Stasiun Cuaca di Home Assistant",
     ringkas: "Sambungkan stasiun cuaca ke Home Assistant dengan ESPHome: dashboard suhu, kelembapan, cahaya, kontrol LED dan buzzer, serta otomasi alarm kalau kamar panas. Dipandu dari install di Windows.",

@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Listrik Pintar dan Biaya Rupiah · Panduan Elektronika</title>
+<meta name="description" content="Nyalakan dan matikan lampu atau alat elektronik dari Home Assistant, ukur watt dan kWh tiap alat, dan hitung biaya dalam Rupiah untuk listrik prabayar (token).">
+<meta name="theme-color" content="#a9531c">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../assets/tema.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;padding:0 16px 64px}
+.wrap{max-width:780px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);font-weight:600;line-height:1.1;text-wrap:balance;margin:0}
+h1{font-size:2.6rem}h2{font-size:1.9rem}h3{font-size:1.3rem}
+p{margin:0}a{color:var(--accent)}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.back{display:inline-block;font-family:var(--mono);font-size:.82rem;margin-bottom:10px}
+header{padding-block:32px 8px;display:grid;gap:12px}
+.lead{max-width:62ch;color:var(--muted)}
+section{padding-block:36px 4px;display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:12px}
+.note{border-radius:10px;padding:12px 14px;font-size:.93rem;display:grid;gap:4px}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+.note.ok{background:var(--ok-soft);color:var(--ok)}
+.note.info{background:var(--accent-soft);color:var(--ink)}
+ol,ul{margin:0;padding-left:1.25rem;display:grid;gap:8px}
+code{font-family:var(--mono);font-size:.86em;background:var(--chip);color:var(--chip-fg);padding:1px 6px;border-radius:4px}
+pre{margin:0;background:var(--chip);color:var(--chip-fg);border-radius:10px;padding:14px;overflow-x:auto;font-family:var(--mono);font-size:.8rem;line-height:1.5;position:relative;max-width:100%}
+pre code{background:none;padding:0;font-size:inherit;color:inherit}
+.cp{position:absolute;top:8px;right:8px;font:inherit;font-size:.72rem;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:3px 9px;cursor:pointer}
+.codewrap{position:relative}
+.codewrap pre{padding-top:34px}
+.card>*,section>*,.codewrap{min-width:0}
+.card{overflow-wrap:anywhere}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+th{font-family:var(--mono);font-size:.74rem;text-transform:uppercase;color:var(--muted)}
+label.step{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+label.step input{margin-top:6px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.progress{font-family:var(--mono);font-size:.82rem;color:var(--muted)}
+.muted{color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media (max-width:480px){h1{font-size:2.1rem}h2{font-size:1.65rem}}
+
+.calc{display:grid;gap:10px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.row label{display:grid;gap:4px;font-size:.82rem;color:var(--muted)}
+.row input,.row select{font:inherit;font-size:1rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0;width:100%}
+.res{font-family:var(--display);font-size:1.7rem;color:var(--accent);line-height:1.1}
+.res small{font-family:var(--body);font-size:.85rem;color:var(--muted);display:block;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a class="back" href="../">← Semua panduan</a>
+  <span class="eyebrow">Proyek 3 · Home Assistant · Listrik</span>
+  <h1>Listrik Pintar dan Biaya Rupiah</h1>
+  <p class="lead">Hasilnya: kamu bisa menyalakan dan mematikan lampu atau alat lain dari HP, melihat berapa watt dan kWh yang dipakai tiap alat, dan melihat perkiraan biayanya dalam Rupiah dari listrik prabayar (token) 900 VA-mu. Panduan ini menggantikan arah panduan Home Assistant sebelumnya. Pemasangan Home Assistant di sana (Tahap 1–2) tetap dipakai.</p>
+  <p class="progress" id="prog">0 / 0 langkah</p>
+</header>
+
+<section>
+  <h2>Gambaran dan keselamatan</h2>
+  <div class="card">
+    <ul>
+      <li><b>Colokan pintar ber-meter</b> dipasang di antara stopkontak dan alatmu. Ia memutus/menyambung listrik dan mengukur watt serta kWh alat itu.</li>
+      <li><b>Home Assistant</b> mengumpulkan semua colokan, menampilkan grafik, dan menjalankan otomasi.</li>
+      <li><b>Kalkulator di Tahap 3</b> mengubah kWh menjadi Rupiah memakai tarif efektif token-mu, termasuk potongan admin dan pajak.</li>
+      <li><b>ESP32 (opsional, Tahap 6)</b> membaca kedipan LED di meteran prabayar untuk mengukur total seluruh rumah, tanpa menyentuh kabel listrik.</li>
+    </ul>
+    <div class="note warn"><b>Kenapa tidak merakit sendiri dengan relay</b><p>Menyambung relay atau sensor ke kabel 220V langsung berisiko sengatan dan kebakaran kalau salah sambung. Relay SRD-05VDC di kitmu cocok untuk beban tegangan rendah, bukan untuk stopkontak rumah. Colokan siap pakai sudah tertutup rapat dan lolos uji. Itu pilihan yang lebih aman untuk tahap belajar.</p></div>
+    <div class="note warn"><b>Batas daya 900 VA</b><p>Daya terpasang rumahmu sekitar 900 VA. Kalau total alat yang menyala bersamaan melewati itu, MCB meteran akan turun. Pasang colokan hanya untuk alat kecil sampai sedang (lampu, kipas, charger, TV, laptop, kulkas kecil). Jangan untuk AC, pompa air, atau pemanas, dan jangan menyambung colokan pintar ke colokan pintar lain.</p></div>
+  </div>
+</section>
+
+<section id="t0">
+  <span class="eyebrow">Sebelum beli</span>
+  <h2>Pilih colokan pintar</h2>
+  <div class="card">
+    <p>Cari yang memenuhi semua ini. Baca deskripsi produknya, jangan hanya judul:</p>
+    <ul>
+      <li>Tertulis <b>energy monitoring</b> atau <b>power metering</b> (menampilkan W dan kWh), bukan hanya on/off.</li>
+      <li>Rating minimal <b>10 A</b> dan colokan sesuai stopkontak Indonesia (tipe C/F, dua bulat).</li>
+      <li>Bisa dipakai di Home Assistant. Yang paling mudah: merek yang punya integrasi resmi HA, seperti <b>Shelly</b> (kontrol lokal) dan <b>TP-Link Tapo seri P110</b>. Colokan berbasis <b>Tuya / Smart Life</b> juga bisa, tapi bergantung pada cloud kecuali diatur lokal.</li>
+      <li>Frekuensi WiFi <b>2.4 GHz</b>.</li>
+    </ul>
+    <div class="note info"><b>Yang saya belum bisa pastikan</b><p>Harga dan stok berubah-ubah, dan akurasi alat murah bisa melenceng beberapa persen. Cek ketersediaan dan ulasan di marketplace. Beli satu dulu, dicoba pada satu alat, baru tambah.</p></div>
+  </div>
+</section>
+
+<section id="t1">
+  <span class="eyebrow">Tahap 1</span>
+  <h2>Pasang Home Assistant</h2>
+  <div class="card">
+    <p>Ikuti Tahap 1 dan 2 di <a href="../home-assistant/#t1">panduan Home Assistant</a> (Docker Desktop lalu HA). Lewati bagian ESPHome kalau hanya memakai colokan.</p>
+    <ol>
+      <li data-s>Buka <code>http://localhost:8123</code> dan pastikan kamu bisa masuk.</li>
+      <li data-s>Di <b>Pengaturan → Sistem → Umum</b>, set mata uang ke <b>IDR (Rupiah)</b>, satuan metrik, dan zona waktu Asia/Makassar.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="t2">
+  <span class="eyebrow">Tahap 2</span>
+  <h2>Pasang colokan dan tambahkan ke HA</h2>
+  <div class="card">
+    <ol>
+      <li data-s>Colok colokan pintar ke stopkontak (tanpa alat dulu) dan pasangkan ke WiFi 2.4 GHz lewat aplikasi bawaan merek itu. Itu pengaturan awal wajib untuk hampir semua merek.</li>
+      <li data-s>Di HA: <b>Pengaturan → Perangkat &amp; layanan → Tambah integrasi</b>, cari merek colokanmu (<b>Shelly</b>, <b>TP-Link Smart Home</b> untuk Tapo, atau <b>Tuya</b>). Di Docker Windows, penemuan otomatis sering tidak muncul, jadi masukkan IP colokan manual (lihat IP-nya di aplikasi atau router).</li>
+      <li data-s>Buka perangkatnya. Harus ada saklar (on/off) dan sensor <b>daya (W)</b>, <b>energi (kWh)</b>, biasanya juga tegangan dan arus.</li>
+      <li data-s>Colokkan satu alat ke colokan pintar, lalu nyalakan lewat saklar di HA. Alat harus menyala dan sensor daya menunjukkan angka.</li>
+    </ol>
+    <div class="note ok"><b>Berhasil kalau</b><p>Alat bisa dihidupkan dan dimatikan dari HA, dan angka watt berubah saat alat dinyalakan. Kipas misalnya sekitar 30–60 W.</p></div>
+    <div class="note info"><b>Beri nama dan ruangan</b><p>Ubah nama entitas jadi jelas (misal "Colokan Kipas"). Nama itu menentukan ID entitas, yang dipakai di YAML Tahap 4 dan 5.</p></div>
+  </div>
+</section>
+
+<section id="t3">
+  <span class="eyebrow">Tahap 3</span>
+  <h2>Hitung tarif efektif token-mu</h2>
+  <div class="card">
+    <p>Tarif resmi PLN per kWh tidak sama dengan biaya sebenarnya, karena sebagian uang token dipotong biaya admin dan pajak penerangan jalan (PPJ) sebelum jadi kWh. Cara paling jujur: bagi uang yang kamu bayar dengan kWh yang kamu terima di struk token terakhir.</p>
+    <div class="note info"><b>Tarif resmi sebagai pembanding</b><p>Menurut <a href="https://journalarta.com/news/2026/10/06/tarif-listrik-pln-terbaru-oktober-2026/">laporan 6 Oktober 2026</a>, tarif 900 VA non-subsidi (R-1/TR 900 VA-RTM) Rp1.352 per kWh, dan tidak ada kenaikan untuk kuartal ini. Ada dua jenis 900 VA, subsidi dan non-subsidi, dan saya tidak bisa memastikan punyamu yang mana. Struk token menunjukkan tarif yang kamu bayar.</p></div>
+    <div class="calc" id="c1">
+      <div class="row">
+        <label>Uang yang dibayar (Rp)<input id="bayar" type="number" inputmode="decimal" min="0" placeholder="100000"></label>
+        <label>kWh yang diterima (dari struk)<input id="kwhterima" type="number" inputmode="decimal" min="0" step="0.01" placeholder="64.5"></label>
+      </div>
+      <div class="res" id="out1">Isi dua angka di atas<small>Tarif efektif = uang dibayar dibagi kWh diterima</small></div>
+    </div>
+    <ol>
+      <li data-s>Ambil struk token terakhir (di aplikasi PLN Mobile, m-banking, atau pesan SMS), isi dua angka di atas.</li>
+      <li data-s>Catat tarif efektif yang muncul. Angka itu dipakai di semua perhitungan biaya di bawah. Tersimpan di browser ini.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="t4">
+  <span class="eyebrow">Tahap 4</span>
+  <h2>Biaya Rupiah per alat di HA</h2>
+  <div class="card">
+    <p>Pertama, daftarkan ke dashboard Energi bawaan HA: <b>Pengaturan → Dasbor → Energi</b>. Tambahkan colokanmu di bagian <b>Perangkat individu</b>, dan di bagian listrik jaringan masukkan <b>harga statis</b> sebesar tarif efektif (Rp per kWh).</p>
+    <p>Kedua, untuk melihat <b>Rupiah per alat</b> sebagai sensor sendiri yang bisa ditaruh di dashboard atau dipakai di otomasi, tambahkan ini ke <code>C:\ha\config\configuration.yaml</code> dan mulai ulang HA:</p>
+    <div class="codewrap"><button class="cp" type="button">Salin</button><pre><code># Tempel ke C:\ha\config\configuration.yaml (tambahkan di bawah isi yang sudah ada), lalu
+# Pengaturan &gt; Sistem &gt; Mulai ulang. Ganti sensor.colokan_kipas_energi dengan ID entitas
+# energi (kWh) colokanmu: HA &gt; Pengaturan &gt; Perangkat &amp; layanan &gt; perangkatnya &gt; entitas energi.
+input_number:
+  tarif_listrik:
+    name: Tarif listrik efektif
+    min: 0
+    max: 5000
+    step: 0.01
+    mode: box
+    unit_of_measurement: &quot;Rp/kWh&quot;
+    initial: 1352          # ganti dengan angka dari kalkulator di panduan
+
+utility_meter:
+  kipas_harian:
+    source: sensor.colokan_kipas_energi
+    cycle: daily
+  kipas_bulanan:
+    source: sensor.colokan_kipas_energi
+    cycle: monthly
+
+template:
+  - sensor:
+      - name: &quot;Biaya kipas hari ini&quot;
+        unit_of_measurement: &quot;Rp&quot;
+        state: &gt;
+          {{ (states(&#x27;sensor.kipas_harian&#x27;) | float(0)
+              * states(&#x27;input_number.tarif_listrik&#x27;) | float(0)) | round(0) }}
+      - name: &quot;Biaya kipas bulan ini&quot;
+        unit_of_measurement: &quot;Rp&quot;
+        state: &gt;
+          {{ (states(&#x27;sensor.kipas_bulanan&#x27;) | float(0)
+              * states(&#x27;input_number.tarif_listrik&#x27;) | float(0)) | round(0) }}</code></pre></div>
+    <ol>
+      <li data-s>Ganti <code>sensor.colokan_kipas_energi</code> dengan ID entitas energi colokanmu (ulangi blok untuk alat lain).</li>
+      <li data-s>Ganti <code>initial: 1352</code> dengan tarif efektif dari Tahap 3.</li>
+      <li data-s>Pengaturan → Sistem → Mulai ulang. Setelah beberapa jam, sensor <b>Biaya kipas hari ini</b> terisi.</li>
+    </ol>
+    <div class="note info"><b>Belum diuji di HA-mu</b><p>Sintaks YAML sudah diperiksa, tapi saya belum menjalankannya di Home Assistant asli. Kalau HA menolak konfigurasi, buka Pengaturan → Sistem → Log dan kirim pesannya ke saya.</p></div>
+  </div>
+</section>
+
+<section id="t5">
+  <span class="eyebrow">Tahap 5</span>
+  <h2>Otomasi hemat listrik</h2>
+  <div class="card">
+    <p>Dua contoh: mematikan colokan charger setelah HP penuh (daya turun di bawah 2 W), dan peringatan kalau biaya satu alat hari ini terlalu tinggi.</p>
+    <div class="codewrap"><button class="cp" type="button">Salin</button><pre><code># Dua otomasi. Tempel satu per satu lewat Otomasi &gt; Buat otomasi &gt; titik tiga &gt; Edit di YAML.
+# Ganti ID entitas dengan milik colokanmu.
+
+# 1) Charger: matikan colokan kalau daya di bawah 2 W selama 10 menit (HP sudah penuh).
+alias: Matikan colokan charger saat penuh
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.colokan_charger_daya
+    below: 2
+    for: &quot;00:10:00&quot;
+actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.colokan_charger
+mode: single
+---
+# 2) Peringatan biaya: kabari kalau biaya satu alat hari ini lewat Rp 5.000.
+alias: Peringatan biaya kipas
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.biaya_kipas_hari_ini
+    above: 5000
+actions:
+  - action: persistent_notification.create
+    data:
+      title: Biaya listrik kipas tinggi
+      message: &quot;Hari ini Rp {{ states(&#x27;sensor.biaya_kipas_hari_ini&#x27;) }}&quot;
+mode: single</code></pre></div>
+    <ol>
+      <li data-s>Tempel satu otomasi per kali: Pengaturan → Otomasi → Buat otomasi → titik tiga → Edit di YAML. Pisahkan di antara tanda <code>---</code>.</li>
+      <li data-s>Ganti ID entitas dengan milikmu. Tes dengan menurunkan ambang sementara agar mudah terpicu.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="t6">
+  <span class="eyebrow">Tahap 6 · opsional</span>
+  <h2>ESP32 membaca meteran seluruh rumah</h2>
+  <div class="card">
+    <p>Meteran prabayar punya LED kecil yang berkedip tiap kali sejumlah energi terpakai (tertulis <code>imp/kWh</code> di stikernya, umumnya 1000: satu kedipan sama dengan 1 Wh). ESP32 dengan LDR dari kitmu bisa menghitung kedipan itu. Hasilnya: daya seluruh rumah (W) dan total kWh, tanpa menyentuh kabel listrik.</p>
+    <div class="codewrap"><button class="cp" type="button">Salin</button><pre><code># ESP32 membaca kedipan LED meteran prabayar (tanpa menyentuh kabel listrik).
+# Satu kedipan = 1/imp_per_kWh kWh. Lihat tulisan &quot;imp/kWh&quot; di stiker meteran (umumnya 1000).
+# Rumus daya (W) = 60000 / imp_per_kWh dikali pulsa per menit. Untuk 1000 imp/kWh: kali 60.
+# Rangkaian: LDR + resistor 10k seperti Tahap 4 stasiun cuaca (pin D34), LDR ditempel
+# menghadap LED pulsa meteran dengan selotip hitam supaya tidak kena cahaya lain.
+esphome:
+  name: meteran-rumah
+  friendly_name: Meteran Rumah
+  platformio_options:
+    board_build.flash_mode: dio
+    board_build.f_flash: 40000000L
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+api:
+  encryption:
+    key: !secret api_key
+ota:
+  - platform: esphome
+    password: !secret ota_password
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: &quot;Meteran-Fallback&quot;
+    password: !secret ap_password
+captive_portal:
+
+sensor:
+  - platform: pulse_meter
+    pin:
+      number: GPIO34
+    name: &quot;Daya Rumah&quot;
+    id: daya_rumah
+    unit_of_measurement: &quot;W&quot;
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+    internal_filter: 30ms     # abaikan getaran sangat singkat
+    timeout: 5min             # tanpa kedipan 5 menit dianggap 0 W
+    filters:
+      - multiply: 60          # ganti sesuai imp/kWh: 60000 / imp_per_kWh
+    total:
+      name: &quot;Energi Rumah&quot;
+      unit_of_measurement: &quot;kWh&quot;
+      device_class: energy
+      state_class: total_increasing
+      accuracy_decimals: 3
+      filters:
+        - multiply: 0.001     # ganti sesuai imp/kWh: 1 / imp_per_kWh</code></pre></div>
+    <ol>
+      <li data-s>Lihat stiker meteran, catat angka <code>imp/kWh</code>. Sesuaikan dua angka pengali di YAML (<code>60000 / imp</code> dan <code>1 / imp</code>).</li>
+      <li data-s>Rangkai LDR + resistor 10 kΩ seperti Tahap 4 stasiun cuaca, keluaran ke D34. Tempelkan LDR tepat di depan LED pulsa dengan selotip hitam supaya tak kena cahaya ruangan. Jangan membuka segel atau menyentuh bagian dalam meteran, cukup menempel di luar.</li>
+      <li data-s>Flash dengan <code>esphome run meteran-pulsa.yaml</code> (cara sama dengan Tahap 3 dan 4 panduan Home Assistant), lalu tambahkan ke HA.</li>
+      <li data-s>Nyalakan satu alat besar dan lihat apakah daya naik. Bandingkan total kWh dengan angka di layar meteran setelah beberapa jam.</li>
+    </ol>
+    <div class="note warn"><b>Belum terbukti</b><p>Konfigurasi lolos validasi tapi belum dicoba di meteran sungguhan. LDR bereaksi lambat, jadi pada beban besar kedipan bisa menyatu dan terhitung kurang. Kalau angkanya jauh dari layar meteran, ganti LDR dengan fototransistor. Izin PLN untuk menempelkan sensor di meteran juga sebaiknya kamu pastikan, terutama kalau meteran bukan di dalam rumahmu.</p></div>
+  </div>
+</section>
+
+<section id="t7">
+  <span class="eyebrow">Alat bantu</span>
+  <h2>Kalkulator biaya dan sisa token</h2>
+  <div class="card">
+    <h3>Perkiraan biaya satu alat</h3>
+    <div class="calc" id="c2">
+      <div class="row">
+        <label>Alat (nilai awal watt, ubah bebas)
+          <select id="preset"><option value="">Pilih</option><option value="40">Kipas angin (40 W)</option><option value="10">Lampu LED (10 W)</option><option value="10">Charger HP (10 W)</option><option value="80">TV LED (80 W)</option><option value="60">Laptop (60 W)</option><option value="100">Kulkas kecil (100 W saat jalan)</option><option value="350">Dispenser panas (350 W saat memanaskan)</option><option value="400">Penanak nasi (400 W saat memasak)</option></select></label>
+        <label>Daya (W)<input id="watt" type="number" inputmode="decimal" min="0" placeholder="40"></label>
+        <label>Jam per hari<input id="jam" type="number" inputmode="decimal" min="0" max="24" step="0.5" placeholder="8"></label>
+        <label>Tarif efektif (Rp/kWh)<input id="tarif" type="number" inputmode="decimal" min="0" step="0.01" placeholder="1352"></label>
+      </div>
+      <div class="res" id="out2">Isi daya dan jam<small>Angka watt di daftar hanya perkiraan umum. Ukur dengan colokan pintarmu untuk angka sebenarnya.</small></div>
+    </div>
+    <h3>Perkiraan token habis</h3>
+    <div class="calc" id="c3">
+      <div class="row">
+        <label>Sisa kWh di meteran<input id="sisa" type="number" inputmode="decimal" min="0" step="0.1" placeholder="35"></label>
+        <label>Pemakaian rata-rata (kWh/hari)<input id="harian" type="number" inputmode="decimal" min="0" step="0.1" placeholder="2.5"></label>
+      </div>
+      <div class="res" id="out3">Isi dua angka di atas<small>Sisa kWh dilihat dari layar meteran. HA tidak bisa membacanya, kecuali dari Tahap 6.</small></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Kalau ada yang tidak jalan</h2>
+  <div class="card">
+    <ul>
+      <li><b>Sensor watt tidak muncul di HA:</b> tidak semua colokan punya meter. Cek apakah di aplikasi bawaannya ada tampilan watt atau kWh.</li>
+      <li><b>Angka watt tampak melenceng:</b> bandingkan dengan alat yang wattnya tertulis di stiker. Selisih beberapa persen normal pada colokan murah. Alat dengan arus kecil (di bawah sekitar 5 W) kurang akurat.</li>
+      <li><b>HA tidak menemukan colokan:</b> tambahkan manual dengan IP, dan pastikan laptop dan colokan satu WiFi.</li>
+      <li><b>Colokan kehilangan koneksi tiap router restart:</b> tetapkan IP tetap untuk colokan di pengaturan router.</li>
+      <li><b>MCB turun saat banyak alat menyala:</b> total daya melewati batas 900 VA. Cek jumlah watt aktif di HA dan pindahkan alat berat ke waktu berbeda.</li>
+      <li><b>Biaya di HA berbeda dengan pengurangan kWh di meteran:</b> wajar, karena HA hanya melihat alat yang dipasangi colokan. Standby alat lain dan lampu tidak terhitung kecuali memakai Tahap 6.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>Berkas</h2>
+  <div class="card"><ul>
+    <li><a href="biaya-listrik.yaml" download>biaya-listrik.yaml</a> sensor Rupiah per alat</li>
+    <li><a href="otomasi-colokan.yaml" download>otomasi-colokan.yaml</a> otomasi charger dan peringatan biaya</li>
+    <li><a href="meteran-pulsa.yaml" download>meteran-pulsa.yaml</a> ESPHome pembaca meteran (opsional)</li>
+  </ul></div>
+</section>
+</div>
+<script>
+(function(){
+  var KEY='listrik-pintar',st={},sv={};
+  try{st=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+  try{sv=JSON.parse(localStorage.getItem(KEY+'-v')||'{}')}catch(e){}
+  var items=[].slice.call(document.querySelectorAll('li[data-s]'));
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+  function savev(){try{localStorage.setItem(KEY+'-v',JSON.stringify(sv))}catch(e){}}
+  function prog(){var n=items.filter(function(li,i){return st[i]}).length;document.getElementById('prog').textContent=n+' / '+items.length+' langkah'}
+  items.forEach(function(li,i){
+    var cb=document.createElement('input');cb.type='checkbox';cb.checked=!!st[i];cb.setAttribute('aria-label','Selesai');
+    cb.style.cssText='accent-color:var(--accent);margin-right:8px;width:16px;height:16px;vertical-align:-2px';
+    cb.addEventListener('change',function(){st[i]=cb.checked;save();prog()});
+    li.insertBefore(cb,li.firstChild);
+  });
+  prog();
+  [].forEach.call(document.querySelectorAll('.cp'),function(b){b.addEventListener('click',function(){
+    var t=b.parentNode.querySelector('code').textContent;
+    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='Tersalin'},function(){b.textContent='Pilih manual'});
+    setTimeout(function(){b.textContent='Salin'},1600);
+  })});
+
+  var $=function(id){return document.getElementById(id)};
+  var rp=function(n){return 'Rp '+Math.round(n).toLocaleString('id-ID')};
+  var num=function(id){var v=parseFloat($(id).value);return isNaN(v)?null:v};
+  function c1(){
+    var b=num('bayar'),k=num('kwhterima'),o=$('out1');
+    if(b>0&&k>0){var t=b/k;sv.tarif=Math.round(t*100)/100;savev();$('tarif').value=sv.tarif;
+      o.innerHTML=rp(t)+' per kWh<small>Biasanya lebih tinggi dari tarif resmi karena potongan admin dan pajak. Tersimpan.</small>';}
+    else o.innerHTML='Isi dua angka di atas<small>Tarif efektif = uang dibayar dibagi kWh diterima</small>';
+    c2();
+  }
+  function c2(){
+    var w=num('watt'),j=num('jam'),t=num('tarif'),o=$('out2');
+    if(w>0&&j>0&&t>0){var kwh=w*j*30/1000;
+      o.innerHTML=rp(kwh*t)+' per bulan<small>'+kwh.toFixed(1)+' kWh per bulan, sekitar '+rp(kwh*t/30)+' per hari</small>';}
+    else o.innerHTML='Isi daya, jam, dan tarif<small>Angka watt di daftar hanya perkiraan umum. Ukur dengan colokan pintarmu untuk angka sebenarnya.</small>';
+  }
+  function c3(){
+    var s=num('sisa'),h=num('harian'),o=$('out3');
+    if(s>=0&&h>0&&$('sisa').value!==''){var d=s/h,tg=new Date(Date.now()+d*864e5);
+      o.innerHTML='Sekitar '+d.toFixed(1)+' hari lagi<small>Perkiraan habis '+tg.toLocaleDateString('id-ID',{day:'numeric',month:'long'})+'. Beli token sebelum itu supaya tidak padam.</small>';}
+    else o.innerHTML='Isi dua angka di atas<small>Sisa kWh dilihat dari layar meteran. HA tidak bisa membacanya, kecuali dari Tahap 6.</small>';
+  }
+  if(sv.tarif){$('tarif').value=sv.tarif}
+  $('preset').addEventListener('change',function(){if(this.value){$('watt').value=this.value;c2()}});
+  ['bayar','kwhterima'].forEach(function(i){$(i).addEventListener('input',c1)});
+  ['watt','jam','tarif'].forEach(function(i){$(i).addEventListener('input',c2)});
+  ['sisa','harian'].forEach(function(i){$(i).addEventListener('input',c3)});
+  c2();
+})();
+</script>
+</body>
+</html>
