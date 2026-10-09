@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panduan Elektronika · ESP32 untuk pemula</title>
+<meta name="description" content="Panduan rakit elektronika langkah demi langkah dengan ESP32: kenali komponen, rakit di breadboard, dan jalankan kode tes di setiap tahap.">
+<meta name="theme-color" content="#a9531c">
+<meta property="og:title" content="Panduan Elektronika">
+<meta property="og:description" content="Panduan rakit ESP32 langkah demi langkah untuk pemula.">
+<meta property="og:type" content="website">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="assets/tema.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;padding:0 16px 64px}
+.wrap{max-width:980px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);font-weight:600;line-height:1.08;text-wrap:balance;margin:0}
+h1{font-size:3.2rem;letter-spacing:.005em}
+h2{font-size:1.9rem}
+h3{font-size:1.55rem}
+p{margin:0}
+a{color:var(--accent)}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+header.hero{padding-block:48px 12px;display:grid;gap:14px}
+.lead{max-width:60ch;color:var(--muted);font-size:1.05rem}
+
+.how{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin-top:20px;padding:0;list-style:none}
+.how li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:4px}
+.how b{font-family:var(--display);font-size:1.15rem;font-weight:600}
+.how span{font-size:.92rem;color:var(--muted)}
+
+section.list{padding-block:44px 0;display:grid;gap:18px}
+.listhead{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
+.search{font:inherit;font-size:.92rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-width:min(260px,100%)}
+.search[hidden]{display:none}
+
+.cards{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s}
+a.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.cover{background:var(--photo);aspect-ratio:16/10;display:grid;place-items:center;overflow:hidden}
+.cover img{display:block;height:100%;width:100%;object-fit:contain}
+.cover.none{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+.cbody{padding:16px 16px 18px;display:grid;gap:10px;align-content:start;flex:1}
+.cbody p{font-size:.93rem;color:var(--muted)}
+.meta{display:flex;flex-wrap:wrap;gap:6px;font-family:var(--mono);font-size:.72rem}
+.meta span{border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:var(--bg);color:var(--muted)}
+.meta .lv{color:var(--accent);border-color:var(--accent)}
+.status{justify-self:start;font-family:var(--mono);font-size:.72rem;letter-spacing:.03em;padding:3px 8px;border-radius:4px;background:var(--ok-soft);color:var(--ok)}
+.go{font-family:var(--mono);font-size:.85rem;color:var(--accent);margin-top:auto;padding-top:4px}
+.card.soon{border-style:dashed;background:transparent;justify-content:center;min-height:220px}
+.card.soon .cbody{text-align:center;justify-items:center;align-content:center}
+.empty{color:var(--muted);font-size:.95rem}
+
+footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between}
+
+@media (max-width:480px){h1{font-size:2.5rem}h2{font-size:1.65rem}header.hero{padding-block:32px 8px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">ESP32 · Arduino · Pemula</span>
+    <h1>Panduan Elektronika</h1>
+    <p class="lead">Panduan rakit dan kode untuk kit ESP32, ditulis untuk yang baru mulai. Setiap tahap kecil dan punya kode tes sendiri, jadi kamu tahu bagian itu berhasil sebelum lanjut ke yang berikutnya.</p>
+    <ul class="how" aria-label="Cara kerja panduan">
+      <li><b>Kenali dulu komponennya</b><span>Foto dan nama setiap komponen, lengkap dengan mode tebak nama untuk menghafal.</span></li>
+      <li><b>Rakit sedikit demi sedikit</b><span>Posisi kabel ditunjukkan di gambar breadboard dengan alamat lubang yang jelas.</span></li>
+      <li><b>Progres tersimpan</b><span>Centang langkah yang sudah selesai. Tersimpan di browser, jadi bisa dilanjut besok.</span></li>
+    </ul>
+  </header>
+
+  <section class="list" aria-labelledby="h-panduan">
+    <div class="listhead">
+      <div><span class="eyebrow">Daftar</span><h2 id="h-panduan">Semua panduan</h2></div>
+      <input class="search" id="cari" type="search" placeholder="Cari panduan atau komponen" aria-label="Cari panduan" hidden>
+    </div>
+    <div class="cards" id="cards">
+      <noscript><a class="card" href="stasiun-cuaca/"><div class="cbody"><h3>Stasiun Cuaca Kamar + Bot Telegram</h3><p>Aktifkan JavaScript untuk melihat daftar lengkap. Panduan ini bisa dibuka langsung dari tautan ini.</p></div></a></noscript>
+    </div>
+    <p class="empty" id="kosong" hidden>Tidak ada panduan yang cocok.</p>
+  </section>
+
+  <footer>
+    <span>Dibuat untuk belajar. Cek ulang setiap sambungan kabel sebelum mencolok USB.</span>
+    <span id="repo"></span>
+  </footer>
+</div>
+
+<script src="guides.js"></script>
+<script>
+(function(){
+  const G=(window.GUIDES||[]).slice().sort((a,b)=>String(b.diperbarui||'').localeCompare(String(a.diperbarui||'')));
+  const box=document.getElementById('cards'),cari=document.getElementById('cari'),kosong=document.getElementById('kosong');
+  const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const tgl=s=>{const d=new Date(s+'T00:00:00');return isNaN(d)?'':d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})};
+  function kartu(g){
+    const cover=g.gambar?`<div class="cover"><img src="${esc(g.gambar)}" alt="" loading="lazy"></div>`:`<div class="cover none">tanpa gambar</div>`;
+    const meta=[`<span class="lv">${esc(g.level||'')}</span>`,g.tahap?`<span>${esc(g.tahap)}</span>`:''].filter(Boolean).join('')+(g.komponen||[]).map(k=>`<span>${esc(k)}</span>`).join('');
+    return `<a class="card" href="${esc(g.slug)}/">${cover}<div class="cbody"><h3>${esc(g.judul)}</h3>${g.status?`<span class="status">${esc(g.status)}</span>`:''}<p>${esc(g.ringkas)}</p><div class="meta">${meta}</div>${g.diperbarui?`<p class="muted" style="font-size:.8rem">Diperbarui ${esc(tgl(g.diperbarui))}</p>`:''}<span class="go">Buka panduan →</span></div></a>`;
+  }
+  const soon=`<div class="card soon" aria-hidden="true"><div class="cbody"><span class="eyebrow">Segera</span><h3>Panduan berikutnya</h3><p>Panduan baru akan muncul di sini.</p></div></div>`;
+  function render(q){
+    q=(q||'').trim().toLowerCase();
+    const list=q?G.filter(g=>[g.judul,g.ringkas,g.level,(g.komponen||[]).join(' ')].join(' ').toLowerCase().includes(q)):G;
+    box.innerHTML=list.map(kartu).join('')+(q?'':soon);
+    kosong.hidden=list.length>0;
+  }
+  if(G.length>=4)cari.hidden=false;
+  cari.addEventListener('input',()=>render(cari.value));
+  render('');
+  const repo=(window.SITE&&window.SITE.repo)||'';
+  if(repo)document.getElementById('repo').innerHTML=`<a href="${esc(repo)}">Sumber di GitHub</a>`;
+})();
+</script>
+</body>
+</html>

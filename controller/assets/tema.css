@@ -1,0 +1,19 @@
+/* Tema bersama untuk semua halaman situs panduan.
+   Panduan baru cukup menautkan file ini lalu memakai token warna dan huruf di bawah. */
+:root{
+  --bg:#f2f4f3; --surface:#ffffff; --ink:#17201d; --muted:#596661; --line:#d5dcd9;
+  --accent:#a9531c; --accent-soft:#f6e7dc; --ok:#2d7a4c; --ok-soft:#e3f2e8;
+  --warn:#8f4e00; --warn-soft:#fff2df; --photo:#d9dddb;
+  --chip:#111413; --chip-fg:#f4f6f5;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111514; --surface:#1a201e; --ink:#e2e8e5; --muted:#9ba9a4; --line:#2d3633;
+  --accent:#e58c51; --accent-soft:#33241a; --ok:#6cc58f; --ok-soft:#173022;
+  --warn:#f1b65f; --warn-soft:#2c2314; --photo:#2a302e; --chip:#050606; --chip-fg:#f4f6f5; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111514; --surface:#1a201e; --ink:#e2e8e5; --muted:#9ba9a4; --line:#2d3633;
+  --accent:#e58c51; --accent-soft:#33241a; --ok:#6cc58f; --ok-soft:#173022;
+  --warn:#f1b65f; --warn-soft:#2c2314; --photo:#2a302e; --chip:#050606; --chip-fg:#f4f6f5; color-scheme:dark}

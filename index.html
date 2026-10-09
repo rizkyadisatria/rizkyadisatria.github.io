@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="description" content="Rizky Adi Satria — Full Stack Developer with 4+ years of experience building web applications, e-commerce platforms, and freelance projects.">
+    <meta name="keywords" content="Rizky Adi Satria, Full Stack Developer, React, Laravel, Node.js, MERN, Web Developer, Mataram, NTB">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://rizkyadisatria.github.io/">
+
+    <meta property="og:title" content="Rizky Adi Satria — Full Stack Developer">
+    <meta property="og:description" content="Portfolio of Rizky Adi Satria, Full Stack Developer specializing in web development.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://rizkyadisatria.github.io/">
+    <meta property="og:image" content="https://rizkyadisatria.github.io/assets/img/profile.jpg">
+
+    <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+    <link rel="apple-touch-icon" href="assets/img/favicon.svg">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/boxicons@latest/css/boxicons.min.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+
+    <title>Rizky Adi Satria — Full Stack Developer</title>
+</head>
+
+<body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
+    <!-- ===== HEADER ===== -->
+    <header class="l-header" id="header">
+        <nav class="nav bd-container">
+            <a href="#" class="nav__logo">Rizky<span class="nav__logo-dot">.</span></a>
+
+            <div class="nav__menu" id="nav-menu">
+                <ul class="nav__list">
+                    <li class="nav__item">
+                        <a href="#home" class="nav__link active-link">
+                            <i class="bx bx-home nav__icon"></i>
+                            <span data-i18n="nav.home">Home</span>
+                        </a>
+                    </li>
+                    <li class="nav__item">
+                        <a href="#profile" class="nav__link">
+                            <i class="bx bx-user nav__icon"></i>
+                            <span data-i18n="nav.about">About</span>
+                        </a>
+                    </li>
+                    <li class="nav__item">
+                        <a href="#services" class="nav__link">
+                            <i class="bx bx-bulb nav__icon"></i>
+                            <span data-i18n="nav.services">Services</span>
+                        </a>
+                    </li>
+                    <li class="nav__item">
+                        <a href="#experience" class="nav__link">
+                            <i class="bx bx-briefcase nav__icon"></i>
+                            <span data-i18n="nav.experience">Experience</span>
+                        </a>
+                    </li>
+                    <li class="nav__item">
+                        <a href="#skills" class="nav__link">
+                            <i class="bx bx-code-alt nav__icon"></i>
+                            <span data-i18n="nav.skills">Skills</span>
+                        </a>
+                    </li>
+                    <li class="nav__item">
+                        <a href="#projects" class="nav__link">
+                            <i class="bx bx-folder nav__icon"></i>
+                            <span data-i18n="nav.projects">Projects</span>
+                        </a>
+                    </li>
+                    <li class="nav__item">
+                        <a href="#contact" class="nav__link">
+                            <i class="bx bx-envelope nav__icon"></i>
+                            <span data-i18n="nav.contact">Contact</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="nav__actions">
+                <button class="lang-toggle" id="lang-toggle" title="Switch Language" aria-label="Switch language to Indonesian">ID</button>
+                <i class="bx bx-moon change-theme" id="theme-button" title="Toggle theme"></i>
+                <i class="bx bxs-file-pdf generate-pdf" id="resume-button" title="Download PDF"></i>
+                <button class="nav__toggle" id="nav-toggle" aria-label="Toggle menu">
+                    <i class="bx bx-menu"></i>
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="l-main" id="main-content">
+        <div id="area-cv">
+
+            <!-- ===== HOME / HERO ===== -->
+            <section class="home section" id="home">
+                <div id="hero-lottie" class="hero-lottie"></div>
+                <div class="home__container bd-container">
+                    <div class="home__visual">
+                        <div class="home__img-wrap">
+                            <img src="assets/img/profile.jpg" alt="Rizky Adi Satria" class="home__img">
+                        </div>
+                        <!-- Stats: desktop only (below photo) -->
+                        <div class="home__stats home__stats--desktop">
+                            <div class="home__stat">
+                                <span class="home__stat-num">4+</span>
+                                <span class="home__stat-label" data-i18n="stat.years">Years Exp.</span>
+                            </div>
+                            <div class="home__stat-divider"></div>
+                            <div class="home__stat">
+                                <span class="home__stat-num">8+</span>
+                                <span class="home__stat-label" data-i18n="stat.projects">Projects</span>
+                            </div>
+                            <div class="home__stat-divider"></div>
+                            <div class="home__stat">
+                                <span class="home__stat-num">7</span>
+                                <span class="home__stat-label" data-i18n="stat.companies">Companies</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="home__data">
+                        <span class="home__badge">
+                            <span class="home__badge-dot"></span>
+                            <span data-i18n="hero.badge">Available for work</span>
+                        </span>
+                        <span class="home__greeting" data-i18n="hero.greeting">Hi there, I'm</span>
+                        <h1 class="home__title">Rizky Adi Satria</h1>
+                        <p class="home__profession" data-i18n="hero.profession">Full Stack Developer</p>
+                        <p class="home__bio" data-i18n="hero.bio">Full Stack Developer with 4+ years of experience building scalable web applications and e-commerce platforms. I enjoy turning complex problems into clean, elegant solutions.</p>
+                        <ul class="home__meta">
+                            <li>
+                                <i class="bx bx-map-pin"></i>
+                                <span>Mataram, Nusa Tenggara Barat</span>
+                            </li>
+                            <li>
+                                <a href="mailto:rizkyadsatria@gmail.com">
+                                    <i class="bx bx-envelope"></i>
+                                    <span>rizkyadsatria@gmail.com</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://wa.me/6285933005036" target="_blank" rel="noopener noreferrer">
+                                    <i class="bx bx-phone"></i>
+                                    <span>+62 859-3300-5036</span>
+                                </a>
+                            </li>
+                        </ul>
+                        <div class="home__btns">
+                            <button class="btn btn--primary" id="download-cv-btn">
+                                <i class="bx bx-file-blank"></i>
+                                <span data-i18n="btn.download">Download CV</span>
+                            </button>
+                            <a href="#projects" class="btn btn--outline" data-i18n="btn.projects">See Projects</a>
+                        </div>
+                        <!-- Stats: mobile only (below buttons) -->
+                        <div class="home__stats home__stats--mobile">
+                            <div class="home__stat">
+                                <span class="home__stat-num">4+</span>
+                                <span class="home__stat-label" data-i18n="stat.years">Years Exp.</span>
+                            </div>
+                            <div class="home__stat-divider"></div>
+                            <div class="home__stat">
+                                <span class="home__stat-num">8+</span>
+                                <span class="home__stat-label" data-i18n="stat.projects">Projects</span>
+                            </div>
+                            <div class="home__stat-divider"></div>
+                            <div class="home__stat">
+                                <span class="home__stat-num">7</span>
+                                <span class="home__stat-label" data-i18n="stat.companies">Companies</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== ABOUT ===== -->
+            <section class="profile section" id="profile">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.about">About Me</h2>
+                    <p class="profile__description" data-i18n="about.text">I'm a Full Stack Developer with over 4 years of professional experience building end-to-end web solutions. I specialize in e-commerce platforms and have a strong command of both frontend and backend technologies. I enjoy tackling complex challenges and delivering clean, performant code. Outside of my main role, I take on freelance projects ranging from hotel booking systems and company profiles to VPS deployment and network management.</p>
+                </div>
+            </section>
+
+            <!-- ===== SERVICES ===== -->
+            <section class="services section" id="services">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.services">Services</h2>
+                    <div class="services__grid">
+                        <div class="service-card">
+                            <i class="bx bx-shopping-bag service-card__icon"></i>
+                            <h3 class="service-card__title" data-i18n="svc1.title">E-Commerce</h3>
+                            <p class="service-card__desc" data-i18n="svc1.desc">Custom online stores with product management, payment gateways, and admin dashboards.</p>
+                        </div>
+                        <div class="service-card">
+                            <i class="bx bx-buildings service-card__icon"></i>
+                            <h3 class="service-card__title" data-i18n="svc2.title">Company Profile</h3>
+                            <p class="service-card__desc" data-i18n="svc2.desc">Professional landing pages and company websites that showcase your brand and services.</p>
+                        </div>
+                        <div class="service-card">
+                            <i class="bx bx-hotel service-card__icon"></i>
+                            <h3 class="service-card__title" data-i18n="svc3.title">Booking Systems</h3>
+                            <p class="service-card__desc" data-i18n="svc3.desc">Hotel, villa, and property booking platforms with calendar management and payment integration.</p>
+                        </div>
+                        <div class="service-card">
+                            <i class="bx bx-cloud service-card__icon"></i>
+                            <h3 class="service-card__title" data-i18n="svc4.title">VPS & DevOps</h3>
+                            <p class="service-card__desc" data-i18n="svc4.desc">Linux VPS setup, deployment automation, VPN configuration, Mikrotik management, and network infrastructure.</p>
+                        </div>
+                        <div class="service-card">
+                            <i class="bx bx-wrench service-card__icon"></i>
+                            <h3 class="service-card__title" data-i18n="svc5.title">Custom Web App</h3>
+                            <p class="service-card__desc" data-i18n="svc5.desc">Tailor-made web applications — SaaS platforms, dashboards, internal tools — built to your specifications.</p>
+                        </div>
+                        <div class="service-card">
+                            <i class="bx bxl-wordpress service-card__icon"></i>
+                            <h3 class="service-card__title" data-i18n="svc6.title">WordPress</h3>
+                            <p class="service-card__desc" data-i18n="svc6.desc">WordPress site development, theme customization, plugin setup, and hosting configuration.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== EXPERIENCE ===== -->
+            <section class="experience section" id="experience">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.experience">Experience</h2>
+                    <div class="timeline">
+                        <div class="timeline__item">
+                            <div class="timeline__dot"></div>
+                            <div class="timeline__body">
+                                <div class="timeline__row">
+                                    <h3 class="timeline__title" data-i18n="exp1.title">Technical Support</h3>
+                                    <span class="timeline__badge" data-i18n="exp.badge1">Aug 2021 – Feb 2022</span>
+                                </div>
+                                <p class="timeline__company">CV. Data Digital Indonesia &mdash; <a href="https://dewahoster.co.id" target="_blank" rel="noopener noreferrer">dewahoster.co.id</a></p>
+                                <p class="timeline__desc" data-i18n="exp1.desc">Resolved client issues related to domain management, hosting configuration, and WordPress websites. Provided step-by-step technical guidance and troubleshooting support.</p>
+                            </div>
+                        </div>
+                        <div class="timeline__item">
+                            <div class="timeline__dot"></div>
+                            <div class="timeline__body">
+                                <div class="timeline__row">
+                                    <h3 class="timeline__title" data-i18n="exp2.title">Full Stack Developer</h3>
+                                    <span class="timeline__badge" data-i18n="exp.badge2">Mar 2022 – Present</span>
+                                </div>
+                                <p class="timeline__company">PT. Bumigora Karya Mandiri &mdash; <a href="https://bumigorashop.com" target="_blank" rel="noopener noreferrer">bumigorashop.com</a></p>
+                                <p class="timeline__desc" data-i18n="exp2.desc">Built and maintained the Bumigorashop e-commerce platform from the ground up, collaborating with a designer to create a marketplace that empowers local sellers to reach wider markets.</p>
+                            </div>
+                        </div>
+                        <div class="timeline__item timeline__item--last">
+                            <div class="timeline__dot"></div>
+                            <div class="timeline__body">
+                                <div class="timeline__row">
+                                    <h3 class="timeline__title" data-i18n="exp3.title">Freelance Developer</h3>
+                                    <span class="timeline__badge" data-i18n="exp.badge3">Aug 2023 – Present</span>
+                                </div>
+                                <p class="timeline__company" data-i18n="exp3.company">Self-employed</p>
+                                <p class="timeline__desc" data-i18n="exp3.desc">Deliver end-to-end web and mobile solutions for various clients — hotel booking systems, company profiles, hosting order platforms, Mikrotik management with Mikhmon, remote VPN setups, and VPS deployment.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== EDUCATION ===== -->
+            <section class="education section" id="education">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.education">Education</h2>
+                    <div class="timeline">
+                        <div class="timeline__item">
+                            <div class="timeline__dot"></div>
+                            <div class="timeline__body">
+                                <div class="timeline__row">
+                                    <h3 class="timeline__title" data-i18n="edu1.title">Network Engineering</h3>
+                                    <span class="timeline__badge">2015 – 2018</span>
+                                </div>
+                                <p class="timeline__company">SMK Negeri 6 Mataram</p>
+                            </div>
+                        </div>
+                        <div class="timeline__item timeline__item--last">
+                            <div class="timeline__dot"></div>
+                            <div class="timeline__body">
+                                <div class="timeline__row">
+                                    <h3 class="timeline__title" data-i18n="edu2.title">Bachelor of Computer Science</h3>
+                                    <span class="timeline__badge">2018 – 2022</span>
+                                </div>
+                                <p class="timeline__company">Universitas Bumigora</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== SKILLS ===== -->
+            <section class="skills section" id="skills">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.skills">Skills</h2>
+                    <div class="skills__groups">
+                        <div class="skills__group">
+                            <h3 class="skills__group-title"><i class="bx bx-laptop"></i> Frontend</h3>
+                            <div class="skills__wrap">
+                                <span class="skill-tag">HTML & CSS</span>
+                                <span class="skill-tag">JavaScript</span>
+                                <span class="skill-tag">React.js</span>
+                                <span class="skill-tag">Tailwind CSS</span>
+                                <span class="skill-tag">Inertia.js</span>
+                            </div>
+                        </div>
+                        <div class="skills__group">
+                            <h3 class="skills__group-title"><i class="bx bx-server"></i> Backend</h3>
+                            <div class="skills__wrap">
+                                <span class="skill-tag">Laravel</span>
+                                <span class="skill-tag">Node.js</span>
+                                <span class="skill-tag">Express.js</span>
+                                <span class="skill-tag">MongoDB</span>
+                                <span class="skill-tag">MySQL</span>
+                                <span class="skill-tag">WordPress</span>
+                            </div>
+                        </div>
+                        <div class="skills__group">
+                            <h3 class="skills__group-title"><i class="bx bx-cog"></i> DevOps & Tools</h3>
+                            <div class="skills__wrap">
+                                <span class="skill-tag">Git & GitHub</span>
+                                <span class="skill-tag">Linux / VPS</span>
+                                <span class="skill-tag">Firebase</span>
+                                <span class="skill-tag">Mikrotik</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== PROJECTS ===== -->
+            <section class="certificate section" id="projects">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.projects">Projects</h2>
+                    <div class="projects__grid">
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-code-alt project-card__icon"></i>
+                                <span class="project-card__year">2021</span>
+                            </div>
+                            <h3 class="project-card__title">Google Clone</h3>
+                            <p class="project-card__desc" data-i18n="proj1.desc">A functional clone of Google Search built with React.js, Tailwind CSS, and the Google Search API — replicating the UI and delivering real-time search results.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">React.js</span>
+                                <span class="project-tag">Tailwind CSS</span>
+                                <span class="project-tag">API</span>
+                            </div>
+                            <a href="https://googlesearch-rizkyadisatria.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Google Clone project">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-shopping-bag project-card__icon"></i>
+                                <span class="project-card__year">2022</span>
+                            </div>
+                            <h3 class="project-card__title">LuxSpace</h3>
+                            <p class="project-card__desc" data-i18n="proj2.desc">A furniture e-commerce landing page built from a Figma design using HTML, CSS, and vanilla JavaScript. Course final project from BuildWithAngga.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">HTML</span>
+                                <span class="project-tag">CSS</span>
+                                <span class="project-tag">JavaScript</span>
+                            </div>
+                            <a href="https://luxspace-rizkyadisatria.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View LuxSpace project">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-coffee project-card__icon"></i>
+                                <span class="project-card__year">2022</span>
+                            </div>
+                            <h3 class="project-card__title">Aroma Bumi</h3>
+                            <p class="project-card__desc" data-i18n="proj3.desc">A coffee shop landing page built from a Figma design using HTML, CSS, and JavaScript. Course final project from Progate.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">HTML</span>
+                                <span class="project-tag">CSS</span>
+                                <span class="project-tag">JavaScript</span>
+                            </div>
+                            <a href="https://coffee-rizkyadisatria.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Aroma Bumi project">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bxs-game project-card__icon"></i>
+                                <span class="project-card__year">2023</span>
+                            </div>
+                            <h3 class="project-card__title">Pokémon Catch</h3>
+                            <p class="project-card__desc" data-i18n="proj4.desc">A Pokédex web app integrating the public PokéAPI, allowing users to browse and "catch" Pokémon. Built with HTML, CSS, and JavaScript.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">HTML</span>
+                                <span class="project-tag">CSS</span>
+                                <span class="project-tag">JavaScript</span>
+                                <span class="project-tag">API</span>
+                            </div>
+                            <a href="https://pokemon-rizkyadisatria.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Pokémon Catch project">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-hotel project-card__icon"></i>
+                                <span class="project-card__year">2023</span>
+                            </div>
+                            <h3 class="project-card__title">Lina Boutique Villas & Spa</h3>
+                            <p class="project-card__desc" data-i18n="proj5.desc">A hotel booking website for a property in Kuta, Lombok. Built with WordPress and integrated with a third-party payment gateway.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">WordPress</span>
+                                <span class="project-tag">Payment Gateway</span>
+                            </div>
+                            <a href="https://linalombok.com" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Lina Boutique Villas project">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-buildings project-card__icon"></i>
+                                <span class="project-card__year">2025</span>
+                            </div>
+                            <h3 class="project-card__title">The Lombok Villas</h3>
+                            <p class="project-card__desc" data-i18n="proj6.desc">A villa booking website built with WordPress, developed through a referral partnership with Lina Boutique Villas & Spa for properties in Lombok.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">WordPress</span>
+                                <span class="project-tag">Booking</span>
+                            </div>
+                            <a href="https://thelombokhouses.com" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View The Lombok Villas project">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-store project-card__icon"></i>
+                                <span class="project-card__year">2025</span>
+                            </div>
+                            <h3 class="project-card__title">Tunnels</h3>
+                            <p class="project-card__desc" data-i18n="proj7.desc">A full-featured B2B platform built with the MERN stack. Features product catalog, user authentication, admin dashboard, purchasing system, and payment gateway.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">React</span>
+                                <span class="project-tag">Node.js</span>
+                                <span class="project-tag">Express</span>
+                                <span class="project-tag">MongoDB</span>
+                            </div>
+                            <a href="https://tunnels-phi.vercel.app/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Tunnels project">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                        <article class="project-card">
+                            <div class="project-card__top">
+                                <i class="bx bx-book-open project-card__icon"></i>
+                                <span class="project-card__year">2026</span>
+                            </div>
+                            <h3 class="project-card__title">Seqolah</h3>
+                            <p class="project-card__desc" data-i18n="proj8.desc">A school fee management platform (SPP) with invoice generation, multi-gateway payments, WhatsApp notifications, and subscription billing. Built with Laravel 12, React, Inertia.js, and Firebase.</p>
+                            <div class="project-card__tags">
+                                <span class="project-tag">Laravel 12</span>
+                                <span class="project-tag">React</span>
+                                <span class="project-tag">Inertia.js</span>
+                                <span class="project-tag">Firebase</span>
+                            </div>
+                            <a href="https://seqolah.com/" target="_blank" rel="noopener noreferrer" class="project-card__link" aria-label="View Seqolah project">
+                                <span data-i18n="proj.view">View Project</span> <i class="bx bx-link-external"></i>
+                            </a>
+                        </article>
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===== CONTACT ===== -->
+            <section class="contact section" id="contact">
+                <div class="bd-container">
+                    <h2 class="section-title" data-i18n="section.contact">Get in Touch</h2>
+                    <p class="contact__intro" data-i18n="contact.intro">Have a project in mind or want to discuss an opportunity? I'd love to hear from you.</p>
+                    <form class="contact__form" id="contact-form" action="https://formspree.io/f/mzdynjbp" method="POST">
+                        <div class="contact__row">
+                            <div class="contact__field">
+                                <label for="name" class="contact__label" data-i18n="contact.name">Name</label>
+                                <input type="text" name="name" id="name" class="contact__input" required placeholder="Your name" data-i18n-placeholder="contact.namePlaceholder">
+                            </div>
+                            <div class="contact__field">
+                                <label for="email" class="contact__label" data-i18n="contact.email">Email</label>
+                                <input type="email" name="email" id="email" class="contact__input" required placeholder="your@email.com" data-i18n-placeholder="contact.emailPlaceholder">
+                            </div>
+                        </div>
+                        <div class="contact__field">
+                            <label for="message" class="contact__label" data-i18n="contact.message">Message</label>
+                            <textarea name="message" id="message" class="contact__input contact__textarea" rows="5" required placeholder="Tell me about your project..." data-i18n-placeholder="contact.messagePlaceholder"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn--primary contact__submit" id="contact-submit-btn">
+                            <i class="bx bx-send"></i>
+                            <span data-i18n="contact.send">Send Message</span>
+                        </button>
+                        <p class="contact__status" id="contact-status" aria-live="polite"></p>
+                        <p class="contact__note" data-i18n="contact.note">Or reach me directly via <a href="mailto:rizkyadsatria@gmail.com">email</a> or <a href="https://wa.me/6285933005036" target="_blank" rel="noopener noreferrer">WhatsApp</a>.</p>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ===== SOCIAL + LANGUAGES ===== -->
+            <section class="bottom-row section">
+                <div class="bd-container bottom-row__grid">
+                    <div>
+                        <h2 class="section-title" data-i18n="section.social">Social</h2>
+                        <div class="social-links">
+                            <a href="https://github.com/rizkyadisatria" target="_blank" rel="noopener noreferrer" class="social-link">
+                                <i class="bx bxl-github"></i><span>rizkyadisatria</span>
+                            </a>
+                            <a href="https://instagram.com/rzkydst" target="_blank" rel="noopener noreferrer" class="social-link">
+                                <i class="bx bxl-instagram"></i><span>@rzkydst</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div>
+                        <h2 class="section-title" data-i18n="section.languages">Languages</h2>
+                        <div class="lang-list">
+                            <div class="lang-item">
+                                <i class="bx bx-check-circle"></i>
+                                <span data-i18n="lang.id">Indonesian — Native</span>
+                            </div>
+                            <div class="lang-item">
+                                <i class="bx bx-check-circle"></i>
+                                <span data-i18n="lang.en">English — Conversational</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div><!-- #area-cv -->
+    </main>
+
+    <!-- ===== CV PRINT TEMPLATE (hidden, PDF only) ===== -->
+    <div id="cv-print">
+        <div class="cv-wrap">
+            <div class="cv-left">
+                <div class="cv-photo-wrap">
+                    <img src="assets/img/profile.jpg" alt="Rizky Adi Satria" class="cv-photo">
+                </div>
+                <div class="cv-block">
+                    <h3 class="cv-block__title">Contact</h3>
+                    <ul class="cv-list">
+                        <li><i class="bx bx-map-pin"></i> Mataram, NTB</li>
+                        <li><i class="bx bx-envelope"></i> rizkyadsatria@gmail.com</li>
+                        <li><i class="bx bx-phone"></i> +62 859-3300-5036</li>
+                        <li><i class="bx bxl-github"></i> github.com/rizkyadisatria</li>
+                    </ul>
+                </div>
+                <div class="cv-block">
+                    <h3 class="cv-block__title">Skills</h3>
+                    <ul class="cv-list">
+                        <li>HTML & CSS</li>
+                        <li>JavaScript</li>
+                        <li>React.js</li>
+                        <li>Laravel</li>
+                        <li>Node.js / Express.js</li>
+                        <li>MongoDB / MySQL</li>
+                        <li>WordPress</li>
+                        <li>Tailwind CSS</li>
+                        <li>Git & GitHub</li>
+                        <li>Linux / VPS</li>
+                    </ul>
+                </div>
+                <div class="cv-block">
+                    <h3 class="cv-block__title">Languages</h3>
+                    <ul class="cv-list">
+                        <li>Indonesian — Native</li>
+                        <li>English — Conversational</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="cv-right">
+                <div class="cv-header">
+                    <h1 class="cv-name">Rizky Adi Satria</h1>
+                    <p class="cv-title">Full Stack Developer</p>
+                </div>
+                <div class="cv-section">
+                    <h2 class="cv-section__title">Profile</h2>
+                    <p class="cv-text">Full Stack Developer with 4+ years of professional experience building end-to-end web solutions. Specializes in e-commerce platforms with a strong command of both frontend and backend technologies. Passionate about clean, performant code and tackling complex technical challenges.</p>
+                </div>
+                <div class="cv-section">
+                    <h2 class="cv-section__title">Experience</h2>
+                    <div class="cv-item">
+                        <div class="cv-item__row">
+                            <strong class="cv-item__title">Technical Support</strong>
+                            <span class="cv-item__period">Aug 2021 – Feb 2022</span>
+                        </div>
+                        <p class="cv-item__sub">CV. Data Digital Indonesia &bull; dewahoster.co.id</p>
+                        <p class="cv-text">Resolved client issues related to domain management, hosting configuration, and WordPress websites. Provided step-by-step technical guidance and troubleshooting support.</p>
+                    </div>
+                    <div class="cv-item">
+                        <div class="cv-item__row">
+                            <strong class="cv-item__title">Full Stack Developer</strong>
+                            <span class="cv-item__period">Mar 2022 – Present</span>
+                        </div>
+                        <p class="cv-item__sub">PT. Bumigora Karya Mandiri &bull; bumigorashop.com</p>
+                        <p class="cv-text">Built and maintained the Bumigorashop e-commerce platform from the ground up, collaborating with a designer to create a marketplace empowering local sellers to reach wider markets.</p>
+                    </div>
+                    <div class="cv-item">
+                        <div class="cv-item__row">
+                            <strong class="cv-item__title">Freelance Developer</strong>
+                            <span class="cv-item__period">Aug 2023 – Present</span>
+                        </div>
+                        <p class="cv-item__sub">Self-employed</p>
+                        <p class="cv-text">Deliver end-to-end web and mobile solutions — hotel booking systems, company profiles, hosting order platforms, Mikrotik management, VPN setups, and VPS deployment.</p>
+                    </div>
+                </div>
+                <div class="cv-section">
+                    <h2 class="cv-section__title">Education</h2>
+                    <div class="cv-item">
+                        <div class="cv-item__row">
+                            <strong class="cv-item__title">Network Engineering</strong>
+                            <span class="cv-item__period">2015 – 2018</span>
+                        </div>
+                        <p class="cv-item__sub">SMK Negeri 6 Mataram</p>
+                    </div>
+                    <div class="cv-item">
+                        <div class="cv-item__row">
+                            <strong class="cv-item__title">Bachelor of Computer Science</strong>
+                            <span class="cv-item__period">2018 – 2022</span>
+                        </div>
+                        <p class="cv-item__sub">Universitas Bumigora</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <a href="#" class="scrolltop" id="scroll-top">
+        <i class="bx bx-chevron-up"></i>
+    </a>
+
+    <!-- ===== JSON-LD Structured Data ===== -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "name": "Rizky Adi Satria",
+      "jobTitle": "Full Stack Developer",
+      "url": "https://rizkyadisatria.github.io/",
+      "email": "rizkyadsatria@gmail.com",
+      "telephone": "+6285933005036",
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "Mataram",
+        "addressRegion": "Nusa Tenggara Barat",
+        "addressCountry": "ID"
+      },
+      "sameAs": [
+        "https://github.com/rizkyadisatria",
+        "https://instagram.com/rzkydst"
+      ],
+      "knowsAbout": ["React.js", "Laravel", "Node.js", "MongoDB", "MySQL", "WordPress", "Tailwind CSS", "Linux", "MERN Stack"],
+      "alumniOf": {
+        "@type": "CollegeOrUniversity",
+        "name": "Universitas Bumigora"
+      }
+    }
+    </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.12.2/lottie.min.js"></script>
+    <script src="assets/js/html2pdf.bundle.min.js"></script>
+    <script src="assets/js/main.js"></script>
+</body>
+
+</html>

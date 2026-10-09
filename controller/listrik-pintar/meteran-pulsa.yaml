@@ -1,0 +1,54 @@
+# ESP32 membaca kedipan LED meteran prabayar (tanpa menyentuh kabel listrik).
+# Satu kedipan = 1/imp_per_kWh kWh. Lihat tulisan "imp/kWh" di stiker meteran (umumnya 1000).
+# Rumus daya (W) = 60000 / imp_per_kWh dikali pulsa per menit. Untuk 1000 imp/kWh: kali 60.
+# Rangkaian: LDR + resistor 10k seperti Tahap 4 stasiun cuaca (pin D34), LDR ditempel
+# menghadap LED pulsa meteran dengan selotip hitam supaya tidak kena cahaya lain.
+esphome:
+  name: meteran-rumah
+  friendly_name: Meteran Rumah
+  platformio_options:
+    board_build.flash_mode: dio
+    board_build.f_flash: 40000000L
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+api:
+  encryption:
+    key: !secret api_key
+ota:
+  - platform: esphome
+    password: !secret ota_password
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Meteran-Fallback"
+    password: !secret ap_password
+captive_portal:
+
+sensor:
+  - platform: pulse_meter
+    pin:
+      number: GPIO34
+    name: "Daya Rumah"
+    id: daya_rumah
+    unit_of_measurement: "W"
+    device_class: power
+    state_class: measurement
+    accuracy_decimals: 0
+    internal_filter: 30ms     # abaikan getaran sangat singkat
+    timeout: 5min             # tanpa kedipan 5 menit dianggap 0 W
+    filters:
+      - multiply: 60          # ganti sesuai imp/kWh: 60000 / imp_per_kWh
+    total:
+      name: "Energi Rumah"
+      unit_of_measurement: "kWh"
+      device_class: energy
+      state_class: total_increasing
+      accuracy_decimals: 3
+      filters:
+        - multiply: 0.001     # ganti sesuai imp/kWh: 1 / imp_per_kWh

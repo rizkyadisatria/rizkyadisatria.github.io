@@ -1,0 +1,36 @@
+# Tempel di HA: Pengaturan > Otomasi > Buat otomasi > menu titik tiga > Edit di YAML
+alias: Alarm suhu kamar
+description: Panas di atas 31 C = LED dan buzzer menyala. Turun di bawah 29 C = LED mati.
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.stasiun_cuaca_suhu
+    above: 31
+    id: panas
+  - trigger: numeric_state
+    entity_id: sensor.stasiun_cuaca_suhu
+    below: 29
+    id: normal
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: panas
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: light.stasiun_cuaca_led_peringatan
+          - action: switch.turn_on
+            target:
+              entity_id: switch.stasiun_cuaca_buzzer
+          - action: persistent_notification.create
+            data:
+              title: Kamar panas
+              message: "Suhu {{ states('sensor.stasiun_cuaca_suhu') }} °C"
+      - conditions:
+          - condition: trigger
+            id: normal
+        sequence:
+          - action: light.turn_off
+            target:
+              entity_id: light.stasiun_cuaca_led_peringatan
+mode: single

@@ -1,0 +1,28 @@
+# Dua otomasi. Tempel satu per satu lewat Otomasi > Buat otomasi > titik tiga > Edit di YAML.
+# Ganti ID entitas dengan milik colokanmu.
+
+# 1) Charger: matikan colokan kalau daya di bawah 2 W selama 10 menit (HP sudah penuh).
+alias: Matikan colokan charger saat penuh
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.colokan_charger_daya
+    below: 2
+    for: "00:10:00"
+actions:
+  - action: switch.turn_off
+    target:
+      entity_id: switch.colokan_charger
+mode: single
+---
+# 2) Peringatan biaya: kabari kalau biaya satu alat hari ini lewat Rp 5.000.
+alias: Peringatan biaya kipas
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.biaya_kipas_hari_ini
+    above: 5000
+actions:
+  - action: persistent_notification.create
+    data:
+      title: Biaya listrik kipas tinggi
+      message: "Hari ini Rp {{ states('sensor.biaya_kipas_hari_ini') }}"
+mode: single

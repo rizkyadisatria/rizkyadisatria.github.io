@@ -1,0 +1,12 @@
+# Home Assistant di Docker Desktop (Windows). Simpan di C:\ha\docker-compose.yml
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    restart: unless-stopped
+    ports:
+      - "8123:8123"
+    volumes:
+      - ./config:/config
+    environment:
+      - TZ=Asia/Makassar

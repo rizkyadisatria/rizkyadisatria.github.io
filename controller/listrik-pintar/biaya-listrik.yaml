@@ -1,0 +1,33 @@
+# Tempel ke C:\ha\config\configuration.yaml (tambahkan di bawah isi yang sudah ada), lalu
+# Pengaturan > Sistem > Mulai ulang. Ganti sensor.colokan_kipas_energi dengan ID entitas
+# energi (kWh) colokanmu: HA > Pengaturan > Perangkat & layanan > perangkatnya > entitas energi.
+input_number:
+  tarif_listrik:
+    name: Tarif listrik efektif
+    min: 0
+    max: 5000
+    step: 0.01
+    mode: box
+    unit_of_measurement: "Rp/kWh"
+    initial: 1352          # ganti dengan angka dari kalkulator di panduan
+
+utility_meter:
+  kipas_harian:
+    source: sensor.colokan_kipas_energi
+    cycle: daily
+  kipas_bulanan:
+    source: sensor.colokan_kipas_energi
+    cycle: monthly
+
+template:
+  - sensor:
+      - name: "Biaya kipas hari ini"
+        unit_of_measurement: "Rp"
+        state: >
+          {{ (states('sensor.kipas_harian') | float(0)
+              * states('input_number.tarif_listrik') | float(0)) | round(0) }}
+      - name: "Biaya kipas bulan ini"
+        unit_of_measurement: "Rp"
+        state: >
+          {{ (states('sensor.kipas_bulanan') | float(0)
+              * states('input_number.tarif_listrik') | float(0)) | round(0) }}
