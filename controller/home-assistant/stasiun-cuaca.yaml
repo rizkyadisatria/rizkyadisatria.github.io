@@ -1,0 +1,84 @@
+# ESPHome untuk stasiun cuaca kamar. Pin sama dengan panduan sebelumnya.
+# DHT11 = D4, LDR = D34, LED = D25, buzzer aktif = D26.
+esphome:
+  name: stasiun-cuaca
+  friendly_name: Stasiun Cuaca
+  # Board-mu pernah restart terus dengan QIO/80MHz, jadi pakai DIO/40MHz seperti yang berhasil.
+  platformio_options:
+    board_build.flash_mode: dio
+    board_build.f_flash: 40000000L
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Kalau WiFi hilang, ESP32 membuat hotspot sendiri untuk diatur ulang
+  ap:
+    ssid: "Stasiun-Cuaca-Fallback"
+    password: !secret ap_password
+
+captive_portal:
+
+sensor:
+  - platform: dht
+    pin: GPIO4
+    model: DHT11
+    temperature:
+      name: "Suhu"
+    humidity:
+      name: "Kelembapan"
+    update_interval: 10s
+
+  # LDR + resistor 10k di D34. Nilai 0-100 persen, makin besar makin terang.
+  - platform: adc
+    pin: GPIO34
+    name: "Cahaya"
+    attenuation: 12db
+    update_interval: 5s
+    unit_of_measurement: "%"
+    icon: mdi:brightness-6
+    accuracy_decimals: 0
+    filters:
+      - multiply: 30.3030   # 3.3 V -> 100 (3.3 x 30.303 = 100)
+      - sliding_window_moving_average:
+          window_size: 6
+          send_every: 1
+
+output:
+  - platform: gpio
+    pin: GPIO25
+    id: led_out
+
+light:
+  - platform: binary
+    name: "LED Peringatan"
+    output: led_out
+
+switch:
+  # Buzzer AKTIF: cukup HIGH untuk berbunyi. Mati sendiri setelah 5 detik supaya tidak lupa.
+  - platform: gpio
+    pin: GPIO26
+    name: "Buzzer"
+    id: buzzer
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      - delay: 5s
+      - switch.turn_off: buzzer
+
+button:
+  - platform: restart
+    name: "Restart"

@@ -10,6 +10,17 @@ window.SITE = {
 
 window.GUIDES = [
   {
+    slug: "home-assistant",
+    judul: "Stasiun Cuaca di Home Assistant",
+    ringkas: "Sambungkan stasiun cuaca ke Home Assistant dengan ESPHome: dashboard suhu, kelembapan, cahaya, kontrol LED dan buzzer, serta otomasi alarm kalau kamar panas. Dipandu dari install di Windows.",
+    level: "Menengah",
+    tahap: "7 tahap (tahap 7 opsional)",
+    komponen: ["ESP32", "ESPHome", "Home Assistant", "Docker"],
+    status: "Konfigurasi sudah divalidasi, belum diuji di kit",
+    gambar: "stasiun-cuaca/img/esp32.jpg",
+    diperbarui: "2026-10-09"
+  },
+  {
     slug: "stasiun-cuaca",
     judul: "Stasiun Cuaca Kamar + Bot Telegram",
     ringkas: "Ukur suhu, kelembapan, dan cahaya kamar dengan ESP32, tampilkan lewat bot Telegram, dan beri peringatan dengan LED dan buzzer kalau terlalu panas. Dimulai dari mengenal setiap komponen sampai kode final.",

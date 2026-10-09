@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stasiun Cuaca di Home Assistant · Panduan Elektronika</title>
+<meta name="description" content="Sambungkan ESP32 stasiun cuaca ke Home Assistant dengan ESPHome: install di Windows, flash pertama, dashboard, dan otomasi alarm suhu.">
+<meta name="theme-color" content="#a9531c">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../assets/tema.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;padding:0 16px 64px}
+.wrap{max-width:780px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);font-weight:600;line-height:1.1;text-wrap:balance;margin:0}
+h1{font-size:2.6rem}h2{font-size:1.9rem}h3{font-size:1.3rem}
+p{margin:0}a{color:var(--accent)}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.back{display:inline-block;font-family:var(--mono);font-size:.82rem;margin-bottom:10px}
+header{padding-block:32px 8px;display:grid;gap:12px}
+.lead{max-width:62ch;color:var(--muted)}
+section{padding-block:36px 4px;display:grid;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:grid;gap:12px}
+.note{border-radius:10px;padding:12px 14px;font-size:.93rem;display:grid;gap:4px}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+.note.ok{background:var(--ok-soft);color:var(--ok)}
+.note.info{background:var(--accent-soft);color:var(--ink)}
+ol,ul{margin:0;padding-left:1.25rem;display:grid;gap:8px}
+code{font-family:var(--mono);font-size:.86em;background:var(--chip);color:var(--chip-fg);padding:1px 6px;border-radius:4px}
+pre{margin:0;background:var(--chip);color:var(--chip-fg);border-radius:10px;padding:14px;overflow-x:auto;font-family:var(--mono);font-size:.8rem;line-height:1.5;position:relative;max-width:100%}
+pre code{background:none;padding:0;font-size:inherit;color:inherit}
+.cp{position:absolute;top:8px;right:8px;font:inherit;font-size:.72rem;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:3px 9px;cursor:pointer}
+.codewrap{position:relative}
+.codewrap pre{padding-top:34px}
+.card>*,section>*,.codewrap{min-width:0}
+.card{overflow-wrap:anywhere}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+th{font-family:var(--mono);font-size:.74rem;text-transform:uppercase;color:var(--muted)}
+label.step{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+label.step input{margin-top:6px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.progress{font-family:var(--mono);font-size:.82rem;color:var(--muted)}
+.muted{color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media (max-width:480px){h1{font-size:2.1rem}h2{font-size:1.65rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a class="back" href="../">← Semua panduan</a>
+  <span class="eyebrow">ESP32 · Proyek 2 · Home Assistant</span>
+  <h1>Stasiun Cuaca di Home Assistant</h1>
+  <p class="lead">Hasilnya: suhu, kelembapan, dan cahaya kamarmu muncul di dashboard Home Assistant, dan LED serta buzzer bisa dinyalakan dari sana atau otomatis kalau kamar panas. Rangkaian di breadboard tidak berubah. Yang berubah hanya program di ESP32.</p>
+  <p class="progress" id="prog">0 / 0 langkah</p>
+</header>
+
+<section>
+  <h2>Sebelum mulai</h2>
+  <div class="card">
+    <ul>
+      <li><b>Home Assistant (HA)</b> adalah aplikasi rumah pintar yang jalan di komputer. Ia mengumpulkan semua perangkat di satu dashboard dan menjalankan otomasi.</li>
+      <li><b>ESPHome</b> adalah cara membuat firmware ESP32 dari berkas konfigurasi YAML, tanpa menulis kode Arduino. Perangkatnya muncul di HA secara otomatis.</li>
+      <li>Rangkaian dari panduan <a href="../stasiun-cuaca/">Stasiun Cuaca</a> (Tahap 0–5) harus sudah terpasang dan sensornya sudah terbukti jalan.</li>
+    </ul>
+    <div class="note warn"><b>Konsekuensi yang perlu kamu tahu</b><p>ESP32 hanya menjalankan satu firmware. Setelah di-flash dengan ESPHome, bot Telegram dari panduan sebelumnya <b>tidak jalan lagi</b> (kodenya tertimpa). Kamu bisa mengembalikannya kapan saja dengan upload ulang <code>stasiun_cuaca.ino</code>. Notifikasi Telegram bisa dibuat lagi lewat HA, itu opsional di Tahap 7.</p></div>
+    <div class="note warn"><b>Laptop harus menyala</b><p>HA jalan di laptopmu, jadi dashboard dan otomasi hanya aktif selama laptop hidup dan tidak sleep. Cocok untuk belajar. Untuk dipakai terus-menerus, nanti sebaiknya pindah ke Raspberry Pi atau mini PC.</p></div>
+  </div>
+</section>
+
+<section id="t1">
+  <span class="eyebrow">Tahap 1</span>
+  <h2>Pasang Docker Desktop</h2>
+  <div class="card">
+    <p>Docker membungkus HA dalam satu "wadah" supaya tidak mengotori Windows-mu.</p>
+    <ol>
+      <li data-s>Buka <a href="https://www.docker.com/products/docker-desktop/">docker.com/products/docker-desktop</a>, unduh dan install Docker Desktop untuk Windows. Biarkan opsi <b>WSL 2</b> tercentang.</li>
+      <li data-s>Restart laptop kalau diminta, lalu buka Docker Desktop dan tunggu ikon paus di pojok kiri bawah berwarna hijau (Engine running).</li>
+      <li data-s>Buka PowerShell dan ketik <code>docker --version</code>. Harus muncul nomor versi.</li>
+    </ol>
+    <div class="note info"><b>Kalau muncul pesan virtualisasi</b><p>Aktifkan <b>Virtualization (VT-x / SVM)</b> di BIOS laptop. Nama menu berbeda tiap merek. Cari tulisan itu di panduan laptopmu.</p></div>
+  </div>
+</section>
+
+<section id="t2">
+  <span class="eyebrow">Tahap 2</span>
+  <h2>Jalankan Home Assistant</h2>
+  <div class="card">
+    <ol>
+      <li data-s>Buat folder <code>C:\ha</code>.</li>
+      <li data-s>Simpan berkas di bawah dengan nama <code>docker-compose.yml</code> di folder itu (atau <a href="docker-compose.yml" download>unduh</a>).</li>
+    </ol>
+    <div class="codewrap"><button class="cp" type="button">Salin</button><pre><code># Home Assistant di Docker Desktop (Windows). Simpan di C:\ha\docker-compose.yml
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:stable
+    restart: unless-stopped
+    ports:
+      - &quot;8123:8123&quot;
+    volumes:
+      - ./config:/config
+    environment:
+      - TZ=Asia/Makassar</code></pre></div>
+    <ol start="3">
+      <li data-s>Di PowerShell: <code>cd C:\ha</code> lalu <code>docker compose up -d</code>. Unduhan pertama beberapa menit.</li>
+      <li data-s>Buka <code>http://localhost:8123</code> di browser. Tunggu sampai muncul layar "Welcome", lalu buat akun pemilik (nama, username, password). Simpan password itu baik-baik.</li>
+      <li data-s>Ikuti pertanyaan lokasi dan satuan. Pilih Celsius dan zona waktu Asia/Makassar.</li>
+    </ol>
+    <div class="note ok"><b>Berhasil kalau</b><p>Kamu masuk ke halaman Overview HA. Kalau halaman tidak terbuka, buka Docker Desktop dan lihat apakah container <code>homeassistant</code> berstatus Running.</p></div>
+  </div>
+</section>
+
+<section id="t3">
+  <span class="eyebrow">Tahap 3</span>
+  <h2>Pasang ESPHome di Windows</h2>
+  <div class="card">
+    <ol>
+      <li data-s>Install Python 3.12 atau lebih baru dari <a href="https://www.python.org/downloads/">python.org</a>. Centang <b>Add python.exe to PATH</b> di layar pertama installer.</li>
+      <li data-s>Buka PowerShell baru: <code>pip install esphome</code></li>
+      <li data-s>Cek: <code>esphome version</code> harus menampilkan nomor versi.</li>
+      <li data-s>Buat folder <code>C:\esp</code>. Simpan dua berkas di situ: <a href="stasiun-cuaca.yaml" download>stasiun-cuaca.yaml</a> dan <a href="secrets.yaml.contoh" download>secrets.yaml.contoh</a>.</li>
+      <li data-s>Ganti nama <code>secrets.yaml.contoh</code> menjadi <code>secrets.yaml</code>, lalu isi: nama WiFi <b>2.4 GHz</b> dan passwordnya, serta <code>api_key</code>. Buat kunci dengan perintah <code>python -c "import base64,os;print(base64.b64encode(os.urandom(32)).decode())"</code> dan tempel hasilnya.</li>
+    </ol>
+    <div class="note warn"><b>Rahasia</b><p><code>secrets.yaml</code> berisi password WiFi dan kunci perangkat. Jangan unggah ke GitHub atau kirim ke siapa pun. Berkas <code>stasiun-cuaca.yaml</code> sendiri aman dibagikan karena hanya merujuk ke secrets.</p></div>
+  </div>
+</section>
+
+<section id="t4">
+  <span class="eyebrow">Tahap 4</span>
+  <h2>Flash pertama lewat USB</h2>
+  <div class="card">
+    <p>Isi konfigurasinya (pin sama dengan panduan sebelumnya):</p>
+    <div class="codewrap"><button class="cp" type="button">Salin</button><pre><code># ESPHome untuk stasiun cuaca kamar. Pin sama dengan panduan sebelumnya.
+# DHT11 = D4, LDR = D34, LED = D25, buzzer aktif = D26.
+esphome:
+  name: stasiun-cuaca
+  friendly_name: Stasiun Cuaca
+  # Board-mu pernah restart terus dengan QIO/80MHz, jadi pakai DIO/40MHz seperti yang berhasil.
+  platformio_options:
+    board_build.flash_mode: dio
+    board_build.f_flash: 40000000L
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  # Kalau WiFi hilang, ESP32 membuat hotspot sendiri untuk diatur ulang
+  ap:
+    ssid: &quot;Stasiun-Cuaca-Fallback&quot;
+    password: !secret ap_password
+
+captive_portal:
+
+sensor:
+  - platform: dht
+    pin: GPIO4
+    model: DHT11
+    temperature:
+      name: &quot;Suhu&quot;
+    humidity:
+      name: &quot;Kelembapan&quot;
+    update_interval: 10s
+
+  # LDR + resistor 10k di D34. Nilai 0-100 persen, makin besar makin terang.
+  - platform: adc
+    pin: GPIO34
+    name: &quot;Cahaya&quot;
+    attenuation: 12db
+    update_interval: 5s
+    unit_of_measurement: &quot;%&quot;
+    icon: mdi:brightness-6
+    accuracy_decimals: 0
+    filters:
+      - multiply: 30.3030   # 3.3 V -&gt; 100 (3.3 x 30.303 = 100)
+      - sliding_window_moving_average:
+          window_size: 6
+          send_every: 1
+
+output:
+  - platform: gpio
+    pin: GPIO25
+    id: led_out
+
+light:
+  - platform: binary
+    name: &quot;LED Peringatan&quot;
+    output: led_out
+
+switch:
+  # Buzzer AKTIF: cukup HIGH untuk berbunyi. Mati sendiri setelah 5 detik supaya tidak lupa.
+  - platform: gpio
+    pin: GPIO26
+    name: &quot;Buzzer&quot;
+    id: buzzer
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      - delay: 5s
+      - switch.turn_off: buzzer
+
+button:
+  - platform: restart
+    name: &quot;Restart&quot;</code></pre></div>
+    <table>
+      <tr><th>Entitas di HA</th><th>Pin</th><th>Komponen</th></tr>
+      <tr><td>Suhu, Kelembapan</td><td>D4</td><td>DHT11</td></tr>
+      <tr><td>Cahaya</td><td>D34</td><td>LDR + resistor 10 kΩ</td></tr>
+      <tr><td>LED Peringatan</td><td>D25</td><td>LED merah</td></tr>
+      <tr><td>Buzzer</td><td>D26</td><td>Buzzer aktif (mati sendiri setelah 5 detik)</td></tr>
+    </table>
+    <ol>
+      <li data-s><b>Tutup Arduino IDE</b> (atau setidaknya Serial Monitor), karena ia memegang port COM5 dan akan memblokir flash.</li>
+      <li data-s>Colok ESP32 lewat USB. Di PowerShell: <code>cd C:\esp</code> lalu <code>esphome run stasiun-cuaca.yaml --device COM5</code></li>
+      <li data-s>Kompilasi pertama mengunduh banyak alat dan bisa 5–15 menit. Itu normal. Kalau macet di "Connecting....", tahan tombol <b>BOOT</b> di ESP32 sampai persentase upload muncul.</li>
+      <li data-s>Setelah selesai, log berjalan dan menampilkan alamat IP ESP32 (mis. <code>192.168.1.23</code>) serta nilai suhu. <b>Catat IP itu.</b></li>
+    </ol>
+    <div class="note ok"><b>Berhasil kalau</b><p>Log menampilkan <code>Successfully connected</code> ke WiFi dan angka suhu, kelembapan, dan cahaya muncul tiap beberapa detik.</p></div>
+    <div class="note info"><b>Kalau restart terus (<code>load:0xffffffff</code>)</b><p>Konfigurasi ini sudah memakai flash DIO/40MHz seperti yang menyelesaikan masalah boot loop di board-mu. Kalau tetap terjadi, tambahkan <code>esp32: flash_size: 4MB</code> di bawah <code>board</code> dan flash ulang.</p></div>
+    <p class="muted">Flash berikutnya tidak perlu kabel: <code>esphome run stasiun-cuaca.yaml</code> lalu pilih opsi lewat jaringan (OTA).</p>
+  </div>
+</section>
+
+<section id="t5">
+  <span class="eyebrow">Tahap 5</span>
+  <h2>Tambahkan ke Home Assistant</h2>
+  <div class="card">
+    <ol>
+      <li data-s>Di HA: <b>Pengaturan → Perangkat &amp; layanan</b>. Kalau muncul kartu "Ditemukan: Stasiun Cuaca", klik <b>Konfigurasi</b>.</li>
+      <li data-s>Kalau tidak muncul (umum di Docker Windows): klik <b>Tambah integrasi</b>, cari <b>ESPHome</b>, isi Host dengan IP dari Tahap 4 dan port <code>6053</code>.</li>
+      <li data-s>Saat diminta <b>encryption key</b>, tempel nilai <code>api_key</code> dari <code>secrets.yaml</code>.</li>
+      <li data-s>Buka perangkat <b>Stasiun Cuaca</b>. Harus ada 3 sensor, 1 lampu, 1 switch, dan tombol Restart.</li>
+    </ol>
+    <div class="note ok"><b>Berhasil kalau</b><p>Suhu dan kelembapan terbaca, dan menekan switch <b>Buzzer</b> membuat buzzer berbunyi (mati sendiri dalam 5 detik). Lampu <b>LED Peringatan</b> menyalakan LED merah.</p></div>
+    <div class="note info"><b>Tiup napas ke DHT11</b><p>Angka kelembapan di HA naik beberapa persen. Itu bukti jalur sensor sampai ke dashboard.</p></div>
+  </div>
+</section>
+
+<section id="t6">
+  <span class="eyebrow">Tahap 6</span>
+  <h2>Dashboard dan otomasi alarm</h2>
+  <div class="card">
+    <ol>
+      <li data-s>Buka <b>Overview</b> dan klik ikon pensil untuk mengedit, lalu <b>Tambah kartu</b>. Pilih <b>Gauge</b> untuk Suhu (min 15, maks 45) dan <b>Entities</b> untuk Kelembapan, Cahaya, LED, dan Buzzer.</li>
+      <li data-s>Buat otomasi: <b>Pengaturan → Otomasi &amp; Pemandangan → Buat otomasi → Buat dari awal</b>. Klik menu titik tiga di kanan atas, pilih <b>Edit di YAML</b>, hapus isinya, dan tempel ini:</li>
+    </ol>
+    <div class="codewrap"><button class="cp" type="button">Salin</button><pre><code># Tempel di HA: Pengaturan &gt; Otomasi &gt; Buat otomasi &gt; menu titik tiga &gt; Edit di YAML
+alias: Alarm suhu kamar
+description: Panas di atas 31 C = LED dan buzzer menyala. Turun di bawah 29 C = LED mati.
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.stasiun_cuaca_suhu
+    above: 31
+    id: panas
+  - trigger: numeric_state
+    entity_id: sensor.stasiun_cuaca_suhu
+    below: 29
+    id: normal
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: panas
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: light.stasiun_cuaca_led_peringatan
+          - action: switch.turn_on
+            target:
+              entity_id: switch.stasiun_cuaca_buzzer
+          - action: persistent_notification.create
+            data:
+              title: Kamar panas
+              message: &quot;Suhu {{ states(&#x27;sensor.stasiun_cuaca_suhu&#x27;) }} °C&quot;
+      - conditions:
+          - condition: trigger
+            id: normal
+        sequence:
+          - action: light.turn_off
+            target:
+              entity_id: light.stasiun_cuaca_led_peringatan
+mode: single</code></pre></div>
+    <ol start="3">
+      <li data-s>Simpan. Tes: tutup DHT11 dengan tangan hangat atau dekatkan ke gelas air panas sampai suhu melewati 31 °C. LED menyala, buzzer berbunyi, dan muncul notifikasi di HA.</li>
+    </ol>
+    <div class="note info"><b>Dua angka, bukan satu</b><p>Menyalakan di 31 °C dan mematikan di 29 °C mencegah alarm hidup-mati berulang saat suhu naik turun di sekitar batas (disebut hysteresis).</p></div>
+    <div class="note info"><b>Kalau otomasi tidak jalan</b><p>Nama entitas bisa berbeda. Buka perangkat Stasiun Cuaca di HA, klik entitasnya, ikon roda gigi, dan lihat <i>ID Entitas</i>. Samakan dengan isi YAML (<code>sensor.stasiun_cuaca_suhu</code> dan seterusnya).</p></div>
+  </div>
+</section>
+
+<section id="t7">
+  <span class="eyebrow">Tahap 7 · opsional</span>
+  <h2>Notifikasi Telegram lewat HA</h2>
+  <div class="card">
+    <p>Bot yang kamu buat sebelumnya bisa dipakai lagi sebagai kanal notifikasi. Di HA: <b>Tambah integrasi → Telegram bot</b>, pilih <i>Polling</i>, masukkan <b>token</b> dari BotFather dan <b>chat ID</b>-mu. Lalu di otomasi, tambahkan aksi <code>notify.send_message</code> ke entitas Telegram yang muncul. Perintah seperti <code>/status</code> tidak otomatis ada. Itu perlu otomasi tersendiri.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Kalau ada yang tidak jalan</h2>
+  <div class="card">
+    <ul>
+      <li><b><code>esphome</code> tidak dikenali:</b> tutup dan buka PowerShell baru, atau Python belum ditambahkan ke PATH saat install.</li>
+      <li><b>Port COM5 sedang dipakai / access denied:</b> tutup Arduino IDE dan Serial Monitor, cabut dan colok ulang USB.</li>
+      <li><b>Tidak terhubung WiFi:</b> pastikan jaringan 2.4 GHz dan password benar. Setelah beberapa menit gagal, ESP32 membuat hotspot <code>Stasiun-Cuaca-Fallback</code> untuk mengatur ulang.</li>
+      <li><b>HA tidak bisa menemukan perangkat:</b> tambahkan manual dengan IP, dan pastikan laptop dan ESP32 di jaringan WiFi yang sama.</li>
+      <li><b>IP berubah setelah router restart:</b> tetapkan IP tetap (DHCP reservation) untuk ESP32 di pengaturan router.</li>
+      <li><b>Nilai Cahaya selalu 0 atau 100:</b> cek resistor 10 kΩ LDR dan kabel ke D34, sama seperti Tahap 4 panduan sebelumnya.</li>
+      <li><b>Ingin kembali ke bot Telegram:</b> upload ulang <code>stasiun_cuaca.ino</code> lewat Arduino IDE.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>Berkas</h2>
+  <div class="card"><ul>
+    <li><a href="stasiun-cuaca.yaml" download>stasiun-cuaca.yaml</a> konfigurasi ESPHome</li>
+    <li><a href="secrets.yaml.contoh" download>secrets.yaml.contoh</a> templat rahasia</li>
+    <li><a href="docker-compose.yml" download>docker-compose.yml</a> Home Assistant</li>
+    <li><a href="otomasi-alarm.yaml" download>otomasi-alarm.yaml</a> otomasi alarm suhu</li>
+  </ul></div>
+</section>
+</div>
+<script>
+(function(){
+  var KEY='ha-stasiun-cuaca',st={};
+  try{st=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){}
+  var items=[].slice.call(document.querySelectorAll('li[data-s]'));
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+  function prog(){var n=items.filter(function(li,i){return st[i]}).length;document.getElementById('prog').textContent=n+' / '+items.length+' langkah'}
+  items.forEach(function(li,i){
+    var cb=document.createElement('input');cb.type='checkbox';cb.checked=!!st[i];cb.setAttribute('aria-label','Selesai');
+    cb.style.cssText='accent-color:var(--accent);margin-right:8px;width:16px;height:16px;vertical-align:-2px';
+    cb.addEventListener('change',function(){st[i]=cb.checked;save();prog()});
+    li.insertBefore(cb,li.firstChild);
+  });
+  prog();
+  [].forEach.call(document.querySelectorAll('.cp'),function(b){b.addEventListener('click',function(){
+    var t=b.parentNode.querySelector('code').textContent;
+    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){b.textContent='Tersalin'},function(){b.textContent='Pilih manual'});
+    setTimeout(function(){b.textContent='Salin'},1600);
+  })});
+})();
+</script>
+</body>
+</html>
