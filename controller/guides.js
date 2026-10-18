@@ -5,7 +5,7 @@
    Field "gambar" opsional (path relatif dari folder ini). */
 window.SITE = {
   judul: "Panduan Elektronika",
-  repo: "https://github.com/rizkyadisatria/rizkyadisatria.github.io/tree/main/controller"
+  repo: "https://github.com/rizkyadisatria/rizkyadisatria.github.io/tree/master/controller"
 };
 
 window.GUIDES = [
