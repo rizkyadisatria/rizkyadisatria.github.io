@@ -46,7 +46,8 @@ def halaman():
         'HC-SR04 depan dipasang di tepi depan plat bawah, lurus ke depan, minimal 5 cm di atas lantai supaya tidak "melihat" lantai. Yang belakang di tepi belakang.',
         'Plat atas: pan-tilt dan ESP32-CAM di depan, layar berdiri miring sebagai wajah, S3 dan breadboard besar di tengah, speaker dan mikrofon berjauhan.',
         'Pasang spacer kit di antara kedua plat. Kabel yang menyeberang (UART 3 kabel, 5 V ke S3, 5 V ke kamera, servo) lewat lubang tengah.',
-    ], figs=fig(tata_letak(), 'Barang yang sering dibuka (holder baterai, saklar) harus mudah dijangkau.'),
+    ], pre=warn('Ukur dulu: belum pasti muat', 'Tata letak ini dibuat tanpa ukuran plat chassismu, jadi belum pasti semua muat. Yang paling mungkin bermasalah: (1) <b>tinggi</b> ruang di antara dua plat, karena DevKit di papan 30P ditambah kabel jumper yang tegak bisa setinggi 40-45 mm; (2) <b>luas</b> plat atas, karena papan ekspansi S3 (sekitar 10 x 10 cm) dan breadboard besar (16,5 x 5,5 cm) makan banyak tempat. Sebelum menempel apa pun, ukur panjang dan lebar plat serta panjang spacer antar-plat, lalu susun semua barang di atas plat tanpa direkatkan. Kalau tidak muat: ganti breadboard besar dengan breadboard mini 170 lubang, taruh semua barang yang rendah (baterai, BMS, konverter, TB6612) di lantai bawah, dan pertimbangkan lantai ketiga dengan spacer M3 yang lebih panjang.'),
+        figs=fig(tata_letak(), 'Barang yang sering dibuka (holder baterai, saklar) harus mudah dijangkau.'),
         ok_='Semua board terpasang kuat, tidak ada kabel yang bisa tersangkut roda, dan holder baterai bisa dibuka.')
 
     t += stage(S, 2, 'Rapikan kabel', ['Cable ties', 'Selotip kertas + spidol'], [
