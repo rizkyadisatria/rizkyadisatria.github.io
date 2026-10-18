@@ -23,7 +23,7 @@ KIT = [
     ('resistor', 'Resistor 1%', '30 nilai, 20 buah tiap nilai.', 1),
     ('kapasitor', 'Kapasitor elektrolit', '10, 100, 470, 1000 µF, 50 V.', 1),
     ('dupont', 'Kabel jumper', 'M-M, M-F, F-F.', 1),
-    ('breadboard', '2 breadboard', 'Besar untuk otak, kecil untuk badan.', 1),
+    ('breadboard', '2 breadboard 400 lubang', 'Satu untuk badan, satu untuk otak.', 1),
     ('header', 'Pin header', 'Disolder ke modul.', 1),
     ('tombol', 'Push button', 'Tombol STOP.', 1),
     ('multimeter', 'Multimeter', 'Wajib untuk mengukur sebelum menyambung.', 1),
@@ -98,7 +98,9 @@ def isi():
         ['Heat shrink kit ukuran campur (2-10 mm)', '1 kotak isi ~100-160', 'sekitar 30 sambungan: 3 mm untuk kabel servo/tipis, 5 mm untuk kabel 20-22 AWG, 8 mm untuk kaki saklar dan sekring', 'sambungan mudah korsleting'],
         ['Cable ties 3 x 100 mm', '1 pak isi 100', 'sekitar 25 ikatan, sisanya cadangan karena sekali pakai', 'kabel tersangkut roda'],
         ['Kabel USB-C data', '1', 'upload ke ESP32-S3', 'kabel charge saja tidak bisa upload'],
-        ['Kit spacer nilon M3 (spacer, baut, mur)', '1 kit; minimal 22 spacer 10 mm, 44 baut M3 x 6 mm', 'memasang 2 papan ekspansi, 2 LM2596, XL4015, MPU6050, layar, MAX98357A ke akrilik', 'board ditempel selotip busa'],
+        ['Kit spacer nilon M3 180 pcs (4-12 mm, baut, mur)', '1 kit', 'memasang 2 papan ekspansi, 2 LM2596, XL4015, MPU6050, layar ke plat', 'board ditempel selotip busa'],
+        ['Spacer kuningan M3 30+6 mm (jantan-betina, sama dengan spacer kit chassis)', '12 (minimal 8)', 'kaki lantai 3: 2 bertumpuk per kaki = 60 mm, di atas 6 spacer kit', 'DevKit, S3, dan breadboard tidak muat di dua lantai'],
+        ['Plat lantai 3', '1', 'plat akrilik cadangan chassis yang sama, atau triplek/MDF 3-4 mm seukuran plat atas', 'sama seperti di atas'],
         ['Selotip busa dua sisi', '1 roll', 'modul tanpa lubang: TB6612, BMS, ESP32-CAM, HC-SR04', ''],
     ])
     kartu_html = ''.join(kartu(*k) for k in KIT)

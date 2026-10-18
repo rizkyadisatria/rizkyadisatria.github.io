@@ -1,54 +1,31 @@
 from build import *
 import diag
+import layout
 
 S = '6-rakit'
 IMG = '../img/'
 
 
-def tata_letak():
-    W, Hh = 900, 470
-    s = ''
-    s += diag.text(225, 30, 'PLAT BAWAH (dilihat dari atas)', 14, anchor='middle', weight=600)
-    s += diag.text(675, 30, 'PLAT ATAS (dilihat dari atas)', 14, anchor='middle', weight=600)
-    for x in (20, 470):
-        s += f'<rect x="{x}" y="50" width="410" height="380" rx="40" fill="#e9efe9" fill-opacity=".14" stroke="#e9ece9" stroke-width="1.5"/>'
-        s += diag.text(x + 205, 455, '↑ depan robot ada di atas', 12, anchor='middle', fill='#cfd8d4')
-    # roda
-    for (x, y) in ((8, 80), (8, 320), (418, 80), (418, 320)):
-        s += f'<rect x="{x}" y="{y}" width="24" height="80" rx="6" fill="#222" stroke="#555"/>'
-    b = diag.box
-    s += b(150, 58, 150, 40, 'HC-SR04 depan', '', fill='#1d4f86', stroke='#9cc8ff')
-    s += b(45, 115, 120, 70, 'XL4015', '6 V', fill='#241a3a', stroke='#b08cff')
-    s += b(285, 115, 120, 70, 'LM2596 #1 + #2', '5 V', fill='#33240f', stroke='#f0a64b')
-    s += b(170, 110, 105, 80, 'TB6612', '', fill='#8c1d18', stroke='#ffb4ab')
-    s += b(45, 200, 360, 85, 'DevKit di papan 30P', ['+ breadboard kecil (pembagi, tombol)'], fill='#1d3324', stroke='#7fe0a0')
-    s += b(170, 295, 110, 40, 'MPU6050', 'datar', fill='#1d3a6b', stroke='#9cc8ff')
-    s += b(45, 345, 360, 45, 'Holder 18650 x2 + BMS + sekring', '', fill='#3a1513', stroke='#ff8a80')
-    s += b(300, 293, 105, 44, 'Saklar', 'mudah dijangkau', fill='#3a1513', stroke='#ff8a80')
-    s += b(150, 395, 150, 32, 'HC-SR04 belakang', '', fill='#1d4f86', stroke='#9cc8ff')
-    s += b(600, 60, 150, 90, 'Pan-tilt', ['+ ESP32-CAM', 'menghadap depan'], fill='#3a2a13', stroke='#ffc27a')
-    s += b(500, 165, 350, 80, 'Layar TFT (wajah)', ['berdiri miring menghadap depan'], fill='#8c1d18', stroke='#ffb4ab')
-    s += b(500, 255, 230, 95, 'S3 di papan ekspansi', ['+ breadboard besar (bus SPI)'], fill='#13283a', stroke='#7fb6ff')
-    s += b(745, 255, 105, 45, 'Speaker', '', fill='#2a2a2a', stroke='#bbb')
-    s += b(745, 310, 105, 40, 'INMP441', 'jauh dari motor', fill='#2a2a2a', stroke='#bbb')
-    s += b(500, 362, 350, 50, 'Tombol STOP 12 mm', ['ditempel di atas, mudah ditekan'], fill='#5a1010', stroke='#ff8a80')
-    return diag.svg(W, Hh, s, 'Usulan tata letak komponen di dua plat chassis')
-
-
 def halaman():
     isi = ''
     t = ''
-    t += stage(S, 1, 'Tata letak di chassis', ['Semua bagian yang sudah dites', 'Spacer dan baut M3', 'Selotip busa dua sisi', 'Cable ties'], [
-        'Susun dulu di atas plat tanpa menempel apa pun. Gambar di bawah hanya usulan; sesuaikan dengan lubang di platmu.',
-        'Plat bawah: baterai dan BMS di tengah-belakang (barang terberat di tengah membuat robot stabil), konverter dan TB6612 di depan, papan 30P di tengah.',
-        'Pastikan holder baterai bisa dibuka tanpa membongkar plat atas, karena sel dikeluarkan setiap mengisi.',
-        'MPU6050 ditempel datar dengan arah yang konsisten (tulisan menghadap ke depan robot), jauh dari motor.',
-        'HC-SR04 depan dipasang di tepi depan plat bawah, lurus ke depan, minimal 5 cm di atas lantai supaya tidak "melihat" lantai. Yang belakang di tepi belakang.',
-        'Plat atas: pan-tilt dan ESP32-CAM di depan, layar berdiri miring sebagai wajah, S3 dan breadboard besar di tengah, speaker dan mikrofon berjauhan.',
-        'Pasang spacer kit di antara kedua plat. Kabel yang menyeberang (UART 3 kabel, 5 V ke S3, 5 V ke kamera, servo) lewat lubang tengah.',
-    ], pre=warn('Ukur dulu: belum pasti muat', 'Tata letak ini dibuat tanpa ukuran plat chassismu, jadi belum pasti semua muat. Yang paling mungkin bermasalah: (1) <b>tinggi</b> ruang di antara dua plat, karena DevKit di papan 30P ditambah kabel jumper yang tegak bisa setinggi 40-45 mm; (2) <b>luas</b> plat atas, karena papan ekspansi S3 (sekitar 10 x 10 cm) dan breadboard besar (16,5 x 5,5 cm) makan banyak tempat. Sebelum menempel apa pun, ukur panjang dan lebar plat serta panjang spacer antar-plat, lalu susun semua barang di atas plat tanpa direkatkan. Kalau tidak muat: ganti breadboard besar dengan breadboard mini 170 lubang, taruh semua barang yang rendah (baterai, BMS, konverter, TB6612) di lantai bawah, dan pertimbangkan lantai ketiga dengan spacer M3 yang lebih panjang.'),
-        figs=fig(tata_letak(), 'Barang yang sering dibuka (holder baterai, saklar) harus mudah dijangkau.'),
-        ok_='Semua board terpasang kuat, tidak ada kabel yang bisa tersangkut roda, dan holder baterai bisa dibuka.')
+    tinggi = table(['Lantai', 'Ruang tinggi', 'Barang tertinggi', 'Sisa'], [
+        ['1 (antara plat bawah dan atas)', '30 mm (spacer kit)', 'TB6612 + kabel, sekitar 25 mm', '± 5 mm'],
+        ['2 (antara plat atas dan lantai 3)', '60 mm (2 spacer 30 mm bertumpuk)', 'DevKit di papan 30P + kabel tegak, sekitar 45 mm', '± 15 mm'],
+        ['3 (paling atas)', 'tanpa batas', 'kepala pan-tilt + kamera, sekitar 70 mm', '-']])
+    t += stage(S, 1, 'Tata letak tiga lantai', ['Semua bagian yang sudah dites', '12 spacer kuningan M3 30+6 mm (minimal 8)', 'Plat lantai 3', 'Kit spacer nilon M3', 'Selotip busa dua sisi', 'Bor kecil 3 mm (kalau memakai triplek)'], [
+        '<b>Buat plat lantai 3.</b> Pilihan termudah: plat akrilik cadangan dari chassis yang sama (lubangnya sudah cocok). Kalau tidak ada, pakai triplek atau MDF 3-4 mm: letakkan plat atas chassis di atasnya sebagai pola, gambar garis tepinya, tandai 6 lubang spacer lewat lubang plat atas, potong, lalu bor lubangnya 3 mm.',
+        '<b>Pasang kaki lantai 3.</b> Lepas baut di atas tiap spacer kit (yang menahan plat atas). Ganti dengan spacer kuningan baru: ulir jantannya masuk lewat lubang plat atas ke spacer kit. Tumpuk satu spacer lagi di atasnya, jadi tiap kaki 60 mm. Plat lantai 3 belum dipasang dulu, supaya lantai 2 masih mudah diisi.',
+        '<b>Lantai 1</b> (di atas plat bawah, di antara motor): dua LM2596 dan XL4015 berjajar di tengah, TB6612 di dekat motor depan, 2 WAGO baterai di belakang, 2 WAGO 6 V di depan, MPU6050 datar di sisi kiri di antara dua motor (tulisan menghadap ke depan), HC-SR04 belakang di tepi belakang dan sedikit mendongak (sekitar 5°) supaya tidak membaca lantai.',
+        '<b>Lantai 2</b> (di atas plat atas): dua holder dan BMS di belakang, saklar di tepi belakang, DevKit di papan 30P di tengah dengan port micro-USB menghadap ke samping, breadboard 1 di sebelahnya, HC-SR04 depan di tepi depan (sekitar 6 cm dari lantai, lurus ke depan).',
+        '<b>Lantai 3</b>: papan S3 di belakang dengan port USB-C menghadap ke tepi, breadboard 2 di sebelahnya (MAX98357A dan INMP441 ditancapkan di breadboard ini), speaker di belakang-kiri, tombol STOP 12 mm di tempat yang mudah ditekan, layar TFT berdiri miring menghadap depan-atas, kepala pan-tilt dan ESP32-CAM paling depan.',
+        '<b>Susun kering dulu</b>: taruh semua barang tanpa perekat dan tanpa baut, pasang lantai 3, lalu lihat dari samping. Tidak boleh ada yang menyentuh plat di atasnya, dan sel baterai harus bisa dicabut dari holder tanpa membongkar lantai 3.',
+        'Kalau semua pas, kencangkan board yang berlubang dengan spacer nilon (papan ekspansi, LM2596, XL4015, MPU6050). Modul tanpa lubang (TB6612, BMS, HC-SR04, holder) memakai selotip busa. Jangan mengebor akrilik chassis.',
+        'Kabel antar-lantai (UART 3 kabel, 5 V ke papan 30P, 5 V ke papan S3, 5 V kamera, servo, ECHO dan TRIG sensor) lewat lubang di tengah plat. Sisakan sedikit kelonggaran supaya lantai 3 bisa diangkat saat perlu.',
+    ], pre=info('Seberapa yakin ini muat', 'Gambar di bawah digambar berskala untuk plat 255 x 148 mm (ukuran umum chassis 4WD akrilik ini) dengan spacer kit 30 mm, dan dicek dengan hitungan: tidak ada barang yang bertumpuk, semuanya di dalam plat, dan tiap lantai terisi 40-55% dari luas yang bisa dipakai. Sisa ruang itu cukup untuk kabel dan untuk ukuran modul yang meleset 10-20%. Yang belum bisa kupastikan: posisi lubang di platmu, dan ukuran pasti tiap modul (diperkirakan dari foto dan ukuran umum). Karena itu susun kering dulu di langkah 6.'),
+        figs=fig(layout.svg(), 'Tiga lantai dilihat dari atas, depan robot di kanan. Barang berat (baterai) di tengah ketinggian, barang yang perlu dilihat dan disentuh (layar, tombol, kepala) paling atas.') + tinggi,
+        ok_='Semua lantai terpasang, tidak ada barang yang menyentuh plat di atasnya, kabel tidak bisa tersangkut roda, dan sel baterai bisa dikeluarkan untuk diisi.',
+        learn='Lantai 1 hanya setinggi 30 mm, jadi diisi barang rendah yang jarang disentuh: konverter dan sambungan daya. DevKit dan papan S3 butuh ruang tinggi untuk kabel jumper yang berdiri, jadi naik ke lantai 2 dan 3. Breadboard besar diganti dua breadboard 400 lubang, satu per board, supaya kabel tiap board pendek.')
 
     t += stage(S, 2, 'Rapikan kabel', ['Cable ties', 'Selotip kertas + spidol'], [
         'Ikat kabel per kelompok: daya (merah-hitam tebal), motor, servo, sinyal. Kabel daya dan motor dijauhkan dari kabel SPI layar dan mikrofon.',
