@@ -41,12 +41,12 @@ def halaman():
                'Upload berhasil tapi Serial Monitor kosong: coba port USB-C yang satunya, atau ubah USB CDC On Boot.'])
 
     pins_tft = ['VCC', 'GND', 'CS', 'RESET', 'DC', 'SDI(MOSI)', 'SCK', 'LED', 'SDO(MISO) ✕', 'T_CLK', 'T_CS', 'T_DIN', 'T_DO', 'T_IRQ ✕']
-    tujuan = [('#grup', 'breadboard besar'), 'rel merah (3V3)', 'rel biru (GND)', 'kolom 5 (MOSI)', 'kolom 2 (SCK)', 'kolom 8 (MISO)', ('#grup', 'papan ekspansi S3 (pin S)'), 'IO10', 'IO8', 'IO9', 'IO14']
+    tujuan = [('#grup', 'breadboard 2 (400 lubang)'), 'rel merah (3V3)', 'rel biru (GND)', 'kolom 5 (MOSI)', 'kolom 2 (SCK)', 'kolom 8 (MISO)', ('#grup', 'papan ekspansi S3 (pin S)'), 'IO10', 'IO8', 'IO9', 'IO14']
     wires = [(0, 1, '3v3'), (1, 2, 'gnd'), (2, 7, 'putih'), (3, 8, 'coklat'), (4, 9, 'pink'), (5, 3, 'biru'), (6, 4, 'kuning'), (7, 1, '3v3'),
              (9, 4, 'kuning'), (10, 10, 'cyan'), (11, 3, 'biru'), (12, 5, 'hijau')]
-    t += stage(S, 2, 'Layar TFT dan sentuhan', ['TFT 2,4" SPI 240x320', 'Breadboard besar', 'Kabel F-F, F-M, M-M', 'Library LovyanGFX'], [
+    t += stage(S, 2, 'Layar TFT dan sentuhan', ['TFT 2,4" SPI 240x320', 'Breadboard 2 (400 lubang)', 'Kabel F-F, F-M, M-M', 'Library LovyanGFX'], [
         'Cabut USB. Install library <b>LovyanGFX</b> (lovyan03) dari Library Manager.',
-        'Siapkan breadboard besar: blok <b>3V3</b> S3 → garis merah atas, GND → garis biru atas.',
+        'Siapkan <b>breadboard 2</b> (breadboard 400 lubang kedua; yang pertama dipakai badan): blok <b>3V3</b> S3 → garis merah atas, GND → garis biru atas. MAX98357A dan INMP441 nanti juga ditancapkan di breadboard ini, di kolom 12 ke atas.',
         'Tiga kolom jadi bus SPI: kabel dari pin S <b>IO12</b> → <span class="pin">a2</span>, <b>IO11</b> → <span class="pin">a5</span>, <b>IO13</b> → <span class="pin">a8</span>.',
         'Sambungkan pin layar sesuai diagram. Baca nama pin di belakang layar (VCC, GND, CS, RESET, ...). Satu kolom breadboard punya 5 lubang (a-e), jadi SCK layar ke <span class="pin">b2</span>, T_CLK ke <span class="pin">c2</span>, dan seterusnya.',
         '<b>SDO(MISO) layar dibiarkan tidak tersambung.</b> Pada banyak modul merah ini, pin SDO layar tidak mau "diam" saat layar tidak dipakai, sehingga mengacaukan sentuhan dan SD. Layar tidak perlu dibaca.',
@@ -111,7 +111,7 @@ def halaman():
                    'Semua tahap di bagian ini memakai mode meja: S3 dapat daya dari USB, modul-modul dari blok 3V3.')
     isi += section('daftar', 'Cek ulang', 'Daftar kabel otak', table(
         ['Dari', 'Ke'],
-        [['Blok 3V3 S3', 'rel merah breadboard besar'], ['GND S3', 'rel biru'], ['IO12 / IO11 / IO13', 'a2 / a5 / a8'],
+        [['Blok 3V3 S3', 'rel merah breadboard 2'], ['GND S3', 'rel biru'], ['IO12 / IO11 / IO13', 'a2 / a5 / a8'],
          ['TFT VCC, LED', 'rel merah'], ['TFT GND', 'rel biru'], ['TFT SCK, T_CLK, SD_SCK', 'b2, c2, d2'], ['TFT SDI(MOSI), T_DIN, SD_MOSI', 'b5, c5, d5'],
          ['T_DO, SD_MISO', 'c8, d8'], ['TFT SDO(MISO), T_IRQ', 'tidak disambung'], ['TFT CS, DC, RESET', 'IO10, IO9, IO8'], ['T_CS', 'IO14'], ['SD_CS', 'IO21'],
          ['MAX98357A Vin / GND', 'rel merah (mode jalan: blok 5V) / rel biru'], ['MAX98357A BCLK, LRC, DIN', 'IO4, IO5, IO7'],
