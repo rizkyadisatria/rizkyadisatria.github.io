@@ -115,7 +115,7 @@ def halaman():
         f'Kabel F-F dari TB6612 ke pin S papan 30P: {pin("PWMA")}→D25, {pin("AIN1")}→D26, {pin("AIN2")}→D27, {pin("PWMB")}→D13, {pin("BIN1")}→D32, {pin("BIN2")}→D33.',
         f'{pin("STBY")} dan {pin("VCC")} ke dua pin <b>3V</b> di blok daya. {pin("GND")} (yang di sisi pin logika) ke pin G mana saja.',
         f'Saklar baterai OFF. {pin("VM")} ke <b>OUT+ XL4015</b> (6 V), {pin("GND")} di sebelah VM ke <b>OUT− XL4015</b>. Pakai kabel tebal.',
-        'Kapasitor 470 µF: jepit kakinya di terminal OUT XL4015 bersama kabel tadi. <b>Kaki panjang (+) ke OUT+</b>, sisi bergaris (−) ke OUT−. Terbalik bisa meletus.',
+        'Kapasitor 470 µF: pasang di WAGO rel 6 V (atau jepit di terminal OUT XL4015 bersama kabel tadi). <b>Kaki panjang (+) ke OUT+</b>, sisi bergaris (−) ke OUT−. Terbalik bisa meletus.',
         f'Kabel motor kiri ke {pin("AO1")} dan {pin("AO2")}, motor kanan ke {pin("BO1")} dan {pin("BO2")}.',
         '<b>Angkat robot</b>: taruh chassis di atas kotak atau gelas supaya keempat roda menggantung.',
         'Colok USB ke DevKit (mode meja), lalu saklar baterai ON. Upload kode tes, buka Serial Monitor 115200.',
@@ -135,7 +135,7 @@ def halaman():
     tahap += stage(S, 4, 'Kepala pan-tilt (servo MG90S)', ['Pan-tilt dengan 2 MG90S', 'Kabel M-F dan M-M', 'Kapasitor 470 µF', 'Rel 6 V'], [
         'Saklar OFF. Kabel servo: <b>coklat = GND</b>, <b>merah = daya</b>, <b>oranye = sinyal</b>.',
         f'Servo bawah (pan, menoleh kiri-kanan): oranye ke pin S baris {pin("D23")}. Servo atas (tilt, mengangguk): oranye ke pin S baris {pin("D4")}. Pakai kabel M-F: ujung jantan masuk ke lubang soket servo.',
-        'Merah kedua servo ke <b>OUT+ XL4015</b> (6 V), coklat ke <b>OUT− XL4015</b>. Ujung jantan kabel M-M bisa dijepit di terminal sekrup bersama kabel lain.',
+        'Merah kedua servo ke <b>OUT+ XL4015</b> (6 V), coklat ke <b>OUT− XL4015</b>. Paling rapi lewat WAGO rel 6 V. Kabel servo terlalu tipis untuk dijepit WAGO: solder dulu ke potongan kabel 22 AWG sepanjang 5 cm, beri heat shrink, baru masukkan.',
         'Kapasitor 470 µF kedua dipasang di dekat servo: kaki panjang ke merah, kaki pendek ke coklat.',
         '<b>Jangan</b> memberi daya servo dari pin V atau 5V papan ekspansi. Saat bergerak, servo menarik arus besar dan bisa membuat DevKit restart.',
         'Lepas sekrup lengan servo dulu. Upload kode tes. Setelah servo diam di 90°, pasang lengan sehingga kepala lurus ke depan dan tegak, baru kencangkan sekrup.',

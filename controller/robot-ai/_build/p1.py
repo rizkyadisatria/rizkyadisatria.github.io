@@ -142,7 +142,7 @@ def halaman():
     isi += section('rakit', 'Langkah', 'Rakit sistem daya', '<div class="parts" style="gap:16px">' + tahap + '</div>',
                    'Kerjakan berurutan. Setiap tahap punya tanda berhasil sebelum lanjut ke tahap berikutnya.')
 
-    isi += section('peta', 'Ringkasan', 'Peta jalur daya', fig(diag.daya(), 'Cara membagi rel plus dan GND ke tiga konverter: sambungan Y yang disolder lalu diberi heat shrink, atau terminal/konektor WAGO 3-5 lubang (disarankan, murah).') + table(
+    isi += section('peta', 'Ringkasan', 'Peta jalur daya', fig(diag.daya(), 'Cara membagi rel plus dan GND ke tiga konverter: sambungan Y yang disolder lalu diberi heat shrink, atau konektor WAGO 221-415 5 lubang (disarankan): satu untuk rel plus (masuk dari saklar, keluar ke 3 konverter, 1 cadangan), satu untuk GND (masuk dari P−, keluar ke 3 konverter). Kabel tipis BAT+ jangan ke WAGO, jepit di terminal IN+ LM2596.') + table(
         ['Titik ukur', 'Harus terbaca', 'Kalau tidak'],
         [['P+ ke P− BMS', '7,4 - 8,4 V', 'Tahap 3'], ['Rel plus ke GND, saklar ON', '7,4 - 8,4 V', 'Tahap 4'], ['OUT LM2596 #1', '4,95 - 5,1 V', 'Tahap 5'],
          ['OUT XL4015', '5,9 - 6,1 V', 'Tahap 6'], ['OUT LM2596 #2', '4,95 - 5,1 V', 'Tahap 7'], ['Rel plus, saklar OFF', '0 V', 'saklar salah kaki']]))
