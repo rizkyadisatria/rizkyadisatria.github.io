@@ -48,10 +48,11 @@ def halaman():
         'Cabut USB. Install library <b>LovyanGFX</b> (lovyan03) dari Library Manager.',
         'Siapkan <b>breadboard 2</b> (breadboard 400 lubang kedua; yang pertama dipakai badan): blok <b>3V3</b> S3 → garis merah atas, GND → garis biru atas. MAX98357A dan INMP441 nanti juga ditancapkan di breadboard ini, di kolom 12 ke atas.',
         'Tiga kolom jadi bus SPI: kabel dari pin S <b>IO12</b> → <span class="pin">a2</span>, <b>IO11</b> → <span class="pin">a5</span>, <b>IO13</b> → <span class="pin">a8</span>.',
-        'Sambungkan pin layar sesuai diagram. Baca nama pin di belakang layar (VCC, GND, CS, RESET, ...). Satu kolom breadboard punya 5 lubang (a-e), jadi SCK layar ke <span class="pin">b2</span>, T_CLK ke <span class="pin">c2</span>, dan seterusnya.',
+        'Sambungkan pin layar sesuai diagram. Baca nama pin di belakang layar: di modulmu urutannya dari bawah VCC, GND, CS, RESET, DC, SDI(MOSI), SCK, LED, SDO(MISO), T_CLK, T_CS, T_DIN, T_DO, T_IRQ. Satu kolom breadboard punya 5 lubang (a-e), jadi SCK layar ke <span class="pin">b2</span>, T_CLK ke <span class="pin">c2</span>, dan seterusnya.',
         '<b>SDO(MISO) layar dibiarkan tidak tersambung.</b> Pada banyak modul merah ini, pin SDO layar tidak mau "diam" saat layar tidak dipakai, sehingga mengacaukan sentuhan dan SD. Layar tidak perlu dibaca.',
         'Colok USB, upload kode tes. Layar berganti merah-hijau-biru lalu meminta kalibrasi: sentuh ujung panah di tiap sudut dengan ujung jari atau stylus.',
-    ], figs=fig(diag.spi_bus()) + fig(diag.conn('TFT 2,4" SPI', '#8c1d18', pins_tft, 'Sambung ke', '#151a18', tujuan, wires, label='Sambungan pin layar TFT'),
+    ], figs=f'<div class="photos">{photo(IMG + "tft.jpg", "Layar TFT 2,4 inci dilihat dari depan", "Depan layar milikmu: 14 pin di kiri, 4 lubang SD di kanan.")}{photo(IMG + "tft_belakang.jpg", "Belakang layar TFT dengan nama pin dan slot SD", "Belakang: nama pin dari T_IRQ (atas) sampai VCC (bawah), slot SD ukuran penuh.")}</div>'
+        + fig(diag.spi_bus()) + fig(diag.conn('TFT 2,4" SPI', '#8c1d18', pins_tft, 'Sambung ke', '#151a18', tujuan, wires, label='Sambungan pin layar TFT'),
                 'Pin bertanda ✕ (SDO(MISO) dan T_IRQ) dibiarkan tanpa kabel.'),
         code=kode_tes('tes_layar'),
         ok_='Layar menampilkan "Layar berhasil!", dan setelah kalibrasi, titik kuning mengikuti jarimu.',
@@ -59,28 +60,31 @@ def halaman():
         gagal=['Layar putih saja: RESET, DC, atau CS belum tersambung, atau SCK/MOSI tertukar.', 'Warna terbalik (hitam jadi putih): di kode, ubah <code>c.invert = false</code> menjadi <code>true</code>. Merah dan biru tertukar: ubah <code>c.rgb_order</code>.',
                'Gambar bergeser atau bergaris: kabel SPI terlalu panjang. Pakai kabel 10-20 cm, atau turunkan <code>freq_write</code> ke 20000000.', 'Sentuhan tidak merespons: cek T_CS ke IO14 dan T_DO ke kolom 8.'])
 
-    t += stage(S, 3, 'SD card di belakang layar', ['Micro SD 16-32 GB', 'Pin header 4 pin + solder', 'Kabel F-M'], [
-        'Di laptop, format micro SD sebagai <b>FAT32</b>. Salin satu atau dua lagu MP3 ke folder utama, nama pendek tanpa spasi (misalnya <code>lagu1.mp3</code>).',
-        'Di tepi atas belakang layar ada 4 lubang: SD_CS, SD_MOSI, SD_MISO, SD_SCK. Solder 4 pin header di situ.',
+    t += stage(S, 3, 'SD card di belakang layar', ['Kartu SD ukuran penuh (SanDisk 32 GB-mu)', 'Pin header 4 pin + solder', 'Kabel F-M'], [
+        'Slot di belakang layarmu berukuran <b>SD penuh</b>, bukan micro SD, jadi SanDisk 32 GB-mu masuk langsung tanpa adaptor. Geser kunci kecil di sisi kiri kartu ke atas (bukan LOCK).',
+        'Di laptop, cek format kartu: kartu 32 GB biasanya sudah <b>FAT32</b>. Kalau tertulis exFAT atau NTFS, format ulang sebagai FAT32 (isi kartu terhapus, pindahkan dulu).',
+        'Salin satu atau dua lagu MP3 ke folder utama, nama pendek tanpa spasi (misalnya <code>lagu1.mp3</code>).',
+        'Di tepi kanan layarmu ada 4 lubang kosong bertuliskan (dari atas) SD_SCK, SD_MISO, SD_MOSI, SD_CS. Solder 4 pin header di situ.',
         f'Sambung: {pin("SD_SCK")} → kolom 2 (<span class="pin">d2</span>), {pin("SD_MOSI")} → kolom 5 (<span class="pin">d5</span>), {pin("SD_MISO")} → kolom 8 (<span class="pin">d8</span>), {pin("SD_CS")} → pin S <b>IO21</b>.',
-        'Masukkan micro SD ke slot di belakang layar. Upload kode tes.',
+        'Masukkan kartu SD ke slot di belakang layar sampai berbunyi klik, kontak emas menghadap ke papan. Upload kode tes.',
     ], code=kode_tes('tes_sd'),
         ok_='Serial Monitor menulis ukuran SD dan daftar file, dan layar menampilkan nama file.',
         gagal=['SD GAGAL: format FAT32 (bukan exFAT), cek SD_CS ke IO21, coba kartu lain. Kartu di atas 32 GB biasanya exFAT.', 'Layar bekerja tapi SD gagal hanya saat layar dinyalakan: SDO(MISO) layar mungkin tersambung. Cabut.'])
 
-    t += stage(S, 4, 'Speaker MAX98357A', ['MAX98357A + pin header + terminal', 'Speaker 8 Ω 3 W', 'Kabel F-M dan F-F'], [
-        'Solder 7 pin header dan terminal sekrup hijau ke MAX98357A.',
-        'Kabel speaker ke terminal: + ke ⊕, − ke ⊖. Kalau kabel speaker belum ada, solder dua kabel ke kaki speaker.',
+    t += stage(S, 4, 'Speaker MAX98357A', ['MAX98357A (pin header dan terminal sudah terpasang)', 'Speaker kotak', 'Gunting/tang kupas', 'Kabel F-M dan F-F'], [
+        'MAX98357A-mu sudah berpin header dan berterminal sekrup, jadi tidak perlu menyolder. Nama pin tercetak di sisi depan (LRC, BCLK, DIN, GAIN, SD, GND, Vin).',
+        'Cek dulu ohm speaker kotakmu: lihat stiker di belakangnya, atau ukur dua kabelnya dengan multimeter di skala 200 Ω. Hasil sekitar 3-4 Ω berarti speaker 4 Ω, sekitar 6-8 Ω berarti 8 Ω. Keduanya aman untuk MAX98357A (4-8 Ω).',
+        'Konektor putih di ujung kabel speaker tidak cocok dengan terminal. Potong konektornya, kupas 5 mm tiap kabel, pilin seratnya, lalu jepit di terminal: <b>merah ke ⊕</b>, hitam ke ⊖. Kencangkan sekrup lalu tarik pelan untuk mengecek.',
         f'{pin("Vin")} → garis merah (3,3 V, untuk di meja), {pin("GND")} → garis biru.',
         f'{pin("BCLK")} → S <b>IO4</b>, {pin("LRC")} → S <b>IO5</b>, {pin("DIN")} → S <b>IO7</b>. {pin("GAIN")} dan {pin("SD")} dibiarkan kosong.',
         'Upload kode tes (tanpa library tambahan).',
-    ], figs=photo(IMG + 'speaker.jpg', 'Speaker 8 ohm 3 watt', 'Speaker 8 Ω 3 W milikmu.', 300) + fig(diag.conn('MAX98357A', '#5b2a86', ['LRC', 'BCLK', 'DIN', 'GAIN ✕', 'SD ✕', 'GND', 'Vin'], 'Sambung ke', '#151a18',
+    ], figs=f'<div class="photos">{photo(IMG + "speaker_kotak.jpg", "Speaker kotak dengan kabel merah hitam dan konektor putih", "Speaker kotak milikmu. Speaker bulat 8 Ω 3 W jadi cadangan.")}{photo(IMG + "max98357a.jpg", "MAX98357A dengan pin header kuning", "MAX98357A milikmu: 4-8 Ω, 3 W, Vin 2,5-5,5 V.")}</div>' + fig(diag.conn('MAX98357A', '#5b2a86', ['LRC', 'BCLK', 'DIN', 'GAIN ✕', 'SD ✕', 'GND', 'Vin'], 'Sambung ke', '#151a18',
             [('#grup', 'papan S3 (pin S)'), 'IO5', 'IO4', 'IO7', ('#grup', 'breadboard'), 'rel biru (GND)', 'rel merah (3V3)'],
             [(0, 1, 'kuning'), (1, 2, 'hijau'), (2, 3, 'biru'), (5, 5, 'gnd'), (6, 6, '3v3')], label='Sambungan MAX98357A')),
         code=kode_tes('tes_speaker'),
         ok_='Terdengar do-re-mi-fa-sol lalu diam sedetik, berulang.',
         learn='MAX98357A menerima suara digital (I2S) dan langsung menguatkannya ke speaker. Pin GAIN kosong = penguatan 9 dB, pin SD kosong = menyala. Di robot jadi, Vin dipindah ke 5 V supaya lebih keras.',
-        gagal=['Diam: cek BCLK/LRC/DIN tidak tertukar dan speaker tersambung ke terminal.', 'Bunyi kresek: kabel GND kurang kuat, atau kabel data terlalu panjang.'])
+        gagal=['Diam: cek BCLK/LRC/DIN tidak tertukar dan kabel speaker terjepit kuat di terminal (bukan isolasinya yang terjepit).', 'Bunyi kresek: kabel GND kurang kuat, atau kabel data terlalu panjang.'])
 
     t += stage(S, 5, 'Mikrofon INMP441', ['INMP441', 'Pin header + solder', 'Kabel F-M dan F-F'], [
         'Solder pin header ke INMP441 kalau belum ada. Bagian bulat dengan lubang kecil adalah lubang suara, jangan ditutup.',

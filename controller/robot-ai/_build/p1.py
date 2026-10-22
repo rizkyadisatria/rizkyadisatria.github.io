@@ -74,7 +74,8 @@ def halaman():
         'Masukkan sel 1 ke holder 1, lalu sel 2 ke holder 2. Perhatikan tanda + di holder (ujung menonjol sel ke sisi +, sisi pegas ke −).',
         'Ukur: kabel 0V ke titik tengah = tegangan sel 1. Kabel 0V ke kabel 8.4V = jumlah kedua sel.',
         'Ukur keluaran: P+ (⊕) ke P− (⊖). Harus sama dengan jumlah kedua sel, sekitar 7,4-8,4 V.',
-    ], figs=fig(diag.bms(), 'Urutan menyambung: 0V dulu, lalu titik tengah, lalu 8.4V. Melepas dengan urutan terbalik.'),
+    ], figs=photo(IMG + 'holder.jpg', 'Dua holder 18650 satu slot dengan kabel merah dan hitam', 'Dua holder milikmu. Ujung pegas = − (kabel hitam), ujung pelat datar bertanda + = + (kabel merah).', 420)
+        + fig(diag.bms(), 'Urutan menyambung: 0V dulu, lalu titik tengah, lalu 8.4V. Melepas dengan urutan terbalik.'),
         ok_='P+ ke P− terbaca 7,4-8,4 V. Selama ini P+ dan P− jangan sampai bersentuhan.',
         gagal=['P+ ke P− terbaca 0 V padahal 0V ke 8.4V benar: proteksi BMS sedang terkunci (sering terjadi saat sel pertama kali dipasang). Lepas kedua sel, tunggu 10 detik, pasang lagi sel 1 lalu sel 2. Kalau tetap 0 V, dengan P+ dan P− tidak tersambung ke apa pun, sentuhkan sebentar seutas kabel antara pad ⊖ dan pad 0V untuk "membangunkan" BMS. Masih 0 V: cek kabel 0V dan 8.4V tidak tertukar.',
                'Tegangan total sekitar 0 V atau hanya satu sel: sambungan titik tengah lepas, atau satu sel terbalik. Cabut sel, cek tanda +.',

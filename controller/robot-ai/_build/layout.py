@@ -31,7 +31,7 @@ L2 = [  # di atas plat atas, di bawah lantai 3: tinggi maks ~57 mm
 ]
 L3 = [  # di atas lantai 3 (papan persegi baru): tanpa batas tinggi
     ('S3 + ekspansi', 2, 4, 83, 81, 30, '#13283a'), ('breadboard 2', 90, 34, 55, 83, 20, '#d9d9cf'),
-    ('layar TFT', 152, 40, 30, 72, 37, '#8c1d18'), ('speaker', 10, 95, 45, 45, 20, '#2a2a2a'),
+    ('layar TFT', 152, 40, 30, 72, 37, '#8c1d18'), ('speaker', 6, 102, 58, 30, 25, '#2a2a2a'),
     ('STOP', 95, 125, 16, 16, 12, '#7a1010'), ('kepala', 202, 56, 40, 40, 70, '#3a2a13'),
 ]
 HEAD = (222, 76, 34)      # pusat x, y dan jari-jari ruang putar kepala (tidak boleh ada barang lain di sini)
@@ -98,7 +98,7 @@ def svg():
             s += f'<polygon points="{pts}" fill="#e9efe9" fill-opacity=".12" stroke="#e9ece9" stroke-width="1.5" stroke-linejoin="round"/>'
         for n, x, y, w, h, t, c in L:
             X, Y = 30 + x * k, y0 + (y if True else 0) * k
-            if n == 'speaker':
+            if n == 'speaker' and w == h:
                 s += f'<circle cx="{X + w * k / 2}" cy="{Y + h * k / 2}" r="{w * k / 2}" fill="{c}" stroke="#bbb"/>'
             else:
                 s += f'<rect x="{X}" y="{Y}" width="{w * k}" height="{h * k}" rx="3" fill="{c}" stroke="#e9ece9" stroke-opacity=".7"/>'

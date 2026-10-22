@@ -111,7 +111,7 @@ def halaman():
         learn='Motor TT dirancang 3-6 V. Dua motor satu sisi selalu bergerak bersama (robot belok dengan memutar sisi kiri dan kanan berbeda arah), jadi cukup satu kanal driver per sisi.')
 
     tahap += stage(S, 3, 'TB6612FNG dan tes motor', ['TB6612FNG', 'Pin header + solder', '9 kabel F-F', 'Kabel tebal ke XL4015', 'Kapasitor 470 µF', 'Rel 6 V dari Bagian 1'], [
-        'Solder dua baris pin header ke TB6612 (pakai trik breadboard). Lalu balik papan: <b>nama pin tercetak di bawah</b>. Cocokkan nama, jangan menebak dari posisi.',
+        'Pin header TB6612-mu sudah terpasang, jadi tidak perlu menyolder. Balik papan: <b>nama pin tercetak di bawah</b>. Di modulmu urutannya sisi kiri PWMA, <b>AIN2, AIN1</b>, STBY, BIN1, BIN2, PWMB, GND dan sisi kanan VM, VCC, GND, AO1, AO2, BO2, BO1, GND. Perhatikan AIN2 ada di atas AIN1: cocokkan nama, jangan menebak dari posisi.',
         f'Kabel F-F dari TB6612 ke pin S papan 30P: {pin("PWMA")}→D25, {pin("AIN1")}→D26, {pin("AIN2")}→D27, {pin("PWMB")}→D13, {pin("BIN1")}→D32, {pin("BIN2")}→D33.',
         f'{pin("STBY")} dan {pin("VCC")} ke dua pin <b>3V</b> di blok daya. {pin("GND")} (yang di sisi pin logika) ke pin G mana saja.',
         f'Saklar baterai OFF. {pin("VM")} ke <b>OUT+ XL4015</b> (6 V), {pin("GND")} di sebelah VM ke <b>OUT− XL4015</b>. Pakai kabel tebal.',
@@ -119,7 +119,8 @@ def halaman():
         f'Kabel motor kiri ke {pin("AO1")} dan {pin("AO2")}, motor kanan ke {pin("BO1")} dan {pin("BO2")}.',
         '<b>Angkat robot</b>: taruh chassis di atas kotak atau gelas supaya keempat roda menggantung.',
         'Colok USB ke DevKit (mode meja), lalu saklar baterai ON. Upload kode tes, buka Serial Monitor 115200.',
-    ], figs=fig(diag.conn('TB6612FNG', '#b3261e', ['PWMA', 'AIN1', 'AIN2', 'PWMB', 'BIN1', 'BIN2', 'STBY', 'VCC', 'GND'],
+    ], figs=f'<div class="photos">{photo(IMG + "tb6612_label.jpg", "TB6612FNG dilihat dari bawah dengan nama pin", "Bawah TB6612 milikmu: nama pin.")}{photo(IMG + "tb6612.jpg", "TB6612FNG dilihat dari atas", "Atas: chip dan kapasitor.")}</div>'
+        + fig(diag.conn('TB6612FNG', '#b3261e', ['PWMA', 'AIN1', 'AIN2', 'PWMB', 'BIN1', 'BIN2', 'STBY', 'VCC', 'GND'],
                           'Papan 30P', '#151a18', ['D25 (S)', 'D26 (S)', 'D27 (S)', 'D13 (S)', 'D32 (S)', 'D33 (S)', ('#grup', 'blok daya'), '3V', '3V', 'GND'],
                           [(0, 0, 'kuning'), (1, 1, 'hijau'), (2, 2, 'biru'), (3, 3, 'kuning'), (4, 4, 'hijau'), (5, 5, 'biru'), (6, 7, '3v3'), (7, 8, '3v3'), (8, 9, 'gnd')],
                           label='Sambungan sinyal TB6612 ke papan 30P')) + fig(diag.motor(), 'Sisi daya TB6612: 6 V dari XL4015 ke VM, dua motor paralel per kanal.'),
