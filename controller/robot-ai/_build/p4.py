@@ -1,6 +1,7 @@
 from build import *
 
 S = '4-mata'
+IMG = '../img/'
 
 
 def halaman():
@@ -16,16 +17,17 @@ def halaman():
 
     t = ''
     t += stage(S, 1, 'Upload kode kamera lewat MB', ['ESP32-CAM', 'ESP32-CAM-MB', 'Kabel micro-USB data'], [
-        'Cek pita kamera di ESP32-CAM: ujungnya masuk rapat ke soket dan kunci hitam soket ditekan turun.',
+        'Cek pita kamera di ESP32-CAM: ujungnya masuk rapat ke soket dan kunci hitam soket ditekan turun. Di pita kameramu tertulis <b>OV3660</b> (3 MP); kode sudah mendukungnya.',
         'Tancapkan ESP32-CAM ke MB: kamera menghadap ke atas, semua 16 pin masuk ke soket MB. Tulisan 5V dan GND di ESP32-CAM sejajar dengan pin yang sama di MB.',
         'Colok micro-USB MB ke laptop. Port tidak muncul? MB memakai chip CH340: install driver CH340.',
         'Di Arduino IDE: <b>Board → AI Thinker ESP32-CAM</b>, <b>Partition Scheme → Huge APP</b>, pilih port.',
         'Buka <a href="../kode/robot_mata/robot_mata.ino" download>robot_mata.ino</a>. Isi <code>WIFI_NAMA</code> dan <code>WIFI_PASSWORD</code> dengan WiFi 2.4 GHz rumahmu.',
         'Upload. Kalau berhenti di "Connecting....": tahan tombol <b>IO0</b> di MB, tekan <b>RST</b> sekali, lepas IO0 setelah persentase upload muncul.',
         'Setelah selesai, tekan <b>RST</b> di MB. Buka Serial Monitor 115200 dan catat alamat IP yang muncul.',
-    ], code=kode_teks(open(KODE + 'robot_mata/robot_mata.ino', encoding='utf-8').read().split('// ================== PIN KAMERA')[0], 'robot_mata.ino (bagian atas)')
+    ], figs=f'<div class="photos">{photo(IMG + "esp32cam.jpg", "ESP32-CAM dengan kamera OV3660", "ESP32-CAM milikmu: pin 5V dan GND di kiri atas, LED flash di kanan bawah.")}{photo(IMG + "esp32cam_mb.jpg", "Papan ESP32-CAM-MB dengan tombol IO0 dan RST", "ESP32-CAM-MB: port micro-USB, tombol IO0 (kiri) dan RST (kanan).")}</div>',
+        code=kode_teks(open(KODE + 'robot_mata/robot_mata.ino', encoding='utf-8').read().split('// ================== PIN KAMERA')[0], 'robot_mata.ino (bagian atas)')
         + '<p class="cap">Kode lengkap: <a href="../kode/robot_mata/robot_mata.ino" download>unduh robot_mata.ino</a>. Tidak perlu library tambahan.</p>',
-        ok_='Serial Monitor menulis jenis sensor (OV2640 atau OV3660) dan <code>Tersambung. Alamat kamera: http://192.168.x.x</code>.',
+        ok_='Serial Monitor menulis jenis sensor (untuk kameramu: OV3660) dan <code>Tersambung. Alamat kamera: http://192.168.x.x</code>.',
         gagal=['"Kamera gagal mulai, kode 0x105" atau 0x20004: pita kamera tidak rapat. Cabut USB, buka kunci soket, masukkan ulang pita, tekan kunci.',
                '"Brownout detector was triggered" lalu restart terus: daya USB kurang kuat. Pakai port USB lain di laptop atau kabel lebih pendek.',
                'WiFi gagal: kamera hanya bisa WiFi 2.4 GHz, dan antena kecilnya lemah. Dekatkan ke router saat mencoba.'])

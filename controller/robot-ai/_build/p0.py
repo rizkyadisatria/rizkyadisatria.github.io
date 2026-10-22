@@ -19,7 +19,8 @@ KIT = [
     ('mpu6050', 'MPU6050 (GY-521)', 'Sensor kemiringan.', 1),
     ('pantilt', 'Pan-tilt 2x MG90S', 'Kepala yang menoleh dan mengangguk.', 1),
     ('inmp441', 'INMP441', 'Mikrofon digital I2S.', 1),
-    ('speaker', 'Speaker 8 Ω 3 W', 'Suara robot dan musik.', 1),
+    ('speaker_kotak', 'Speaker kotak', 'Suara robot dan musik. Ohm belum diketahui (4-8 Ω sama-sama aman).', 1),
+    ('speaker', 'Speaker bulat 8 Ω 3 W', 'Cadangan; speaker kotak lebih nyaring karena punya rumah.', 2),
     ('resistor', 'Resistor 1%', '30 nilai, 20 buah tiap nilai.', 1),
     ('kapasitor', 'Kapasitor elektrolit', '10, 100, 470, 1000 µF, 50 V.', 1),
     ('dupont', 'Kabel jumper', 'M-M, M-F, F-F.', 1),
@@ -33,11 +34,17 @@ KIT = [
     ('charger', 'Charger iMFG 2 slot', 'Mengisi sel 18650 di luar robot.', 1),
     ('adaptor', 'Adaptor 5 V 2 A', 'Daya charger.', 1),
     ('usb', 'Kabel USB', 'Upload kode. Pastikan kabel data.', 1),
-    (None, 'TB6612FNG', 'Driver 4 motor (2 kanal).', 0),
-    (None, 'TFT 2,4" sentuh + SD', 'Wajah robot dan slot SD.', 0),
-    (None, 'MAX98357A', 'Penguat speaker I2S.', 0),
-    (None, 'ESP32-CAM + MB', 'Mata robot dan papan upload-nya.', 0),
-    (None, 'Holder 18650 1 slot', 'Perlu 2 buah.', 0),
+    ('tb6612', 'TB6612FNG', 'Driver 4 motor (2 kanal). Pin header sudah terpasang.', 1),
+    ('tft', 'TFT 2,4" sentuh + SD', 'Wajah robot. Slot SD ukuran penuh di belakang.', 1),
+    ('sdcard', 'SanDisk Extreme SD 32 GB', 'Musik. Masuk langsung ke slot layar.', 1),
+    ('max98357a', 'MAX98357A', 'Penguat speaker I2S. Pin header sudah terpasang.', 1),
+    ('esp32cam', 'ESP32-CAM (OV3660)', 'Mata robot. Sensor OV3660 tertulis di pita kamera.', 1),
+    ('esp32cam_mb', 'ESP32-CAM-MB', 'Papan upload ESP32-CAM (chip CH340).', 1),
+    ('holder', '2 holder 18650 1 slot', 'Dirangkai seri jadi 7,4 V.', 1),
+    ('lm2596_2', 'LM2596 kedua', 'Rel 5 V khusus kamera.', 1),
+    ('kapasitor104', 'Kapasitor keramik 104 (100 nF)', 'Peredam noise di kaki motor.', 1),
+    ('kabel', 'Kabel merah-hitam UL1007', 'Jalur baterai, BMS, motor, konverter.', 1),
+    ('cabletie', 'Cable ties 3 x 100 mm', '100 buah, merapikan kabel.', 1),
     ('ov2640', 'OV2640 + breakout FPC', 'Cadangan; ESP32-CAM sudah punya kamera.', 3),
     ('lcd1602', 'LCD 1602', 'Untuk stasiun cuaca, bukan robot.', 3),
     ('relay', 'Modul relay', 'Tidak dipakai di robot.', 3),
@@ -66,7 +73,7 @@ def isi():
     o += section('status', 'Jujur dulu', 'Status panduan ini', '''
 <div class="two">
   <div class="panel"><h3>Sudah dicek</h3><ul class="plain"><li>Ketiga kode lengkap dan 13 kode tes <b>berhasil dikompilasi</b> dengan Arduino ESP32 core 3.3.12 dan library terbaru.</li><li>Pin dipilih untuk menghindari pin boot, PSRAM, dan USB di kedua ESP32.</li><li>Tegangan tiap modul dicocokkan dengan lembar datanya.</li></ul></div>
-  <div class="panel"><h3>Belum dicek</h3><ul class="plain"><li>Robot lengkapnya belum dirakit dan diuji di perangkat nyata.</li><li>Urutan pin TB6612 dan layar berbeda antar-penjual. Selalu cocokkan <b>nama</b> pin yang tercetak di modulmu.</li><li>Suara robot memakai layanan Google TTS tidak resmi yang bisa berhenti kapan saja.</li></ul></div>
+  <div class="panel"><h3>Belum dicek</h3><ul class="plain"><li>Robot lengkapnya belum dirakit dan diuji di perangkat nyata.</li><li>Urutan pin TB6612 dan layar berbeda antar-penjual. Panduan ini sudah dicocokkan dengan foto modulmu, tapi tetap cocokkan <b>nama</b> pin yang tercetak saat menyambung.</li><li>Suara robot memakai layanan Google TTS tidak resmi yang bisa berhenti kapan saja.</li></ul></div>
 </div>''')
 
     o += section('cara', 'Gambaran', 'Tiga board, satu robot', fig(diag.arsitektur()) + '''
@@ -88,15 +95,9 @@ def isi():
 </div>''')
 
     belum = table(['Barang', 'Jumlah', 'Untuk', 'Tanpa barang ini'], [
-        ['Kapasitor keramik 100 nF (kode 104)', '10', 'meredam noise di kaki motor', 'ESP32 lebih mudah restart saat motor jalan'],
-        ['Kabel listrik 20-22 AWG merah dan hitam (silikon lebih baik)', '1-2 m per warna', 'jalur baterai, BMS, motor, konverter', 'kabel dupont tipis bisa panas'],
-        ['LM2596 kedua', '1', 'rel 5 V khusus kamera', 'kamera ikut rel logika; volume speaker harus kecil'],
-        ['Micro SD 16-32 GB', '1', 'musik', 'fitur musik dari SD tidak jalan (radio internet tetap bisa)'],
-        ['Holder 18650 1 slot', '2 (baru terlihat 1)', 'memegang sel', 'tidak bisa merangkai baterai'],
         ['BME280', '1 (opsional)', 'suhu, kelembapan, tekanan', 'pakai DHT11 dari kit cuaca'],
         ['Konektor WAGO 221-415 (5 lubang) atau tiruannya', '4 (+1 cadangan)', '2 untuk rel baterai (+ dan GND ke 3 konverter), 2 untuk rel 6 V (+ dan GND ke TB6612, 2 servo, kapasitor)', 'harus menyolder sambungan Y'],
         ['Heat shrink kit ukuran campur (2-10 mm)', '1 kotak isi ~100-160', 'sekitar 30 sambungan: 3 mm untuk kabel servo/tipis, 5 mm untuk kabel 20-22 AWG, 8 mm untuk kaki saklar dan sekring', 'sambungan mudah korsleting'],
-        ['Cable ties 3 x 100 mm', '1 pak isi 100', 'sekitar 25 ikatan, sisanya cadangan karena sekali pakai', 'kabel tersangkut roda'],
         ['Kabel USB-C data', '1', 'upload ke ESP32-S3', 'kabel charge saja tidak bisa upload'],
         ['Kit spacer nilon M3 180 pcs (4-12 mm, baut, mur)', '1 kit', 'memasang 2 papan ekspansi, 2 LM2596, XL4015, MPU6050, layar ke plat', 'board ditempel selotip busa'],
         ['Spacer kuningan M3 30+6 mm (jantan-betina, sama dengan spacer kit chassis)', '12 (minimal 8)', 'kaki lantai 3: 2 bertumpuk per kaki = 60 mm, di atas 6 spacer kit', 'tiga lantai dibutuhkan karena platnya sempit dan pendek'],
@@ -106,7 +107,7 @@ def isi():
     ])
     kartu_html = ''.join(kartu(*k) for k in KIT)
     o += section('barang', 'Barang', 'Yang sudah kamu punya, dan yang masih kurang', f'''
-<div class="panel"><h3>Masih perlu dibeli</h3>{belum}</div>
+<div class="panel"><h3>Masih perlu dibeli</h3>{belum}<p class="cap">Sudah datang dan dicoret dari daftar ini: TB6612FNG, layar TFT, MAX98357A, ESP32-CAM + MB, LM2596 kedua, holder kedua, kapasitor 100 nF, kabel merah-hitam, cable ties, dan kartu SD.</p></div>
 <div class="toolbar"><button id="quizbtn" aria-pressed="false" type="button">Mode tebak nama</button><span class="cap" id="quizhint"></span></div>
 <div class="grid" id="kit">{kartu_html}</div>
 <p class="cap">Foto dari barang milikmu sendiri. Mode tebak nama menyamarkan nama tiap barang; ketuk kartunya untuk mengecek.</p>''')
