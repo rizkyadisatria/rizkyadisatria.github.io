@@ -43,7 +43,7 @@ KIT = [
     ('holder', '2 holder 18650 1 slot', 'Dirangkai seri jadi 7,4 V.', 1),
     ('lm2596_2', 'LM2596 kedua', 'Rel 5 V khusus kamera.', 1),
     ('kapasitor104', 'Kapasitor keramik 104 (100 nF)', 'Peredam noise di kaki motor.', 1),
-    ('kabel', 'Kabel merah-hitam UL1007', 'Jalur baterai, BMS, motor, konverter.', 1),
+    ('kabel', 'Kabel merah-hitam UL1007 (±26 AWG)', 'Terlalu tipis untuk daya. Pakai untuk sinyal, sensor, dan servo.', 1),
     ('cabletie', 'Cable ties 3 x 100 mm', '100 buah: merapikan kabel dan mengikat modul tanpa lubang.', 1),
     ('ov2640', 'OV2640 + breakout FPC', 'Cadangan; ESP32-CAM sudah punya kamera.', 3),
     ('lcd1602', 'LCD 1602', 'Untuk stasiun cuaca, bukan robot.', 3),
@@ -96,6 +96,7 @@ def isi():
 
     belum = table(['Barang', 'Jumlah', 'Untuk', 'Tanpa barang ini'], [
         ['BME280', '1 (opsional)', 'suhu, kelembapan, tekanan', 'pakai DHT11 dari kit cuaca'],
+        ['Kabel listrik 20-22 AWG merah dan hitam (silikon lebih baik)', '2 m per warna', 'jalur baterai, BMS, sekring, saklar, konverter, TB6612 dan motor. Kabel 26 AWG milikmu terlalu tipis untuk arus ini', 'kabel panas dan tegangan jatuh saat motor menarik arus besar'],
         ['Konektor WAGO 221-415 (5 lubang) atau tiruannya', '4 (+1 cadangan)', '2 untuk rel baterai (+ dan GND ke 3 konverter), 2 untuk rel 6 V (+ dan GND ke TB6612, 2 servo, kapasitor)', 'harus menyolder sambungan Y'],
         ['Heat shrink kit ukuran campur (2-10 mm)', '1 kotak isi ~100-160', 'sekitar 30 sambungan: 3 mm untuk kabel servo/tipis, 5 mm untuk kabel 20-22 AWG, 8 mm untuk kaki saklar dan sekring', 'sambungan mudah korsleting'],
         ['Kit spacer nilon M3 180 pcs (4-12 mm, baut, mur)', '1 kit', 'memasang 2 papan ekspansi, 2 LM2596, XL4015, MPU6050, layar ke plat', 'board hanya bisa diikat cable ties, lebih mudah goyang'],
@@ -106,7 +107,7 @@ def isi():
     ])
     kartu_html = ''.join(kartu(*k) for k in KIT)
     o += section('barang', 'Barang', 'Yang sudah kamu punya, dan yang masih kurang', f'''
-<div class="panel"><h3>Masih perlu dibeli</h3>{belum}<p class="cap">Sudah datang dan dicoret dari daftar ini: TB6612FNG, layar TFT, MAX98357A, ESP32-CAM + MB, LM2596 kedua, holder kedua, kapasitor 100 nF, kabel merah-hitam, cable ties, dan kartu SD. Kabel USB-C dan micro-USB sudah ada sejak awal.</p></div>
+<div class="panel"><h3>Masih perlu dibeli</h3>{belum}<p class="cap">Sudah datang dan dicoret dari daftar ini: TB6612FNG, layar TFT, MAX98357A, ESP32-CAM + MB, LM2596 kedua, holder kedua, kapasitor 100 nF, cable ties, dan kartu SD. Kabel USB-C dan micro-USB sudah ada sejak awal.</p></div>
 <div class="toolbar"><button id="quizbtn" aria-pressed="false" type="button">Mode tebak nama</button><span class="cap" id="quizhint"></span></div>
 <div class="grid" id="kit">{kartu_html}</div>
 <p class="cap">Foto dari barang milikmu sendiri. Mode tebak nama menyamarkan nama tiap barang; ketuk kartunya untuk mengecek.</p>''')
