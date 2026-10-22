@@ -33,7 +33,7 @@ KIT = [
     ('obeng', 'Set obeng', 'Trimpot, terminal, baut chassis.', 1),
     ('charger', 'Charger iMFG 2 slot', 'Mengisi sel 18650 di luar robot.', 1),
     ('adaptor', 'Adaptor 5 V 2 A', 'Daya charger.', 1),
-    ('usb', 'Kabel USB', 'Upload kode. Pastikan kabel data.', 1),
+    ('usb', 'Kabel USB-C dan micro-USB', 'Upload kode: USB-C ke ESP32-S3, micro-USB ke DevKit dan ESP32-CAM-MB.', 1),
     ('tb6612', 'TB6612FNG', 'Driver 4 motor (2 kanal). Pin header sudah terpasang.', 1),
     ('tft', 'TFT 2,4" sentuh + SD', 'Wajah robot. Slot SD ukuran penuh di belakang.', 1),
     ('sdcard', 'SanDisk Extreme SD 32 GB', 'Musik. Masuk langsung ke slot layar.', 1),
@@ -98,7 +98,6 @@ def isi():
         ['BME280', '1 (opsional)', 'suhu, kelembapan, tekanan', 'pakai DHT11 dari kit cuaca'],
         ['Konektor WAGO 221-415 (5 lubang) atau tiruannya', '4 (+1 cadangan)', '2 untuk rel baterai (+ dan GND ke 3 konverter), 2 untuk rel 6 V (+ dan GND ke TB6612, 2 servo, kapasitor)', 'harus menyolder sambungan Y'],
         ['Heat shrink kit ukuran campur (2-10 mm)', '1 kotak isi ~100-160', 'sekitar 30 sambungan: 3 mm untuk kabel servo/tipis, 5 mm untuk kabel 20-22 AWG, 8 mm untuk kaki saklar dan sekring', 'sambungan mudah korsleting'],
-        ['Kabel USB-C data', '1', 'upload ke ESP32-S3', 'kabel charge saja tidak bisa upload'],
         ['Kit spacer nilon M3 180 pcs (4-12 mm, baut, mur)', '1 kit', 'memasang 2 papan ekspansi, 2 LM2596, XL4015, MPU6050, layar ke plat', 'board ditempel selotip busa'],
         ['Spacer kuningan M3 30+6 mm (jantan-betina, sama dengan spacer kit chassis)', '12 (minimal 8)', 'kaki lantai 3: 2 bertumpuk per kaki = 60 mm, di atas 6 spacer kit', 'tiga lantai dibutuhkan karena platnya sempit dan pendek'],
         ['Plat chassis 4WD Starlectric (25,6 x 10 cm)', '2 (1 kalau kitmu sudah berisi dua plat)', 'plat bawah (motor) dan plat atas (lantai 2). Satu lembar di listing = satu plat', 'periksa isi kit chassismu dulu'],
@@ -107,7 +106,7 @@ def isi():
     ])
     kartu_html = ''.join(kartu(*k) for k in KIT)
     o += section('barang', 'Barang', 'Yang sudah kamu punya, dan yang masih kurang', f'''
-<div class="panel"><h3>Masih perlu dibeli</h3>{belum}<p class="cap">Sudah datang dan dicoret dari daftar ini: TB6612FNG, layar TFT, MAX98357A, ESP32-CAM + MB, LM2596 kedua, holder kedua, kapasitor 100 nF, kabel merah-hitam, cable ties, dan kartu SD.</p></div>
+<div class="panel"><h3>Masih perlu dibeli</h3>{belum}<p class="cap">Sudah datang dan dicoret dari daftar ini: TB6612FNG, layar TFT, MAX98357A, ESP32-CAM + MB, LM2596 kedua, holder kedua, kapasitor 100 nF, kabel merah-hitam, cable ties, dan kartu SD. Kabel USB-C dan micro-USB sudah ada sejak awal.</p></div>
 <div class="toolbar"><button id="quizbtn" aria-pressed="false" type="button">Mode tebak nama</button><span class="cap" id="quizhint"></span></div>
 <div class="grid" id="kit">{kartu_html}</div>
 <p class="cap">Foto dari barang milikmu sendiri. Mode tebak nama menyamarkan nama tiap barang; ketuk kartunya untuk mengecek.</p>''')
