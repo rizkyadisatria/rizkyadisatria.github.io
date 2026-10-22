@@ -40,14 +40,14 @@ def halaman():
         'Supaya alamat kamera tidak berubah, buka pengaturan router dan beri alamat tetap (DHCP reservation) untuk perangkat bernama esp32-... atau robotcam. Catat alamat itu untuk Bagian 5.',
     ], ok_='Foto dan video tampil. <code>robotcam.local</code> mungkin juga bisa dibuka di laptop, tapi di banyak HP Android tidak; alamat IP selalu bisa.')
 
-    t += stage(S, 3, 'Pindah ke daya robot dan pasang di kepala', ['LM2596 #2 (5,0 V)', 'Kapasitor 1000 µF', '2 kabel F-M', 'Selotip busa dua sisi atau baut kecil'], [
+    t += stage(S, 3, 'Pindah ke daya robot dan pasang di kepala', ['LM2596 #2 (5,0 V)', 'Kapasitor 1000 µF', '2 kabel F-M', '2 cable ties'], [
         'Saklar baterai OFF. Cabut ESP32-CAM dari MB.',
         f'Kabel F-M: pin {pin("5V")} ESP32-CAM → OUT+ LM2596 #2, pin {pin("GND")} di sebelahnya → OUT−. Ujung jantan dijepit di terminal sekrup.',
         f'<b>Jangan</b> memakai pin {pin("VCC")} atau {pin("3V3")} ESP32-CAM untuk memasukkan daya. VCC adalah keluaran, bukan masukan.',
         'Kapasitor 1000 µF di dekat ESP32-CAM, di antara 5V dan GND: kaki panjang ke 5V. Bisa dijepit di terminal LM2596 #2 kalau kabelnya pendek (di bawah 20 cm).',
         'Belum ada LM2596 #2? Sementara ambil dari OUT LM2596 #1, dan jaga volume speaker rendah.',
         'Saklar ON. Tunggu 10 detik, lalu buka alamat IP kamera di browser: foto tetap tampil.',
-        'Tempel ESP32-CAM di bagian depan kepala pan-tilt dengan selotip busa (atau baut kecil di lubang sudut). Kamera menghadap ke depan, pita tidak tertekuk tajam, antena di ujung papan tidak tertutup logam.',
+        'ESP32-CAM tidak punya lubang baut, jadi ikat ke dudukan depan kepala pan-tilt dengan 2 cable ties: satu melintang di tepi paling atas (di atas kamera, lewat slot SD), satu melintang di area tulisan ESP32-CAM di bawah konektor pita. Jangan melintasi lensa, LED flash, atau konektor pita. Nilon tidak mengganggu antena; yang mengganggu hanya logam. Kencangkan secukupnya sampai tidak goyang.',
     ], ok_='Foto bisa dibuka dari browser walau ESP32-CAM hanya mendapat daya dari baterai. Saat kepala menoleh, kamera ikut menoleh.',
         learn='Saat WiFi mengirim, ESP32-CAM bisa menarik arus sesaat yang besar. Kapasitor 1000 µF memasok lonjakan itu sehingga tegangan tidak drop dan kamera tidak restart. Untuk upload kode lagi nanti, tancapkan kembali ke MB.')
 
