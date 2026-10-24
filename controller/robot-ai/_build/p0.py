@@ -10,7 +10,7 @@ KIT = [
     ('ekspansi30p', 'Papan ekspansi 30P', 'Tempat DevKit dicolok, ada blok 5V/3V/GND.', 1),
     ('chassis', 'Chassis 4WD', 'Dua plat akrilik, 4 motor TT, 4 roda.', 1),
     ('plat', '3 plat chassis Starlectric', 'Plat bawah, plat atas, dan plat lantai 3. Akrilik buram, ujung lebar 15,2 cm, pinggang 10 cm.', 1),
-    ('spacer30', 'Spacer kuningan 30+6 mm', 'Sekitar 8 buah + baut dan mur: 4 kaki lantai 3, tiap kaki 2 bertumpuk (60 mm).', 1),
+    ('spacer30', 'Spacer kuningan 30+6 mm', '12 buah, 12 baut, 12 mur: 6 kaki lantai 3, tiap kaki 2 bertumpuk (60 mm).', 1),
     ('kabel22', 'Kabel 22 AWG merah, hijau, hitam', 'Masing-masing 1 m. Jalur daya: merah +7,4 V, hijau +6 V, hitam GND.', 1),
     ('baterai', '2 sel 18650', 'RakkiPanda 3000 mAh, dirangkai seri 7,4 V.', 1),
     ('bms', 'BMS 2S 20A', 'Pelindung baterai: kosong, penuh, arus lebih.', 1),
@@ -108,7 +108,7 @@ def isi():
     ])
     kartu_html = ''.join(kartu(*k) for k in KIT)
     o += section('barang', 'Barang', 'Yang sudah kamu punya, dan yang masih kurang', f'''
-<div class="panel"><h3>Masih perlu dibeli</h3>{belum}<p class="cap">Sudah datang dan dicoret dari daftar ini: spacer kuningan (8 buah cukup untuk 4 kaki lantai 3), plat lantai 3, kit spacer nilon, heat shrink, TB6612FNG, layar TFT, MAX98357A, ESP32-CAM + MB, LM2596 kedua, holder kedua, kapasitor 100 nF, cable ties, dan kartu SD. Kabel USB-C dan micro-USB sudah ada sejak awal. Kabel 22 AWG merah, hijau, hitam masing-masing 1 m sudah datang; kabel 26 AWG lama hanya untuk sinyal.</p></div>
+<div class="panel"><h3>Masih perlu dibeli</h3>{belum}<p class="cap">Sudah datang dan dicoret dari daftar ini: spacer kuningan (12 buah untuk 6 kaki lantai 3), plat lantai 3, kit spacer nilon, heat shrink, TB6612FNG, layar TFT, MAX98357A, ESP32-CAM + MB, LM2596 kedua, holder kedua, kapasitor 100 nF, cable ties, dan kartu SD. Kabel USB-C dan micro-USB sudah ada sejak awal. Kabel 22 AWG merah, hijau, hitam masing-masing 1 m sudah datang; kabel 26 AWG lama hanya untuk sinyal.</p></div>
 <div class="toolbar"><button id="quizbtn" aria-pressed="false" type="button">Mode tebak nama</button><span class="cap" id="quizhint"></span></div>
 <div class="grid" id="kit">{kartu_html}</div>
 <p class="cap">Foto dari barang milikmu sendiri. Mode tebak nama menyamarkan nama tiap barang; ketuk kartunya untuk mengecek.</p>''')
