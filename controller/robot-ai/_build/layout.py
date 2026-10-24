@@ -33,30 +33,31 @@ LUAS_L3 = LUAS_PLAT                                              # lantai 3 = pl
 
 # (nama, x, y, panjang_x, lebar_y, tinggi_mm, warna)
 L1 = [  # lantai bawah, di ANTARA plat bawah dan plat atas: tinggi maks 27 mm
-    # posisi motor = perkiraan dari slot silang dan 2 lubang baut di sisinya (jarak 22 mm); dianggap ada di lantai 1 (pilihan paling hati-hati)
-    ('motor', 34, 41, 70, 22, 19, '#f1c40f'), ('motor', 34, 86, 70, 22, 19, '#f1c40f'),
-    ('motor', 153, 41, 70, 22, 19, '#f1c40f'), ('motor', 153, 86, 70, 22, 19, '#f1c40f'),
-    ('HC-SR04 blk', 6, 53, 16, 46, 21, '#1d4f86'),
-    ('WAGO', 12, 30, 18, 20, 9, '#5a5a5a'), ('WAGO', 12, 102, 18, 20, 9, '#5a5a5a'),
-    ('LM2596 #1', 109, 4, 36, 66, 15, '#33240f'), ('LM2596 #2', 109, 80, 36, 66, 15, '#33240f'),
-    ('MPU', 176, 66, 21, 16, 8, '#1d3a6b'),
-    ('WAGO', 226, 32, 20, 18, 9, '#5a5a5a'), ('WAGO', 226, 102, 20, 18, 9, '#5a5a5a'),
-    ('TB6612', 230, 66, 20, 20, 25, '#8c1d18'),
+    # posisi motor dan LM2596 diukur dari FOTO susun keringmu (galat beberapa mm)
+    ('motor', 49, 27, 64, 24, 22, '#f1c40f'), ('motor', 127, 27, 65, 24, 22, '#f1c40f'),
+    ('motor', 49, 102, 64, 24, 22, '#f1c40f'), ('motor', 127, 102, 65, 24, 22, '#f1c40f'),
+    ('LM2596 #1', 57, 59, 63, 36, 15, '#1d3f7a'), ('LM2596 #2', 123, 59, 62, 36, 15, '#1d3f7a'),
+    ('HC-SR04 blk', 4, 53, 18, 46, 21, '#1d4f86'),
+    ('WAGO', 28, 30, 18, 20, 9, '#5a5a5a'), ('WAGO', 28, 102, 18, 20, 9, '#5a5a5a'),
+    ('MPU', 196, 66, 21, 16, 8, '#1d3a6b'),
+    ('WAGO', 200, 30, 20, 18, 9, '#5a5a5a'), ('WAGO', 200, 104, 20, 18, 9, '#5a5a5a'),
+    ('TB6612', 224, 66, 20, 20, 25, '#8c1d18'),
 ]
-L2 = [  # di atas plat atas, di bawah lantai 3: tinggi maks ~57 mm
-    ('holder 1', 14, 38, 21, 77, 19, '#3a1513'), ('holder 2', 38, 38, 21, 77, 19, '#3a1513'),
-    ('BMS', 65, 46, 22, 50, 6, '#1d6b3a'), ('saklar', 67, 102, 15, 21, 25, '#7a1010'),
-    ('breadboard 1', 92, 34, 55, 83, 25, '#d9d9cf'), ('DevKit + 30P', 155, 38, 72, 50, 45, '#1d3324'),
-    ('HC-SR04 dpn', 236, 53, 16, 46, 21, '#1d4f86'),
-    ('XL4015', 150, 91, 54, 29, 20, '#241a3a'),
+L2 = [  # di atas plat atas, di bawah lantai 3: tinggi maks ~57 mm (posisi dari foto susun keringmu)
+    ('holder 1', 12, 31, 21, 77, 19, '#3a1513'), ('holder 2', 36, 26, 21, 77, 19, '#3a1513'),
+    ('BMS', 68, 32, 24, 53, 6, '#1d6b3a'), ('saklar', 63, 88, 18, 15, 25, '#7a1010'),
+    ('breadboard 1', 96, 34, 55, 83, 25, '#d9d9cf'), ('DevKit + 30P', 157, 36, 73, 50, 45, '#1d3324'),
+    ('XL4015', 160, 92, 54, 27, 20, '#7a1d1d'),
+    ('HC-SR04 dpn', 236, 53, 18, 46, 21, '#1d4f86'),
 ]
-L3 = [  # di atas lantai 3 (plat ketiga, sama dengan chassis): tanpa batas tinggi
-    ('S3 + ekspansi', 10, 33, 83, 81, 30, '#13283a'), ('breadboard 2', 96, 26, 55, 83, 20, '#d9d9cf'),
-    ('layar TFT', 154, 26, 30, 72, 37, '#8c1d18'), ('speaker (berdiri)', 96, 112, 58, 14, 30, '#2a2a2a'),
-    ('STOP', 18, 117, 16, 16, 12, '#7a1010'),
-    ('kepala', 202, 56, 40, 40, 70, '#3a2a13'),
+L3 = [  # di atas lantai 3 (plat ketiga, sama dengan chassis): tanpa batas tinggi (posisi dari foto)
+    ('S3 + ekspansi', 13, 28, 81, 82, 30, '#13283a'), ('breadboard 2', 98, 27, 54, 82, 20, '#d9d9cf'),
+    ('TFT (rebah)', 156, 30, 42, 78, 10, '#8c1d18'), ('speaker (berdiri)', 77, 114, 77, 20, 30, '#2a2a2a'),
+    ('STOP', 129, 4, 15, 15, 12, '#7a1010'),
+    ('kepala', 212, 58, 36, 36, 70, '#3a2a13'),
 ]
-HEAD = (222, 76, 34)      # pusat x, y dan jari-jari ruang putar kepala (tidak boleh ada barang lain di sini)
+MENONJOL = {'speaker (berdiri)'}   # boleh menonjol sedikit dari tepi pinggang, asal diikat ke sayap tengah
+HEAD = (230, 76, 30)      # pusat x, y dan jari-jari ruang putar kepala (barang setinggi >15 mm tidak boleh di sini)
 TINGGI = {'L1': 27, 'L2': 57}
 GAP = 3                   # jarak minimal antar-barang (mm) untuk kabel
 
@@ -82,12 +83,12 @@ def cek():
         if nama == 'L3':
             hx, hy, hr = HEAD
             for n, x, y, w, h, t, c in L:
-                if n == 'kepala':
+                if n == 'kepala' or t <= 15:     # barang rebah ada di bawah bagian kepala yang berputar
                     continue
                 cx, cy = min(max(hx, x), x + w), min(max(hy, y), y + h)   # titik kotak terdekat ke pusat kepala
                 if (cx - hx) ** 2 + (cy - hy) ** 2 < hr ** 2:
                     overl.append((n, 'ruang putar kepala'))
-            luar = [n for n, x, y, w, h, t, c in L if n != 'kepala' and not _di_plat(x, y, w, h)]
+            luar = [n for n, x, y, w, h, t, c in L if n != 'kepala' and n not in MENONJOL and not _di_plat(x, y, w, h)]
         else:
             luar = [n for n, x, y, w, h, t, c in L if not _di_plat(x, y, w, h)]
         tinggi = [(n, t) for n, x, y, w, h, t, c in L if nama in TINGGI and t > TINGGI[nama]]
@@ -121,6 +122,8 @@ def svg():
             else:
                 s += f'<rect x="{X}" y="{Y}" width="{w * k}" height="{h * k}" rx="3" fill="{c}" stroke="#e9ece9" stroke-opacity=".7"/>'
             fs = 10 if min(w, h) * k > 30 else (8.5 if w * k > 36 else (7.5 if w * k > 34 else 6.5))
+            if n != 'motor' and not (h > w * 1.3 and w * k < 50) and len(n) * fs * 0.58 > w * k - 4:
+                fs = max(6, (w * k - 4) / (len(n) * 0.58))
             col = '#222' if c in ('#f1c40f', '#d9d9cf') else '#f4f6f5'
             if n == 'motor':
                 continue
@@ -130,12 +133,12 @@ def svg():
                 s += diag.text(X + w * k / 2, Y + h * k / 2 + 4, n, fs, anchor='middle', fill=col)
         # kaki lantai 3 (spacer bertumpuk), di lubang plat chassis: posisi contoh
         if nama in ('L2', 'L3'):
-            for (sx, sy) in ((22, 18), (22, 140), (127, 6), (127, 146), (235, 18), (235, 134)):
+            for (sx, sy) in ((16, 29), (15, 131), (125, 24), (125, 139), (230, 24), (230, 128)):   # dari foto lantai 1
                 s += f'<circle cx="{30 + sx * k}" cy="{y0 + sy * k}" r="4" fill="#c9a227" stroke="#000"/>'
         s += diag.text(30 + PLAT_L * k, y0 - 10, 'depan →', 11, anchor='end', fill='#ffd8a8', weight=600)
         y0 += PLAT_W * k + 48
-    caps = ['Berskala; bentuk plat dibaca dari foto platmu.',
-            'Motor lantai 1 digambar di slot silangnya (perkiraan).',
+    caps = ['Berskala; bentuk plat dan posisi barang dibaca dari foto susun keringmu.',
+            'Motor (kuning) ada di sisi kiri-kanan lantai 1.',
             'Lingkaran kuning = contoh kaki lantai 3 (pakai lubang platmu).',
             'Garis putus oranye = ruang kepala menoleh.']
     for n, c in enumerate(caps):
