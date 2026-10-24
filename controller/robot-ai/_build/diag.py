@@ -142,7 +142,8 @@ def daya():
     for i, t in enumerate(['Semua minus ke satu titik: ⊖ BMS, IN− dan OUT− ketiga', 'konverter, GND S3, DevKit, ESP32-CAM, TB6612, servo.',
                            'Tanpa GND bersama, perintah UART dan PWM tidak terbaca.']):
         s += text(240, 414 + i * 20, t, 12, anchor='middle', fill='#cfd8d4')
-    s += text(20, 30, 'Merah = baterai · Oranye-merah = 5 V · Ungu = 6 V · Hitam = GND', 12.5, fill='#e8efe9')
+    s += text(20, 30, 'Garis: merah = baterai, oranye = 5 V, ungu = 6 V. Kabel: baterai merah 22 AWG, 5 V merah 26 AWG, 6 V hijau 22 AWG, GND hitam.', 12.5, fill='#e8efe9')
+    s += tag(470, 250, 'WAGO + / −') + tag(690, 435, 'WAGO 6V / −6')
     s += text(20, 50, 'Setel tegangan tiap konverter TANPA beban dulu, baru sambung board.', 12.5, fill='#ffd8a8')
     return svg(W, H, s, 'Jalur daya robot dari baterai ke tiga konverter dan semua board')
 
