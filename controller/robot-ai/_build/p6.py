@@ -2,6 +2,7 @@ from build import *
 import diag
 import layout
 import kabel as KB
+import peta
 
 S = '6-rakit'
 IMG = '../img/'
@@ -16,19 +17,19 @@ def halaman():
         ['3 (paling atas)', 'tanpa batas', 'kepala pan-tilt + kamera, sekitar 70 mm', '-']])
 
     def baris(ukuran):
-        return [[d[1], KB.p(d[0]), d[6]] for d in KB.DAFTAR if d[2] == ukuran]
+        return [[f'<b>{KB.NO[d[0]]}</b>', d[1], KB.p(d[0]), d[6]] for d in KB.DAFTAR if d[2] == ukuran]
     t22 = KB.total('22')
-    kabel = table(['Kabel 22 AWG', 'Potong', 'Dari → ke'], baris('22') + [
-        ['<b>Total</b>', '<b>' + ', '.join(f'{w} {n} cm' for w, n in t22.items()) + '</b>',
+    kabel = table(['No', 'Kabel 22 AWG', 'Potong', 'Dari → ke'], baris('22') + [
+        ['', '<b>Total</b>', '<b>' + ', '.join(f'{w} {n} cm' for w, n in t22.items()) + '</b>',
          f'merah dan hijau cukup dari 1 m; <b>hitam kurang {t22["hitam"] - 100} cm</b>: 1 m pertama cukup untuk Bagian 1 dan TB6612, kabel GND servo dari tambahan']],
-        'Perkiraan dari tata letak di atas: jarak mendatar + naik-turun antar-lantai (permukaan lantai 2 sekitar 3,3 cm di atas lantai 1, lantai 3 sekitar 6,3 cm di atas lantai 2), ditambah 3 cm untuk kupasan dan kelonggaran, galat sekitar ±2 cm. Angka yang sama dipakai di tiap langkah Bagian 1-4.') + table(
-        ['Kabel 26 AWG dan jumper', 'Panjang', 'Dari → ke'], baris('26') + baris('jumper') + baris('-'),
+        'Perkiraan dari tata letak di atas: jarak mendatar + naik-turun antar-lantai (permukaan lantai 2 sekitar 3,3 cm di atas lantai 1, lantai 3 sekitar 6,3 cm di atas lantai 2), ditambah 3 cm untuk kupasan dan kelonggaran, galat sekitar ±2 cm. Kabel antar-lantai dihitung lewat lubang plat yang ada di peta tiap tahap. Angka yang sama dipakai di tiap langkah Bagian 1-4.') + table(
+        ['No', 'Kabel 26 AWG dan jumper', 'Panjang', 'Dari → ke'], baris('26') + baris('jumper') + baris('-'),
         'Jalur 5 V cukup 26 AWG: arusnya paling besar sekitar 1 A, dan 25 cm pergi-pulang hanya menurunkan sekitar 0,07 V. Kabel jumper biasanya 20 cm; yang tertulis 20 cm ke atas pas-pasan, jadi sambung dengan kabel M-F kalau kurang.')
 
     t += stage(S, 1, 'Susun kering dan cek', ['Semua bagian yang sudah dites di Bagian 1-5', 'Plat chassis ketiga', '12 spacer kuningan M3 30+6 mm (6 kaki x 2)', 'Penggaris'], [
         'Saklar OFF dan keluarkan kedua sel selama merakit. Kalau plat atas chassis sudah terpasang, lepas dulu: barang lantai 1 dipasang saat plat atas masih terbuka.',
         'Kiri dan kanan di bagian ini dilihat dari belakang robot, menghadap ke depan. Taruh semua barang di tempatnya mengikuti gambar tata letak, <b>tanpa baut dan tanpa ikatan</b>: lantai 1 di plat bawah, lantai 2 di plat atas, lantai 3 di plat ketiga (plat atas dan plat ketiga dijajarkan di meja).',
-        '<b>Lantai 1</b> (plat bawah): empat motor di sisi kiri-kanan, kaleng motor menghadap ke tengah. LM2596 #1 dan #2 rebah berurutan di jalur tengah. #1 di belakang dengan OUT menghadap ke belakang; <b>#2 diputar 180° dari foto susun kering</b> sehingga IN-nya menghadap ke belakang dan OUT ke depan. Ujung depan: MPU6050 datar (tulisan menghadap ke depan), TB6612 di depannya, WAGO −6 di kiri dan WAGO 6V di kanan. Ujung belakang: HC-SR04 belakang menghadap ke belakang, WAGO + di kiri dan WAGO − di kanan.',
+        '<b>Lantai 1</b> (plat bawah): empat motor di sisi kiri-kanan, kaleng motor menghadap ke tengah. LM2596 #1 dan #2 rebah berurutan di jalur tengah. #1 di belakang dengan OUT menghadap ke belakang; <b>#2 diputar 180° dari foto susun kering</b> sehingga IN-nya menghadap ke belakang dan OUT ke depan. Ujung depan: MPU6050 datar (tulisan menghadap ke depan), TB6612 di depannya, WAGO 6V di kiri dan WAGO −6 di kanan. Ujung belakang: HC-SR04 belakang menghadap ke belakang, WAGO + di kiri dan WAGO − di kanan.',
         '<b>Lantai 2</b> (plat atas): holder 1 paling belakang dengan pegas (−) di kiri, holder 2 di depannya <b>dibalik</b> (pegas di kanan), BMS di depannya (pad 8.4V dan 0V di kiri), saklar di depan BMS sebelah kanan, sekring di depan saklar, breadboard 1 melintang di tengah, DevKit di papan 30P di kiri depan, XL4015 di kanan depan <b>diputar 180° dari foto</b> sehingga terminal IN (sisi kapasitor 100 µF 50 V) menghadap ke belakang, HC-SR04 depan di tepi depan, lurus ke depan.',
         '<b>Lantai 3</b> (plat ketiga): papan S3 di ujung belakang dengan port USB-C menghadap ke samping, breadboard 2 melintang di depannya (MAX98357A dan INMP441 di sini), TFT <b>rebah</b> menghadap ke atas di depannya, kepala pan-tilt dengan ESP32-CAM di ujung depan, speaker kotak berdiri di sisi kanan, tombol STOP di sayap tengah kiri.',
         'Cek tinggi: pasang plat atas sementara di spacer kit, letakkan barang lantai 2, tumpuk dua spacer kuningan di tiap kaki, taruh plat ketiga di atasnya. Lihat dari samping: tidak ada yang menyentuh plat di atasnya, dan sel baterai bisa ditarik keluar dari holder tanpa membuka lantai 3.',
@@ -45,11 +46,12 @@ def halaman():
         '<b>Modul tanpa lubang</b> diikat cable ties: TB6612, keempat WAGO (tuas menghadap ke atas supaya masih bisa dibuka), dan HC-SR04 belakang (dua tie di sebelah luar tabung sensor, sedikit mendongak sekitar 5° supaya tidak membaca lantai). Masukkan tie lewat dua lubang atau celah plat di kiri-kanan modul, lingkarkan di atas modul, kunci di bawah plat. Kencangkan sampai tidak goyang, jangan lebih, lalu potong sisa ekornya rata.',
         'Kalau tidak ada lubang yang pas: tempel selotip kertas di titik bor, bor pelan 3 mm tanpa ditekan, jangan lebih dekat dari 5 mm ke tepi, karena akrilik mudah retak.',
         'Sambungan di lantai 1: kabel motor ke AO1/AO2 dan BO1/BO2 TB6612, hijau-hitam WAGO 6V/−6 ke VM/GND TB6612 dan kapasitor 470 µF di WAGO 6V/−6 (Bagian 2), kabel WAGO +/− ke IN kedua LM2596 (Bagian 1).',
-        f'Pasang ujung lantai-1 dari kabel yang naik ke atas, lalu beri label di ujung atasnya: kabel 26 AWG 5 V + GND ke papan 30P ({KB.p("5v30")}) dan ke papan S3 ({KB.p("5vs3")}) di terminal OUT LM2596 #1, kabel 5 V + GND kamera ({KB.p("5vcam")}) di OUT LM2596 #2 (Bagian 4), kabel pengukur baterai ({KB.p("bat")}) di IN+ LM2596 #1, kabel daya servo ({KB.p("servo+")}) di WAGO 6V/−6 (Bagian 2).',
-        f'Kabel sinyal yang naik: 9 kabel F-F TB6612 (ke papan 30P, cukup 20 cm), 4 kabel F-F MPU6050 (ke header I2C papan 30P, {KB.p("mpu")}), 4 kabel HC-SR04 belakang (ke breadboard 1, {KB.p("hcb")}).',
+        f'Pasang ujung lantai-1 dari kabel yang naik ke atas, lalu beri label di ujung atasnya: kabel 26 AWG 5 V + GND ke papan 30P ({KB.pn("5v30")}) dan ke papan S3 ({KB.pn("5vs3")}) di terminal OUT LM2596 #1, kabel 5 V + GND kamera ({KB.pn("5vcam")}) di OUT LM2596 #2 (Bagian 4), kabel pengukur baterai ({KB.pn("bat")}) di IN+ LM2596 #1, kabel daya servo ({KB.pn("servo+")}) di WAGO 6V/−6 (Bagian 2).',
+        f'Kabel sinyal yang naik: 9 kabel F-F TB6612 (ke papan 30P, cukup 20 cm), 4 kabel F-F MPU6050 (ke header I2C papan 30P, {KB.pn("mpu")}), 4 kabel HC-SR04 belakang (ke breadboard 1, {KB.pn("hcb")}).',
         'Kabel XL4015 (merah-hitam dari WAGO +/−, hijau-hitam ke WAGO 6V/−6) juga dibiarkan menjulur ke atas.',
         'Kumpulkan kabel daya yang naik di lubang besar tengah plat atas, dan kabel sinyal di celah dekat TB6612. Ikat longgar per kelompok supaya tidak menyentuh roda.',
-    ], ok_='Semua barang lantai 1 tidak goyang, setiap kabel yang naik sudah berlabel di ujung atasnya, dan tidak ada kabel yang menyentuh roda.')
+    ], figs=fig(peta.lantai1(), 'Dilihat dari atas, posisi barang sama persis dengan di robot (gambar tata letak Bagian 6). Nomor di gambar = nomor di tabel dan di langkah.') + peta.tabel(peta.LANTAI1),
+        ok_='Semua barang lantai 1 tidak goyang, setiap kabel yang naik sudah berlabel di ujung atasnya, dan tidak ada kabel yang menyentuh roda.')
 
     t += stage(S, 3, 'Tutup plat atas dan pasang lantai 2', ['Plat atas', '12 spacer kuningan', 'Baut M3 pendek + mur', 'Kit spacer nilon M3', 'Cable ties'], [
         'Holder, BMS, saklar, dan sekring sudah tersambung ke WAGO +/− di lantai 1 sejak Bagian 1. Angkat rangkaian baterai itu ke atas plat atas, lalu turunkan plat pelan sambil memasukkan semua kabel yang naik lewat lubang dan celahnya. Jangan sampai ada kabel terjepit di antara plat dan spacer.',
@@ -59,19 +61,21 @@ def halaman():
         'Sambung kabel daya yang naik: merah-hitam dari WAGO +/− ke IN+/IN− XL4015, hijau-hitam dari WAGO 6V/−6 ke OUT+/OUT− XL4015. Kencangkan terminal sekrup.',
         'Hitam GND dari LM2596 #1 ke pin GND blok daya papan 30P. Merah 5 V-nya <b>belum</b> ditancap (nanti di Tahap 6).',
         'Kabel sinyal: TB6612 ke pin S D25, D26, D27, D13, D32, D33 dan STBY/VCC ke 3V seperti Bagian 2 Tahap 3. MPU6050 ke header I2C. Kabel pengukur baterai ke <span class="pin">a20</span>.',
-        '<b>HC-SR04 belakang</b> (jauh dari papan 30P, jadi lewat breadboard): VCC → <span class="pin">c30</span>, GND → garis biru, ECHO → <span class="pin">a12</span>, TRIG → <span class="pin">e18</span>. Kabel baru ' + KB.p("hctrig") + ' dari <span class="pin">a18</span> → pin S baris D14. HC-SR04 depan seperti Bagian 2 Tahap 5.',
+        '<b>HC-SR04 belakang</b> (jauh dari papan 30P, jadi lewat breadboard): VCC → <span class="pin">c30</span>, GND → garis biru, ECHO → <span class="pin">a12</span>, TRIG → <span class="pin">e18</span>. Kabel baru ' + KB.pn("hctrig") + ' dari <span class="pin">a18</span> → pin S baris D14. HC-SR04 depan seperti Bagian 2 Tahap 5.',
         'Lepas tombol 6 mm dari breadboard 1 (nanti diganti tombol 12 mm di lantai 3). Resistor pull-up 10 kΩ tetap di tempatnya.',
         'Kabel yang lanjut ke lantai 3 dikumpulkan di depan, dekat kaki spacer depan: 5 V + GND papan S3, 5 V + GND kamera, daya servo, dan 3 kabel UART (ujung betinanya ditancap sekarang ke D16, D17, dan G papan 30P).',
-    ], ok_='Lantai 2 terpasang, semua barang tidak goyang, dan sel bisa dicabut dari holder tanpa membuka apa pun.')
+    ], figs=fig(peta.baterai(), 'Lantai 2 belakang.') + fig(peta.lantai2(), 'Dilihat dari atas, posisi barang sama persis dengan di robot (gambar tata letak Bagian 6). Nomor di gambar = nomor di tabel dan di langkah.') + peta.tabel(peta.BATERAI + peta.LANTAI2),
+        ok_='Lantai 2 terpasang, semua barang tidak goyang, dan sel bisa dicabut dari holder tanpa membuka apa pun.')
 
     t += stage(S, 4, 'Pasang lantai 3', ['Plat ketiga', 'Baut M3 + kit spacer nilon', 'Cable ties', 'Tombol 12 mm', 'Kabel 26 AWG', 'Kabel M-F'], [
         'Isi plat ketiga selagi masih di meja: papan S3 (bersama breadboard 2 dan kabel-kabel dari Bagian 3) dengan spacer nilon <b>10 mm</b>, TFT rebah dengan spacer <b>20 mm</b> (M3*20+6) di lubang pojoknya, karena pin header dan colokan jumper ada di bawah layar, breadboard 2 diikat cable tie, kepala pan-tilt dibaut di depan dengan sumbu pan di tengah lebar plat, speaker berdiri diikat dua cable tie lewat lubang sayap tengah kanan.',
-        f'Tombol STOP 12 mm di sayap tengah kiri: bor lubang pelan dengan mata bor bertingkat, atau ikat tombol pada potongan plat kecil. Solder dua kabel 26 AWG <b>{KB.p("stop")}</b> ke dua kakinya, ujung lainnya ke potongan jumper jantan 3 cm.',
+        f'Tombol STOP 12 mm di sayap tengah kiri: bor lubang pelan dengan mata bor bertingkat, atau ikat tombol pada potongan plat kecil. Solder dua kabel 26 AWG <b>{KB.pn("stop")}</b> ke dua kakinya, ujung lainnya ke potongan jumper jantan 3 cm.',
         'Naikkan kabel dari lantai 2 lewat lubang plat ketiga, lalu pasang plat ketiga di atas kaki dengan baut M3.',
-        'Hitam GND dari LM2596 #1 ke GND blok daya papan S3 (merah 5 V-nya belum). UART: D16 → IO17, D17 → IO18, G → G papan S3. Kabel 5 V kamera ke ESP32-CAM, daya servo sudah di kepala.',
+        'Hitam GND dari LM2596 #1 ke GND blok daya papan S3 (merah 5 V-nya belum). UART (kabel 29, ' + KB.p("uart") + ', lebih panjang dari kabel jumper 20 cm: sambung F-F dengan M-F): D16 → IO17, D17 → IO18, G → G papan S3. Kabel 5 V kamera ke ESP32-CAM, daya servo sudah di kepala.',
         'Kabel oranye kedua servo turun ke lantai 2 lewat kabel M-F: pan → pin S D23, tilt → pin S D4. Kabel tombol STOP turun ke breadboard 1: satu ke <span class="pin">d27</span>, satu ke <span class="pin">g29</span> (menggantikan kaki diagonal tombol 6 mm).',
         'Saklar OFF: putar kepala dengan tangan penuh ke kiri dan kanan, lalu mengangguk. Kabel kamera dan servo tidak tertarik, dan kepala tidak menyentuh TFT.',
-    ], ok_='Lantai 3 terpasang dan kepala bisa bergerak penuh tanpa menarik kabel.')
+    ], figs=fig(peta.lantai3(), 'Dilihat dari atas, posisi barang sama persis dengan di robot (gambar tata letak Bagian 6). Nomor di gambar = nomor di tabel dan di langkah.') + peta.tabel(peta.LANTAI3),
+        ok_='Lantai 3 terpasang dan kepala bisa bergerak penuh tanpa menarik kabel.')
 
     t += stage(S, 5, 'Rapikan kabel', ['Cable ties', 'Selotip kertas + spidol'], [
         'Ikat kabel per kelompok: daya (merah, hijau, hitam), motor, servo, sinyal. Kabel daya dan motor dijauhkan dari kabel SPI layar dan mikrofon.',

@@ -1,5 +1,6 @@
 from build import *
 import kabel as KB
+import peta
 from diag import C, H, RP, RY, bwire, bres, btag, bltag, bdot, breadboard
 
 S = '2-badan'
@@ -102,13 +103,13 @@ def halaman():
     tahap += stage(S, 2, 'Rakit chassis dan siapkan motor', ['Chassis 4WD + 4 motor TT', 'Obeng', 'Solder', 'Kabel motor (bawaan atau 26 AWG)', '1 kabel jumper F-F', 'Heat shrink', '4 kapasitor 100 nF'], [
         'Lepas kertas pelindung di kedua plat akrilik (dari sudut, pakai kuku).',
         'Pasang keempat motor ke plat <b>bawah</b> dengan dudukan akrilik berbentuk T dan baut panjang M3. Poros motor menghadap keluar, kaleng motor (yang ada dua kaki logamnya) menghadap ke tengah plat, seperti di foto susun kering lantai 1 (Bagian 6). Kencangkan secukupnya, akrilik bisa retak kalau terlalu kencang.',
-        f'Panjang kabel motor (dari kaki motor): motor <b>belakang {KB.p("motor")}</b> (sampai TB6612 di ujung depan lantai 1), motor <b>depan {KB.p("motord")}</b>. Kabel bawaan yang lebih panjang dipotong; yang lebih pendek disambung 26 AWG. Belum tersolder: solder satu merah dan satu hitam ke dua kaki logam tiap motor. Panaskan sebentar saja, plastik motor mudah meleleh.',
+        f'Panjang kabel motor (dari kaki motor): motor <b>belakang {KB.pn("motor")}</b> (sampai TB6612 di ujung depan lantai 1), motor <b>depan {KB.pn("motord")}</b>. Kabel bawaan yang lebih panjang dipotong; yang lebih pendek disambung 26 AWG. Belum tersolder: solder satu merah dan satu hitam ke dua kaki logam tiap motor. Panaskan sebentar saja, plastik motor mudah meleleh.',
         'Kalau kapasitor 100 nF sudah ada, solder satu di antara dua kaki tiap motor (kapasitor keramik tidak berkutub). Ini meredam percikan sikat motor yang bisa membuat ESP32 reset.',
         'Pilin kabel merah-hitam tiap motor supaya rapi dan tidak menjadi "antena" noise.',
         'Gabungkan per sisi: kabel motor <b>depan kiri</b> disolder ke kabel motor <b>belakang kiri</b> yang lewat di sebelahnya, merah dengan merah, hitam dengan hitam, lalu heat shrink. Lakukan juga di kanan. Sekarang tiap sisi punya satu pasang kabel yang ujungnya sampai ke depan.',
         'Potong kabel jumper F-F menjadi empat potongan ujung betina sepanjang 3 cm (dua dari tiap ujung; sisanya simpan). Solder ke ujung depan keempat kabel motor dan heat shrink, supaya bisa ditancap ke pin TB6612.',
         'Pasang roda ke poros motor: tekan lurus sampai rapat. Belum perlu memasang plat atas.',
-    ], figs=photo(IMG + 'chassis.jpg', 'Chassis dengan motor dan roda', 'Plat bawah dengan empat motor TT dan roda.', 420),
+    ], figs=photo(IMG + 'chassis.jpg', 'Chassis dengan motor dan roda', 'Plat bawah dengan empat motor TT dan roda.', 420) + fig(peta.lantai1(peta.L1_MOTOR, 'LANTAI 1: 6 V, TB6612, motor (Bagian 2)'), 'Dilihat dari atas, posisi barang sama persis dengan di robot (gambar tata letak Bagian 6). Nomor di gambar = nomor di tabel dan di langkah.' + ' Kabel abu-abu = kabel motor (25, 26) dan kabel jumper sinyal (30-32).') + peta.tabel(peta.kabel_l1(peta.L1_MOTOR)),
         ok_='Empat motor terpasang kuat, dan ada dua pasang kabel: satu untuk sisi kiri, satu untuk sisi kanan.',
         learn='Motor TT dirancang 3-6 V. Dua motor satu sisi selalu bergerak bersama (robot belok dengan memutar sisi kiri dan kanan berbeda arah), jadi cukup satu kanal driver per sisi.')
 
@@ -116,7 +117,7 @@ def halaman():
         'Pin header TB6612-mu sudah terpasang, jadi tidak perlu menyolder. Balik papan: <b>nama pin tercetak di bawah</b>. Di modulmu urutannya sisi kiri PWMA, <b>AIN2, AIN1</b>, STBY, BIN1, BIN2, PWMB, GND dan sisi kanan VM, VCC, GND, AO1, AO2, BO2, BO1, GND. Perhatikan AIN2 ada di atas AIN1: cocokkan nama, jangan menebak dari posisi.',
         f'Kabel F-F dari TB6612 ke pin S papan 30P: {pin("PWMA")}→D25, {pin("AIN1")}→D26, {pin("AIN2")}→D27, {pin("PWMB")}→D13, {pin("BIN1")}→D32, {pin("BIN2")}→D33.',
         f'{pin("STBY")} dan {pin("VCC")} ke dua pin <b>3V</b> di blok daya. {pin("GND")} (yang di sisi pin logika) ke pin G mana saja.',
-        f'Saklar baterai OFF. Potong hijau 22 AWG <b>{KB.p("vm")}</b> dan hitam <b>{KB.p("vmg")}</b>. Solder satu ujung masing-masing ke potongan jumper betina 3 cm, heat shrink. Hijau: WAGO 6V → {pin("VM")}. Hitam: WAGO −6 → {pin("GND")} di sebelah VM.',
+        f'Saklar baterai OFF. Potong hijau 22 AWG <b>{KB.pn("vm")}</b> dan hitam <b>{KB.pn("vmg")}</b>. Solder satu ujung masing-masing ke potongan jumper betina 3 cm, heat shrink. Hijau: WAGO 6V → {pin("VM")}. Hitam: WAGO −6 → {pin("GND")} di sebelah VM.',
         'Kapasitor 470 µF: <b>kaki panjang (+) ke WAGO 6V</b>, sisi bergaris (−) ke WAGO −6, di lubang yang masih kosong. Terbalik bisa meletus.',
         f'Kabel motor kiri (ujung jumper betina) ke {pin("AO1")} dan {pin("AO2")}, motor kanan ke {pin("BO1")} dan {pin("BO2")}.',
         '<b>Angkat robot</b>: taruh chassis di atas kotak atau gelas supaya keempat roda menggantung.',
@@ -125,7 +126,7 @@ def halaman():
         + fig(diag.conn('TB6612FNG', '#b3261e', ['PWMA', 'AIN1', 'AIN2', 'PWMB', 'BIN1', 'BIN2', 'STBY', 'VCC', 'GND'],
                           'Papan 30P', '#151a18', ['D25 (S)', 'D26 (S)', 'D27 (S)', 'D13 (S)', 'D32 (S)', 'D33 (S)', ('#grup', 'blok daya'), '3V', '3V', 'GND'],
                           [(0, 0, 'kuning'), (1, 1, 'hijau'), (2, 2, 'biru'), (3, 3, 'kuning'), (4, 4, 'hijau'), (5, 5, 'biru'), (6, 7, '3v3'), (7, 8, '3v3'), (8, 9, 'gnd')],
-                          label='Sambungan sinyal TB6612 ke papan 30P')) + fig(diag.motor(), 'Sisi daya TB6612: 6 V dari XL4015 ke VM, dua motor paralel per kanal.'),
+                          label='Sambungan sinyal TB6612 ke papan 30P')) + '<p class="cap">Sisi daya TB6612 (kabel 17, 18) dan kabel motor (25, 26): peta lantai 1 di Tahap 2.</p>',
         code=kode_tes('tes_motor'),
         ok_='Serial Monitor menulis KIRI maju, KIRI mundur, KANAN maju, KANAN mundur, dan roda yang sesuai berputar ke arah itu. "Maju" = roda berputar seperti robot berjalan ke depan.',
         learn='PWMA mengatur kecepatan (0-255) dengan menyalakan-mematikan sangat cepat (20.000 kali per detik). AIN1 dan AIN2 mengatur arah: satu HIGH satu LOW = berputar, keduanya sama = berhenti.',
@@ -138,7 +139,7 @@ def halaman():
     tahap += stage(S, 4, 'Kepala pan-tilt (servo MG90S)', ['Pan-tilt dengan 2 MG90S', 'Kabel M-F', 'Kabel 22 AWG hijau dan hitam', 'Kapasitor 470 µF', 'Heat shrink', 'WAGO 6V dan WAGO −6'], [
         'Saklar OFF. Kabel servo: <b>coklat = GND</b>, <b>merah = daya</b>, <b>oranye = sinyal</b>.',
         f'Servo bawah (pan, menoleh kiri-kanan): oranye ke pin S baris {pin("D23")}. Servo atas (tilt, mengangguk): oranye ke pin S baris {pin("D4")}. Pakai kabel M-F: ujung jantan masuk ke lubang soket servo.',
-        f'Daya servo dari WAGO 6V, lewat satu pasang kabel 22 AWG yang sampai dari lantai 1 ke kepala di lantai 3: potong hijau <b>{KB.p("servo+")}</b> dan hitam <b>{KB.p("servo-")}</b>. Hitam 1 m yang pertama biasanya sudah habis di Bagian 1 dan TB6612, jadi hitam ini dari tambahan.',
+        f'Daya servo dari WAGO 6V, lewat satu pasang kabel 22 AWG yang sampai dari lantai 1 ke kepala di lantai 3: potong hijau <b>{KB.pn("servo+")}</b> dan hitam <b>{KB.pn("servo-")}</b>. Hitam 1 m yang pertama biasanya sudah habis di Bagian 1 dan TB6612, jadi hitam ini dari tambahan.',
         'Potong kabel <b>merah dan coklat</b> tiap servo 10 cm dari badan servo. Kabel <b>oranye</b> dan colokannya jangan dipotong. Sisa merah-coklat di sisi colokan diisolasi selotip.',
         'Masukkan heat shrink dulu. Solder kedua merah servo ke satu ujung kabel hijau, kedua coklat ke satu ujung kabel hitam. Di sambungan yang sama, solder kapasitor 470 µF kedua: kaki panjang ke merah-hijau, sisi bergaris ke coklat-hitam. Tutup heat shrink.',
         'Ujung lain kabel hijau → WAGO 6V, hitam → WAGO −6. Kabel servo terlalu tipis untuk WAGO, itulah sebabnya disambung ke 22 AWG dulu.',
@@ -184,7 +185,7 @@ def halaman():
     tahap += stage(S, 7, 'Pengukur baterai dan tombol STOP', ['Resistor 20 kΩ dan 10 kΩ', 'Resistor 10 kΩ untuk tombol', 'Push button', 'Kabel M-M dan M-F'], [
         'Saklar OFF. Resistor <b>20 kΩ</b> (merah-hitam-hitam-merah-coklat) di <span class="pin">b20</span>–<span class="pin">b24</span>. Resistor <b>10 kΩ</b> (coklat-hitam-hitam-merah-coklat) dari <span class="pin">c24</span> ke garis biru atas.',
         f'Kabel <span class="pin">a24</span> → S baris {pin("D34")}.',
-        f'Potong kabel tipis 26 AWG <b>{KB.p("bat")}</b>: satu ujung dijepit di terminal <b>IN+ LM2596 #1</b> bersama kabel merahnya (rel plus baterai setelah saklar), ujung lain ke <span class="pin">a20</span>. <b>Bukan</b> dari P+ sebelum sekring.',
+        f'Potong kabel 26 AWG merah <b>{KB.pn("bat")}</b>, beri heat shrink <b>biru</b> 2 mm di kedua ujung sebagai tanda kabel ukur baterai: satu ujung dijepit di terminal <b>IN+ LM2596 #1</b> bersama kabel merahnya (rel plus baterai setelah saklar), ujung lain ke <span class="pin">a20</span>. <b>Bukan</b> dari P+ sebelum sekring.',
         'Tombol 6 mm menyeberangi parit tengah: kaki di <span class="pin">e27</span>, <span class="pin">e29</span>, <span class="pin">f27</span>, <span class="pin">f29</span>. Yang dipakai dua kaki <b>diagonal</b>: e27 dan f29.',
         'Resistor 10 kΩ dari <span class="pin">a27</span> ke garis merah atas (3,3 V). Kabel <span class="pin">c27</span> → S baris ' + pin('D39') + ' (di papan tertulis VN). Kabel <span class="pin">j29</span> → garis biru bawah.',
         'Colok USB, saklar baterai ON, upload kode tes. Ukur juga tegangan baterai dengan multimeter.',

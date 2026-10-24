@@ -40,7 +40,7 @@ L1 = [  # lantai bawah, di ANTARA plat bawah dan plat atas: tinggi maks 27 mm
     ('HC-SR04 blk', 4, 53, 18, 46, 21, '#1d4f86'),
     ('WAGO +', 28, 30, 18, 20, 9, '#8a2a2a'), ('WAGO −', 28, 102, 18, 20, 9, '#4a4a4a'),
     ('MPU', 196, 66, 21, 16, 8, '#1d3a6b'),
-    ('WAGO −6', 200, 30, 20, 18, 9, '#4a4a4a'), ('WAGO 6V', 200, 104, 20, 18, 9, '#2a6a3a'),
+    ('WAGO 6V', 200, 30, 20, 18, 9, '#2a6a3a'), ('WAGO −6', 200, 104, 20, 18, 9, '#4a4a4a'),
     ('TB6612', 224, 66, 20, 20, 25, '#8c1d18'),
 ]
 L2 = [  # di atas plat atas, di bawah lantai 3: tinggi maks ~57 mm (posisi dari foto susun keringmu)
