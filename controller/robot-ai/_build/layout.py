@@ -134,13 +134,13 @@ def svg():
                 s += diag.text(X + w * k / 2, Y + h * k / 2 + 4, n, fs, anchor='middle', fill=col)
         # kaki lantai 3 (spacer bertumpuk), di lubang plat chassis: posisi contoh
         if nama in ('L2', 'L3'):
-            for (sx, sy) in ((16, 29), (15, 131), (125, 24), (125, 139), (230, 24), (230, 128)):   # dari foto lantai 1
+            for (sx, sy) in ((16, 29), (15, 131), (230, 24), (230, 128)):   # 4 kaki pojok, posisi dari foto lantai 1
                 s += f'<circle cx="{30 + sx * k}" cy="{y0 + sy * k}" r="4" fill="#c9a227" stroke="#000"/>'
         s += diag.text(30 + PLAT_L * k, y0 - 10, 'depan →', 11, anchor='end', fill='#ffd8a8', weight=600)
         y0 += PLAT_W * k + 48
     caps = ['Berskala; bentuk plat dan posisi barang dibaca dari foto susun keringmu.',
             'Motor (kuning) ada di sisi kiri-kanan lantai 1.',
-            'Lingkaran kuning = contoh kaki lantai 3 (pakai lubang platmu).',
+            'Lingkaran kuning = 4 kaki lantai 3 di pojok (posisi dari fotomu).',
             'Garis putus oranye = ruang kepala menoleh.']
     for n, c in enumerate(caps):
         s += diag.text(30, y0 - 4 + 16 * n, c, 11, fill='#cfd8d4')
