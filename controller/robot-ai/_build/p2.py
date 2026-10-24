@@ -142,7 +142,7 @@ def halaman():
         f'Daya servo dari WAGO 6V/−6 ke kepala di lantai 3: potong hijau 22 AWG <b>{KB.pn("servo+")}</b> dan hitam <b>26 AWG</b> (kabel UL1007-mu) <b>{KB.pn("servo-")}</b>. Arus kedua servo paling besar sekitar 1,5 A, jadi 26 AWG cukup untuk GND-nya, dan hitam 22 AWG tidak kurang.',
         'Potong kabel <b>merah dan coklat</b> tiap servo 10 cm dari badan servo. Kabel <b>oranye</b> dan colokannya jangan dipotong. Sisa merah-coklat di sisi colokan diisolasi selotip.',
         'Masukkan heat shrink dulu. Solder kedua merah servo ke satu ujung kabel hijau, kedua coklat ke satu ujung kabel hitam. Di sambungan yang sama, solder kapasitor 470 µF kedua: kaki panjang ke merah-hijau, sisi bergaris ke coklat-hitam. Tutup heat shrink.',
-        'Ujung lain kabel hijau → WAGO 6V, hitam → WAGO −6. Kabel servo terlalu tipis untuk WAGO, itulah sebabnya disambung ke 22 AWG dulu.',
+        'Ujung lain kabel hijau → WAGO 6V, hitam → WAGO −6. Kabel 26 AWG sedikit lebih kecil dari ukuran terkecil yang dijepit kuat oleh WAGO, jadi ujung hitamnya dikupas 22 mm lalu dilipat dua (11 mm berlapis dua) sebelum dimasukkan. Tarik pelan: tidak boleh lepas.',
         '<b>Jangan</b> memberi daya servo dari pin V atau 5V papan ekspansi. Saat bergerak, servo menarik arus besar dan bisa membuat DevKit restart.',
         'Lepas sekrup lengan servo dulu. Upload kode tes. Setelah servo diam di 90°, pasang lengan sehingga kepala lurus ke depan dan tegak, baru kencangkan sekrup.',
     ], figs=photo(IMG + 'pantilt.jpg', 'Pan-tilt dengan dua servo MG90S yang sudah dirakit', 'Pan-tilt rakitanmu. Servo bawah = pan, servo atas = tilt.', 420),
