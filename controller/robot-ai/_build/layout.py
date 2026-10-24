@@ -29,7 +29,7 @@ def _outline():
     return p
 OUTLINE = _outline()
 LUAS_PLAT = sum(1 for x in range(PLAT_L) for y in range(PLAT_W) if _ok(x + .5, y + .5))   # ~28.200 mm2
-LUAS_L3 = 256 * 152                                              # lantai 3 = papan persegi
+LUAS_L3 = LUAS_PLAT                                              # lantai 3 = plat yang sama dengan chassis
 
 # (nama, x, y, panjang_x, lebar_y, tinggi_mm, warna)
 L1 = [  # lantai bawah, di ANTARA plat bawah dan plat atas: tinggi maks 27 mm
@@ -38,7 +38,7 @@ L1 = [  # lantai bawah, di ANTARA plat bawah dan plat atas: tinggi maks 27 mm
     ('motor', 153, 41, 70, 22, 19, '#f1c40f'), ('motor', 153, 86, 70, 22, 19, '#f1c40f'),
     ('HC-SR04 blk', 6, 53, 16, 46, 21, '#1d4f86'),
     ('WAGO', 12, 30, 18, 20, 9, '#5a5a5a'), ('WAGO', 12, 102, 18, 20, 9, '#5a5a5a'),
-    ('LM2596 #1', 108, 26, 36, 66, 15, '#33240f'), ('XL4015', 110, 96, 29, 54, 20, '#241a3a'),
+    ('LM2596 #1', 109, 4, 36, 66, 15, '#33240f'), ('LM2596 #2', 109, 80, 36, 66, 15, '#33240f'),
     ('MPU', 176, 66, 21, 16, 8, '#1d3a6b'),
     ('WAGO', 226, 32, 20, 18, 9, '#5a5a5a'), ('WAGO', 226, 102, 20, 18, 9, '#5a5a5a'),
     ('TB6612', 230, 66, 20, 20, 25, '#8c1d18'),
@@ -48,11 +48,12 @@ L2 = [  # di atas plat atas, di bawah lantai 3: tinggi maks ~57 mm
     ('BMS', 65, 46, 22, 50, 6, '#1d6b3a'), ('saklar', 67, 102, 15, 21, 25, '#7a1010'),
     ('breadboard 1', 92, 34, 55, 83, 25, '#d9d9cf'), ('DevKit + 30P', 155, 38, 72, 50, 45, '#1d3324'),
     ('HC-SR04 dpn', 236, 53, 16, 46, 21, '#1d4f86'),
+    ('XL4015', 150, 91, 54, 29, 20, '#241a3a'),
 ]
-L3 = [  # di atas lantai 3 (papan persegi baru): tanpa batas tinggi
-    ('S3 + ekspansi', 2, 4, 83, 81, 30, '#13283a'), ('breadboard 2', 90, 34, 55, 83, 20, '#d9d9cf'),
-    ('layar TFT', 152, 40, 30, 72, 37, '#8c1d18'), ('speaker', 6, 102, 58, 30, 25, '#2a2a2a'),
-    ('STOP', 95, 125, 16, 16, 12, '#7a1010'), ('LM2596 #2', 150, 115, 66, 36, 15, '#33240f'),
+L3 = [  # di atas lantai 3 (plat ketiga, sama dengan chassis): tanpa batas tinggi
+    ('S3 + ekspansi', 10, 33, 83, 81, 30, '#13283a'), ('breadboard 2', 96, 26, 55, 83, 20, '#d9d9cf'),
+    ('layar TFT', 154, 26, 30, 72, 37, '#8c1d18'), ('speaker (berdiri)', 96, 112, 58, 14, 30, '#2a2a2a'),
+    ('STOP', 18, 117, 16, 16, 12, '#7a1010'),
     ('kepala', 202, 56, 40, 40, 70, '#3a2a13'),
 ]
 HEAD = (222, 76, 34)      # pusat x, y dan jari-jari ruang putar kepala (tidak boleh ada barang lain di sini)
@@ -86,7 +87,7 @@ def cek():
                 cx, cy = min(max(hx, x), x + w), min(max(hy, y), y + h)   # titik kotak terdekat ke pusat kepala
                 if (cx - hx) ** 2 + (cy - hy) ** 2 < hr ** 2:
                     overl.append((n, 'ruang putar kepala'))
-            luar = [n for n, x, y, w, h, t, c in L if x < 0 or y < 0 or x + w > PLAT_L or y + h > PLAT_W and n != 'kepala']
+            luar = [n for n, x, y, w, h, t, c in L if n != 'kepala' and not _di_plat(x, y, w, h)]
         else:
             luar = [n for n, x, y, w, h, t, c in L if not _di_plat(x, y, w, h)]
         tinggi = [(n, t) for n, x, y, w, h, t, c in L if nama in TINGGI and t > TINGGI[nama]]
@@ -103,18 +104,16 @@ def svg():
     W = 30 + PLAT_L * k + 30
     s = ''
     y0 = 40
-    judul = {'L3': 'LANTAI 3 (papan persegi, 60 mm di atas): otak',
+    judul = {'L3': 'LANTAI 3 (plat ketiga, 60 mm di atas): otak',
              'L2': 'LANTAI 2 (di atas plat atas): badan',
              'L1': 'LANTAI 1 (antara dua plat, tinggi 27 mm): daya'}
     for nama, L in (('L3', L3), ('L2', L2), ('L1', L1)):
         s += diag.text(30, y0 - 10, judul[nama], 13, weight=600)
         pts = ' '.join(f'{30 + x * k},{y0 + y * k}' for x, y in OUTLINE)
+        s += f'<polygon points="{pts}" fill="#e9efe9" fill-opacity=".12" stroke="#e9ece9" stroke-width="1.5" stroke-linejoin="round"/>'
         if nama == 'L3':
-            s += f'<rect x="30" y="{y0}" width="{PLAT_L * k}" height="{PLAT_W * k}" rx="6" fill="#e9efe9" fill-opacity=".12" stroke="#e9ece9" stroke-width="1.5"/>'
             hx, hy, hr = HEAD
             s += f'<circle cx="{30 + hx * k}" cy="{y0 + hy * k}" r="{hr * k}" fill="none" stroke="#ffc27a" stroke-dasharray="5 5" stroke-width="1.4"/>'
-        else:
-            s += f'<polygon points="{pts}" fill="#e9efe9" fill-opacity=".12" stroke="#e9ece9" stroke-width="1.5" stroke-linejoin="round"/>'
         for n, x, y, w, h, t, c in L:
             X, Y = 30 + x * k, y0 + (y if True else 0) * k
             if n == 'speaker' and w == h:
@@ -131,7 +130,7 @@ def svg():
                 s += diag.text(X + w * k / 2, Y + h * k / 2 + 4, n, fs, anchor='middle', fill=col)
         # kaki lantai 3 (spacer bertumpuk), di lubang plat chassis: posisi contoh
         if nama in ('L2', 'L3'):
-            for (sx, sy) in ((22, 18), (22, 134), (127, 6), (127, 146), (235, 18), (235, 134)):
+            for (sx, sy) in ((22, 18), (22, 140), (127, 6), (127, 146), (235, 18), (235, 134)):
                 s += f'<circle cx="{30 + sx * k}" cy="{y0 + sy * k}" r="4" fill="#c9a227" stroke="#000"/>'
         s += diag.text(30 + PLAT_L * k, y0 - 10, 'depan →', 11, anchor='end', fill='#ffd8a8', weight=600)
         y0 += PLAT_W * k + 48

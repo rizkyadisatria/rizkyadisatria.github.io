@@ -104,8 +104,8 @@ def isi():
         ['Heat shrink kit ukuran campur (2-10 mm)', '1 kotak isi ~100-160', 'sekitar 30 sambungan: 3 mm untuk kabel servo/tipis, 5 mm untuk kabel 20-22 AWG, 8 mm untuk kaki saklar dan sekring', 'sambungan mudah korsleting'],
         ['Kit spacer nilon M3 180 pcs (4-12 mm, baut, mur)', '1 kit', 'memasang 2 papan ekspansi, 2 LM2596, XL4015, MPU6050, layar ke plat', 'board hanya bisa diikat cable ties, lebih mudah goyang'],
         ['Spacer kuningan M3 30+6 mm (jantan-betina)', 'sudah ±8; total perlu 12 (6 untuk plat atas + 6 untuk kaki lantai 3, minimal 8 untuk mulai)', 'kaki lantai 3: 2 bertumpuk per kaki = 60 mm, di atas 6 spacer plat atas', 'tiga lantai dibutuhkan karena platnya sempit dan pendek'],
-        ['Plat chassis 4WD Starlectric (25,6 x 10 cm)', '2 (1 kalau kitmu sudah berisi dua plat)', 'plat bawah (motor) dan plat atas (lantai 2). Satu lembar di listing = satu plat', 'periksa isi kit chassismu dulu'],
-        ['Papan lantai 3, persegi 256 x 152 mm, tebal 3-4 mm', '1', 'triplek, MDF, atau akrilik; dipotong persegi karena plat berpinggang tidak muat layar dan speaker', 'sama seperti di atas'],
+        ['Plat chassis 4WD Starlectric (25,6 x 10 cm)', '3 (cek dulu isi kitmu)', 'plat bawah (motor), plat atas (lantai 2), dan plat lantai 3. Satu lembar di listing = satu plat', 'periksa isi kit chassismu dulu'],
+        ['Papan persegi 256 x 152 mm, tebal 3-4 mm', '1 (opsional)', 'pengganti plat ketiga bila lantai 3 terlalu rapat (speaker, TFT)', 'tetap pakai plat ketiga yang sempit'],
         ['Dudukan (bracket) HC-SR04', '2 (opsional)', 'memegang HC-SR04 tegak di tepi depan dan belakang, dibaut ke plat', 'HC-SR04 diikat cable ties; lebih mudah miring dan salah baca'],
     ])
     kartu_html = ''.join(kartu(*k) for k in KIT)
