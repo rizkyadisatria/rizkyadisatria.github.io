@@ -56,7 +56,7 @@ def cm(a, b, extra=0, via=()):
 
 # (kode, warna, ukuran, dari, ke, tambahan mm untuk naik ke kepala/gerak)
 DAFTAR = [
-    ('tengah', 'merah', '22', 'H1+', 'H2-', 0, 'titik tengah: holder 1 (+) → holder 2 (−)'),
+    ('tengah', 'kabel bawaan holder (merah holder 1 + hitam holder 2)', '-', 'H1+', 'H2-', 0, 'titik tengah: holder 1 (+) disambung langsung ke holder 2 (−)'),
     ('b8', 'merah', '22', 'H2+', 'B8', 0, 'holder 2 (+) → pad 8.4V BMS'),
     ('b0', 'hitam', '22', 'H1-', 'B0', 0, 'holder 1 (−) → pad 0V BMS'),
     ('b42', 'merah tipis bertanda kuning', '26', 'B42', 'TT', 0, 'pad 4.2V BMS → titik tengah'),
