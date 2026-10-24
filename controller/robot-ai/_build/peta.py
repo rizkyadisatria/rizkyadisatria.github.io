@@ -136,10 +136,11 @@ TANDA_BAT = [(22, 33, '−'), (22, 106, '+'), (46, 28, '+'), (46, 101, '−'),
 
 
 def baterai():
-    return gambar(2, -2, 102, ['holder 1', 'holder 2', 'BMS', 'saklar', 'sekring'], BATERAI, TANDA_BAT,
-                  [(*H7, '7 turun ke WAGO +', 'kiri'), (*H8, '8 turun', 'kiri')], k=4.6,
+    return gambar(2, -2, 258, ['holder 1', 'holder 2', 'BMS', 'saklar', 'sekring'], BATERAI, TANDA_BAT,
+                  [(*H7, '7 turun ke WAGO +', 'kiri'), (*H8, '8 turun', 'kiri')],
+                  redup=['breadboard 1', 'DevKit + 30P', 'XL4015', 'HC-SR04 dpn'], k=3.6,
                   label='Peta kabel baterai di lantai 2, posisi sama dengan di robot',
-                  judul='LANTAI 2 bagian belakang: baterai, BMS, sekring, saklar')
+                  judul='LANTAI 2: kabel baterai, BMS, sekring, saklar')
 
 
 # ================= lantai 1: daya dan motor =================
@@ -209,11 +210,11 @@ LANTAI2 = [
 
 
 def lantai2():
-    return gambar(2, 88, 258, ['breadboard 1', 'DevKit + 30P', 'XL4015', 'HC-SR04 dpn'], LANTAI2,
+    return gambar(2, -2, 258, ['breadboard 1', 'DevKit + 30P', 'XL4015', 'HC-SR04 dpn'], LANTAI2,
                   [(163, 99, 'IN+'), (163, 112, 'IN−'), (211, 99, 'OUT+'), (211, 112, 'OUT−'), (172, 60, '5V'), (195, 60, 'D16'), (123, 75, 'a20')],
                   [(*H7, 'H7'), (*HXL, 'HXL'), (*HX6, 'HX6'), (*HSV, 'HSV'), (*H23, 'H23'), (*HUA, 'HUA'), (*HST, 'HST')],
-                  k=4.4, label='Peta kabel lantai 2 bagian depan, posisi sama dengan di robot',
-                  judul='LANTAI 2 bagian depan: DevKit, XL4015, breadboard 1')
+                  redup=['holder 1', 'holder 2', 'BMS', 'saklar', 'sekring'], k=3.6, label='Peta kabel lantai 2 bagian depan, posisi sama dengan di robot',
+                  judul='LANTAI 2: kabel DevKit, XL4015, breadboard 1')
 
 
 # ================= lantai 3: otak dan kepala =================
