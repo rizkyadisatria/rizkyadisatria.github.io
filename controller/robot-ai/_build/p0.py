@@ -99,7 +99,7 @@ def isi():
 
     belum = table(['Barang', 'Jumlah', 'Untuk', 'Tanpa barang ini'], [
         ['BME280', '1 (opsional)', 'suhu, kelembapan, tekanan', 'pakai DHT11 dari kit cuaca'],
-        ['Tambahan kabel 22 AWG hitam (opsional)', '1 m', 'kabel 22 AWG-mu 1 m per warna kira-kira cukup untuk merah dan hijau, tapi hitam (GND) dipakai di paling banyak titik, jadi mungkin kurang', 'jalur GND dipendekkan atau disambung dari potongan 26 AWG (tidak disarankan untuk arus motor)'],
+        ['Tambahan kabel 22 AWG hitam', '1 m', 'hitam (GND) dipakai di paling banyak titik: total sekitar 112 cm, sedangkan yang ada 1 m (lihat tabel panjang kabel di Bagian 6)', 'sisanya disambung dari kabel lain dan diberi selotip hitam di kedua ujung; merah dan hijau tidak boleh dipakai untuk GND tanpa tanda'],
         ['Konektor WAGO 221-415 (5 lubang) atau tiruannya', '4 (+1 cadangan)', '2 untuk rel baterai (+ dan GND ke 3 konverter), 2 untuk rel 6 V (+ dan GND ke TB6612, 2 servo, kapasitor)', 'harus menyolder sambungan Y'],
         ['Heat shrink kit ukuran campur (2-10 mm)', '1 kotak isi ~100-160', 'sekitar 30 sambungan: 3 mm untuk kabel servo/tipis, 5 mm untuk kabel 20-22 AWG, 8 mm untuk kaki saklar dan sekring', 'sambungan mudah korsleting'],
         ['Kit spacer nilon M3 180 pcs (4-12 mm, baut, mur)', '1 kit', 'memasang 2 papan ekspansi, 2 LM2596, XL4015, MPU6050, layar ke plat', 'board hanya bisa diikat cable ties, lebih mudah goyang'],
