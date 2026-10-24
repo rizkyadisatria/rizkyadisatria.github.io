@@ -42,7 +42,8 @@ def halaman():
     ])}</div>
   </div>
   {info('Trik pin header lurus', 'Tancapkan pin header ke breadboard dulu, letakkan modul di atasnya, lalu solder. Breadboard menahan pin tetap tegak lurus. Solder satu pin dulu, cek modul rata, baru lanjutkan sisanya.')}
-  {info('Menyambung dua kabel', 'Kupas 5-8 mm, masukkan heat shrink lebih dulu, pilin kedua ujung, solder, lalu geser heat shrink menutupi sambungan dan panaskan. Belum punya heat shrink? Lilit isolasi listrik rapat-rapat.')}
+  {info('Menyambung dua kabel', 'Kupas 5-8 mm, masukkan heat shrink lebih dulu, pilin kedua ujung, solder, lalu geser heat shrink menutupi sambungan dan panaskan dengan badan solder atau korek (jangan sampai terbakar). Potong heat shrink sekitar 2 cm dari batang 40 mm.')}
+  {table(['Sambungan', 'Heat shrink Taffware-mu'], [['Kabel 26 AWG, kabel servo, kaki kapasitor', '2 mm'], ['Dua kabel 22 AWG, kabel motor', '3 mm'], ['Tiga atau empat kabel sekaligus (titik tengah + 4.2V, sambungan servo + kapasitor)', '4 mm'], ['Kaki saklar dan sekring', '6 mm']], 'Pilih ukuran yang masih bisa digeser melewati sambungan; setelah dipanaskan menyusut sekitar setengahnya. Hitam untuk GND, merah untuk plus supaya ujung kabel mudah dikenali.')}
 </div>''')
 
     tahap = ''

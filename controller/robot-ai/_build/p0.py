@@ -9,7 +9,7 @@ KIT = [
     ('devkit', 'ESP32 DevKit V1', 'Badan: motor, servo, sensor.', 1),
     ('ekspansi30p', 'Papan ekspansi 30P', 'Tempat DevKit dicolok, ada blok 5V/3V/GND.', 1),
     ('chassis', 'Chassis 4WD', 'Dua plat akrilik, 4 motor TT, 4 roda.', 1),
-    ('plat', 'Plat chassis Starlectric', 'Akrilik buram, ujung lebar 15,2 cm, pinggang 10 cm, dua sayap tengah.', 1),
+    ('plat', '3 plat chassis Starlectric', 'Plat bawah, plat atas, dan plat lantai 3. Akrilik buram, ujung lebar 15,2 cm, pinggang 10 cm.', 1),
     ('spacer30', 'Spacer kuningan 30+6 mm', 'Sekitar 8 buah beserta baut dan mur. Hitung ulang jumlahnya.', 1),
     ('kabel22', 'Kabel 22 AWG merah, hijau, hitam', 'Masing-masing 1 m. Jalur daya: merah +7,4 V, hijau +6 V, hitam GND.', 1),
     ('baterai', '2 sel 18650', 'RakkiPanda 3000 mAh, dirangkai seri 7,4 V.', 1),
@@ -47,6 +47,8 @@ KIT = [
     ('lm2596_2', 'LM2596 kedua', 'Rel 5 V khusus kamera.', 1),
     ('kapasitor104', 'Kapasitor keramik 104 (100 nF)', 'Peredam noise di kaki motor.', 1),
     ('kabel', 'Kabel merah-hitam UL1007 (±26 AWG)', 'Terlalu tipis untuk daya. Pakai untuk sinyal, sensor, dan servo.', 1),
+    ('spacer_nilon', 'Kit spacer nilon M3 180 pcs', '10 buah tiap ukuran 6, 8, 10, 12, 15, 20 mm (+6 mm ulir), 60 baut M3x6, 60 mur.', 1),
+    ('heatshrink', 'Heat shrink Taffware 328 pcs', 'Diameter 1-14 mm, 5 warna. Menyusut sekitar setengah saat dipanaskan.', 1),
     ('cabletie', 'Cable ties 3 x 100 mm', '100 buah: merapikan kabel dan mengikat modul tanpa lubang.', 1),
     ('ov2640', 'OV2640 + breakout FPC', 'Cadangan; ESP32-CAM sudah punya kamera.', 3),
     ('lcd1602', 'LCD 1602', 'Untuk stasiun cuaca, bukan robot.', 3),
@@ -101,16 +103,13 @@ def isi():
         ['BME280', '1 (opsional)', 'suhu, kelembapan, tekanan', 'pakai DHT11 dari kit cuaca'],
         ['Tambahan kabel 22 AWG hitam', '1 m', 'hitam (GND) dipakai di paling banyak titik: total sekitar 118 cm, sedangkan yang ada 1 m. Satu meter pertama cukup untuk Bagian 1 dan TB6612; kabel GND servo dari tambahan ini (lihat tabel kabel di Bagian 6)', 'sisanya disambung dari kabel lain dan diberi selotip hitam di kedua ujung; merah dan hijau tidak boleh dipakai untuk GND tanpa tanda'],
         ['Konektor WAGO 221-415 (5 lubang) atau tiruannya', '4 (+1 cadangan)', '2 untuk rel baterai (+ dan GND ke 3 konverter), 2 untuk rel 6 V (+ dan GND ke TB6612, 2 servo, kapasitor)', 'harus menyolder sambungan Y'],
-        ['Heat shrink kit ukuran campur (2-10 mm)', '1 kotak isi ~100-160', 'sekitar 30 sambungan: 3 mm untuk kabel servo/tipis, 5 mm untuk kabel 20-22 AWG, 8 mm untuk kaki saklar dan sekring', 'sambungan mudah korsleting'],
-        ['Kit spacer nilon M3 180 pcs (4-12 mm, baut, mur)', '1 kit', 'memasang 2 papan ekspansi, 2 LM2596, XL4015, MPU6050, layar ke plat', 'board hanya bisa diikat cable ties, lebih mudah goyang'],
         ['Spacer kuningan M3 30+6 mm (jantan-betina)', 'sudah ±8; total perlu 12 (6 untuk plat atas + 6 untuk kaki lantai 3, minimal 8 untuk mulai)', 'kaki lantai 3: 2 bertumpuk per kaki = 60 mm, di atas 6 spacer plat atas', 'tiga lantai dibutuhkan karena platnya sempit dan pendek'],
-        ['Plat chassis 4WD Starlectric (25,6 x 10 cm)', '3 (cek dulu isi kitmu)', 'plat bawah (motor), plat atas (lantai 2), dan plat lantai 3. Satu lembar di listing = satu plat', 'periksa isi kit chassismu dulu'],
         ['Papan persegi 256 x 152 mm, tebal 3-4 mm', '1 (opsional)', 'pengganti plat ketiga bila lantai 3 terlalu rapat (speaker, TFT)', 'tetap pakai plat ketiga yang sempit'],
         ['Dudukan (bracket) HC-SR04', '2 (opsional)', 'memegang HC-SR04 tegak di tepi depan dan belakang, dibaut ke plat', 'HC-SR04 diikat cable ties; lebih mudah miring dan salah baca'],
     ])
     kartu_html = ''.join(kartu(*k) for k in KIT)
     o += section('barang', 'Barang', 'Yang sudah kamu punya, dan yang masih kurang', f'''
-<div class="panel"><h3>Masih perlu dibeli</h3>{belum}<p class="cap">Sudah datang dan dicoret dari daftar ini: TB6612FNG, layar TFT, MAX98357A, ESP32-CAM + MB, LM2596 kedua, holder kedua, kapasitor 100 nF, cable ties, dan kartu SD. Kabel USB-C dan micro-USB sudah ada sejak awal. Kabel 22 AWG merah, hijau, hitam masing-masing 1 m sudah datang; kabel 26 AWG lama hanya untuk sinyal.</p></div>
+<div class="panel"><h3>Masih perlu dibeli</h3>{belum}<p class="cap">Sudah datang dan dicoret dari daftar ini: plat lantai 3, kit spacer nilon, heat shrink, TB6612FNG, layar TFT, MAX98357A, ESP32-CAM + MB, LM2596 kedua, holder kedua, kapasitor 100 nF, cable ties, dan kartu SD. Kabel USB-C dan micro-USB sudah ada sejak awal. Kabel 22 AWG merah, hijau, hitam masing-masing 1 m sudah datang; kabel 26 AWG lama hanya untuk sinyal.</p></div>
 <div class="toolbar"><button id="quizbtn" aria-pressed="false" type="button">Mode tebak nama</button><span class="cap" id="quizhint"></span></div>
 <div class="grid" id="kit">{kartu_html}</div>
 <p class="cap">Foto dari barang milikmu sendiri. Mode tebak nama menyamarkan nama tiap barang; ketuk kartunya untuk mengecek.</p>''')
