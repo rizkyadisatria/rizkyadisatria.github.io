@@ -1,4 +1,5 @@
 from build import *
+import kabel as KB
 
 S = '1-daya'
 IMG = '../img/'
@@ -9,7 +10,7 @@ def halaman():
     isi += section('aturan', 'Sebelum mulai', 'Empat aturan daya', '''
 <div class="rules">
   <div class="rule"><b>Ukur dulu, baru sambung</b><p>Setiap konverter disetel dan diukur tanpa beban. Konverter baru sering keluar dengan tegangan sama dengan masukan (8 V), dan itu cukup untuk merusak ESP32.</p></div>
-  <div class="rule"><b>Merah = +, hitam = −</b><p>Pakai warna kabel yang konsisten. Modul konverter dan BMS tidak punya pelindung polaritas terbalik.</p></div>
+  <div class="rule"><b>Merah +7,4 V, hijau +6 V, hitam GND</b><p>Kabel daya 22 AWG memakai tiga warna ini saja. Kabel 5 V memakai 26 AWG merah-hitam. Modul konverter dan BMS tidak punya pelindung polaritas terbalik.</p></div>
   <div class="rule"><b>Saklar OFF saat merakit</b><p>Ubah kabel hanya saat saklar utama mati. Kalau ada yang panas, berasap, atau berbau, matikan saklar dan cabut sel.</p></div>
   <div class="rule"><b>Baterai bukan mainan</b><p>Dua sel 18650 bisa mengeluarkan puluhan ampere kalau dihubung singkat. Jangan biarkan ujung kabel plus dan minus bersentuhan.</p></div>
 </div>''')
@@ -55,42 +56,48 @@ def halaman():
         learn='Dua sel dirangkai seri, jadi arus yang sama lewat keduanya. Sel yang lebih kosong akan habis duluan dan BMS memutus daya lebih cepat. Mulai dari dua sel yang setara membuat keduanya berumur panjang.',
         gagal=['Terbaca di bawah 2,5 V: sel sudah terlalu kosong. Jangan dipakai di robot.', 'Terbaca 0 V: cek probe di soket yang benar (COM dan VΩmA) dan dial di V⎓, bukan V~.'])
 
-    tahap += stage(S, 2, 'Solder kabel ke BMS dan cek dengan kontinuitas', ['BMS 2S 20A', 'Kabel merah dan hitam 20-22 AWG', 'Kabel tipis (oranye)', 'Solder, timah, flux', 'Multimeter'], [
+    tahap += stage(S, 2, 'Potong kabel dan solder ke BMS', ['BMS 2S 20A', 'Kabel 22 AWG merah dan hitam', 'Kabel tipis 26 AWG (oranye atau warna lain)', 'Gunting kabel + penggaris', 'Solder, timah, flux', 'Multimeter'], [
+        'Semua panjang kabel di bagian ini sudah dihitung dari posisi akhir barang di robot (tata letak dan tabel kabel di <a href="../6-rakit/">Bagian 6</a>), jadi langsung potong sepanjang yang tertulis. Angkanya sudah termasuk 3 cm untuk kupasan dan kelonggaran. Kupas 5 mm untuk ujung yang disolder, 11 mm untuk ujung yang masuk WAGO.',
         'Sebelum menyolder, tes dulu: multimeter ke mode kontinuitas. Tempel probe ke pad <b>8.4V</b> dan pad <b>⊕</b>: harus bunyi. Tempel ke pad <b>0V</b> dan <b>⊖</b>: harus <b>tidak</b> bunyi. Hasilnya berbeda? Berhenti dulu dan foto kedua sisi BMS.',
-        'Solder kabel <b>merah tebal</b> ke pad 8.4V (ke kutub + sel 2).',
-        'Solder kabel <b>hitam tebal</b> ke pad 0V (ke kutub − sel 1).',
-        'Solder kabel <b>oranye tipis</b> ke pad 4.2V (titik tengah).',
-        'Solder kabel <b>merah tebal</b> ke pad ⊕ (keluaran +) dan <b>hitam tebal</b> ke pad ⊖ (keluaran −). Beri label selotip "P+" dan "P−" supaya tidak tertukar dengan kabel 8.4V dan 0V.',
+        f'Potong merah 22 AWG <b>{KB.p("b8")}</b>. Solder ke pad <b>8.4V</b> (nanti ke + holder 2). Beri label selotip "8.4V".',
+        f'Potong hitam 22 AWG <b>{KB.p("b0")}</b>. Solder ke pad <b>0V</b> (nanti ke − holder 1). Label "0V".',
+        f'Potong kabel tipis <b>{KB.p("b42")}</b>. Solder ke pad <b>4.2V</b> (nanti ke titik tengah).',
+        f'Potong hitam 22 AWG <b>{KB.p("pminw")}</b>. Solder ke pad <b>⊖</b> (keluaran −). Label "P−". Ujung lainnya masuk WAGO − di Tahap 4.',
+        'Pad <b>⊕</b> (keluaran +) dibiarkan dulu: kabelnya dari dudukan sekring di Tahap 4.',
         'Pad lebar butuh panas lebih lama. Beri flux, tahan solder sampai timah meleleh rata, tapi jangan lebih dari sekitar 4 detik per pad supaya MOSFET di sebelahnya tidak kepanasan.',
     ], figs=photo(IMG + 'bms_label.jpg', 'BMS dengan label pad 8.4V, 0V, 4.2V, plus dan minus', 'Pad BMS-mu. Tulisan 充电/放电 di samping ⊕ ⊖ artinya "isi/keluar".'),
-        ok_='Lima kabel terpasang kuat (tarik pelan, tidak lepas), dan tidak ada timah yang menyambung dua pad.',
+        ok_='Empat kabel (8.4V, 0V, 4.2V, P−) terpasang kuat (tarik pelan, tidak lepas), dan tidak ada timah yang menyambung dua pad.',
         learn='BMS memotong jalur minus (⊖) kalau sel terlalu kosong, terlalu penuh, atau arus terlalu besar. Pad 4.2V dipakai untuk mengukur dan menyeimbangkan tiap sel, jadi arusnya kecil dan kabel tipis cukup.')
 
-    tahap += stage(S, 3, 'Rangkai dua holder dan pasang sel', ['2 holder 18650 1 slot', 'BMS yang sudah berkabel', 'Multimeter'], [
-        'Kabel bawaan holder tipis. Sambungan antar-sel (holder 1 merah ke holder 2 hitam) dilewati semua arus robot, jadi ganti atau dobel dengan kabel 20-22 AWG.',
-        'Sambung <b>holder 1 kabel merah (+)</b> ke <b>holder 2 kabel hitam (−)</b>. Ini titik tengah.',
-        'Sambung kabel oranye BMS (pad 4.2V) ke titik tengah itu.',
-        'Holder masih kosong. Sekarang pasang kabel ke BMS dengan urutan: <b>1.</b> holder 1 kabel hitam ke kabel 0V BMS, <b>2.</b> titik tengah sudah tersambung ke 4.2V, <b>3.</b> holder 2 kabel merah ke kabel 8.4V BMS. Isolasi semua sambungan.',
+    tahap += stage(S, 3, 'Rangkai dua holder dan pasang sel', ['2 holder 18650 1 slot', 'BMS yang sudah berkabel', 'Kabel 22 AWG merah', 'Heat shrink', 'Multimeter'], [
+        '<b>Letakkan dulu seperti nanti di lantai 2</b>, supaya kabel yang sudah dipotong pas. Kiri dan kanan di panduan ini dilihat dari belakang robot, menghadap ke depan. Holder 1 paling belakang, ujung <b>pegas (−) di kiri</b>. Holder 2 di depannya <b>dibalik</b>: ujung pegas (−) di kanan. BMS di depan holder 2, pad 8.4V dan 0V di sisi kiri (lihat lantai 2 di gambar tata letak Bagian 6).',
+        'Kabel bawaan holder tipis dan terlalu panjang. Potong keempatnya sehingga tersisa <b>2 cm</b> dari badan holder, lalu kupas 5 mm.',
+        f'Potong merah 22 AWG <b>{KB.p("tengah")}</b> untuk <b>titik tengah</b>: satu ujung ke holder 1 kabel merah (+), ujung lain ke holder 2 kabel hitam (−). Keduanya ada di sisi kanan. Ikut sertakan kabel tipis dari pad 4.2V di sambungan holder 2 (−). Solder, lalu tutup heat shrink (lihat "Menyambung dua kabel" di atas). Sambungan antar-sel ini dilewati semua arus robot, jadi wajib 22 AWG.',
+        'Holder masih kosong. Pasang kabel BMS dengan urutan: <b>1.</b> kabel 0V BMS ke holder 1 kabel hitam (−, kiri), <b>2.</b> titik tengah sudah tersambung ke 4.2V, <b>3.</b> kabel 8.4V BMS ke holder 2 kabel merah (+, kiri). Solder dan heat shrink semua sambungan.',
         'Masukkan sel 1 ke holder 1, lalu sel 2 ke holder 2. Perhatikan tanda + di holder (ujung menonjol sel ke sisi +, sisi pegas ke −).',
         'Ukur: kabel 0V ke titik tengah = tegangan sel 1. Kabel 0V ke kabel 8.4V = jumlah kedua sel.',
-        'Ukur keluaran: P+ (⊕) ke P− (⊖). Harus sama dengan jumlah kedua sel, sekitar 7,4-8,4 V.',
+        'Ukur keluaran: pad ⊕ (P+) ke kabel P−. Harus sama dengan jumlah kedua sel, sekitar 7,4-8,4 V.',
     ], figs=photo(IMG + 'holder.jpg', 'Dua holder 18650 satu slot dengan kabel merah dan hitam', 'Dua holder milikmu. Ujung pegas = − (kabel hitam), ujung pelat datar bertanda + = + (kabel merah).', 420)
         + fig(diag.bms(), 'Urutan menyambung: 0V dulu, lalu titik tengah, lalu 8.4V. Melepas dengan urutan terbalik.'),
-        ok_='P+ ke P− terbaca 7,4-8,4 V. Selama ini P+ dan P− jangan sampai bersentuhan.',
+        ok_='P+ ke P− terbaca 7,4-8,4 V. Selama ini pad ⊕ dan kabel P− jangan sampai bersentuhan.',
         gagal=['P+ ke P− terbaca 0 V padahal 0V ke 8.4V benar: proteksi BMS sedang terkunci (sering terjadi saat sel pertama kali dipasang). Lepas kedua sel, tunggu 10 detik, pasang lagi sel 1 lalu sel 2. Kalau tetap 0 V, dengan P+ dan P− tidak tersambung ke apa pun, sentuhkan sebentar seutas kabel antara pad ⊖ dan pad 0V untuk "membangunkan" BMS. Masih 0 V: cek kabel 0V dan 8.4V tidak tertukar.',
                'Tegangan total sekitar 0 V atau hanya satu sel: sambungan titik tengah lepas, atau satu sel terbalik. Cabut sel, cek tanda +.',
                'Ada yang panas saat sel dimasukkan: cabut sel segera. Biasanya ada korsleting atau sel terbalik.'])
 
-    tahap += stage(S, 4, 'Pasang sekring dan saklar utama', ['Dudukan sekring blade + sekring', 'Saklar rocker merah', 'Kabel merah dan hitam tebal'], [
+    tahap += stage(S, 4, 'Pasang sekring, saklar utama, dan WAGO baterai', ['Dudukan sekring blade + sekring', 'Saklar rocker merah', 'Kabel 22 AWG merah', '2 WAGO 221-415 (5 lubang)', 'Selotip merah dan hitam', 'Multimeter'], [
         'Lihat angka di badan sekring. Sekring blade warna kuning kecoklatan biasanya <b>5 A</b>, dan itu pas untuk robot ini.',
-        'Dudukan sekringmu berbentuk lingkaran kabel merah. Potong lingkaran itu di tengah, sehingga dudukan punya dua ujung kabel.',
-        'Sambung ujung 1 dudukan sekring ke kabel <b>P+</b> BMS.',
-        'Sambung ujung 2 ke salah satu kaki saklar rocker. Kalau saklarnya 3 kaki, pakai kaki tengah dan satu kaki ujung (tes dengan kontinuitas: bunyi saat ON, diam saat OFF).',
-        'Kaki saklar yang lain = <b>rel plus baterai</b>. Kabel P− BMS = <b>rel GND</b>.',
-        'Saklar OFF, ukur rel plus ke rel GND: sekitar 0 V. Saklar ON: 7,4-8,4 V.',
+        '<b>Keluarkan kedua sel dari holder</b> sebelum menyolder di BMS.',
+        f'Dudukan sekringmu berbentuk lingkaran kabel merah. Potong lingkaran itu sehingga ujung 1 sepanjang <b>{KB.p("sek1")}</b> dan ujung 2 sepanjang <b>{KB.p("sek2")}</b>, diukur dari badan dudukan. Kalau lingkarannya lebih pendek, sambung dengan merah 22 AWG.',
+        'Solder ujung 1 ke pad <b>⊕ (P+)</b> BMS. Label "P+".',
+        'Solder ujung 2 ke salah satu kaki saklar rocker. Kalau saklarnya 3 kaki, pakai kaki tengah dan satu kaki ujung (tes dengan kontinuitas: bunyi saat ON, diam saat OFF).',
+        f'Potong merah 22 AWG <b>{KB.p("sakw")}</b>, solder ke kaki saklar yang lain. Ini <b>rel plus baterai</b>. Kaki saklar yang disolder ditutup heat shrink.',
+        'WAGO: tempel selotip merah di satu WAGO (<b>WAGO +</b>) dan hitam di satu lagi (<b>WAGO −</b>). Cara memasukkan kabel: angkat tuas oranye, masukkan ujung yang dikupas 11 mm sampai mentok, tutup tuas, tarik pelan untuk mengecek.',
+        'Kabel rel plus dari saklar → WAGO +. Kabel P− dari BMS → WAGO −. Lubang lainnya untuk ketiga konverter di Tahap 5-7.',
+        'Masukkan lagi sel 1 lalu sel 2. Saklar OFF, ukur WAGO + ke WAGO − (probe masuk lubang uji kecil di samping tuas): sekitar 0 V. Saklar ON: 7,4-8,4 V. Saklar OFF lagi.',
     ], figs=f'<div class="photos">{photo(IMG + "sekring.jpg", "Dudukan sekring blade dengan kabel merah", "Dudukan sekring dan sekring blade.")}{photo(IMG + "saklar.jpg", "Saklar rocker merah", "Saklar rocker. Cek tulisan arus maksimum di badannya.")}</div>',
-        ok_='Saklar benar-benar memutus dan menyambung rel plus, dan sekring terpasang di antara BMS dan saklar.',
-        learn='Sekring dipasang sedekat mungkin dengan baterai, supaya kalau ada kabel yang terkelupas dan korsleting di mana pun setelahnya, sekring putus sebelum kabel terbakar.')
+        ok_='Saklar benar-benar memutus dan menyambung rel plus, sekring terpasang di antara BMS dan saklar, dan WAGO + / WAGO − terbaca 7,4-8,4 V saat saklar ON.',
+        learn='Sekring dipasang sedekat mungkin dengan baterai, supaya kalau ada kabel yang terkelupas dan korsleting di mana pun setelahnya, sekring putus sebelum kabel terbakar.',
+        gagal=['Belum punya WAGO: sambungan Y. Kupas tengah kabel rel plus 1 cm tanpa memotongnya, lilitkan ujung kabel konverter di situ, solder, tutup heat shrink (masukkan heat shrink sebelum menyolder). Panjang kabel tetap sama.'])
 
     lm_legend = ul([
         f'<b>1</b> {pin("IN+")} masukan plus (dari rel plus baterai). <b>2</b> {pin("IN−")} masukan minus (rel GND). Tulisan VIN+ dan VIN− ada di PCB.',
@@ -99,7 +106,7 @@ def halaman():
         '<b>6</b> Tombol: menukar layar antara tegangan masuk (LED IN menyala) dan keluar (LED OUT). <b>7</b> Layar voltmeter. Layar ini perkiraan; percayai multimeter.',
     ])
     tahap += stage(S, 5, 'Setel LM2596 #1 ke 5,0 V (rel logika)', ['LM2596 dengan voltmeter', 'Obeng minus kecil', 'Multimeter'], [
-        'Saklar OFF. Sambung rel plus ke <b>IN+</b> dan rel GND ke <b>IN−</b>. Kencangkan sekrup terminal, tarik kabel pelan untuk mengecek.',
+        f'Saklar OFF. Potong merah 22 AWG <b>{KB.p("lm1+")}</b> dan hitam <b>{KB.p("lm1-")}</b>. Merah: WAGO + → <b>IN+</b>. Hitam: WAGO − → <b>IN−</b>. Kencangkan sekrup terminal, tarik kabel pelan untuk mengecek.',
         '<b>Belum ada apa pun di OUT+ / OUT−.</b> Saklar ON.',
         'Tekan tombol sampai LED OUT menyala. Ukur juga OUT+ ke OUT− dengan multimeter.',
         'Putar trimpot pelan sambil melihat multimeter. Kalau angkanya naik, putar ke arah sebaliknya. Berhenti di <b>5,0 V</b> (boleh 4,95-5,1).',
@@ -116,26 +123,27 @@ def halaman():
     ])
     tahap += stage(S, 6, 'Setel XL4015 ke 6,0 V (rel motor dan servo)', ['XL4015', 'Obeng minus kecil', 'Multimeter'], [
         'Balik papan XL4015 dan baca tulisan IN+, IN−, OUT+, OUT− di bawah terminal. Tandai dengan spidol di atas papan.',
-        'Saklar OFF. Rel plus ke IN+, rel GND ke IN−. Belum ada beban di OUT.',
+        f'Saklar OFF. Potong merah 22 AWG <b>{KB.p("xl+")}</b> dan hitam <b>{KB.p("xl-")}</b> (lebih panjang karena XL4015 nanti di lantai 2, depan). Merah: WAGO + → IN+. Hitam: WAGO − → IN−. Belum ada beban di OUT.',
         'Saklar ON. Ukur OUT+ ke OUT−.',
         'Putar trimpot 3 beberapa putaran sambil melihat multimeter. Kalau tegangan berubah, itulah trimpot tegangan (CV). Kalau tidak berubah, kembalikan, lalu coba trimpot 4.',
         'Atur trimpot CV sampai <b>6,0 V</b> (5,9-6,1). Jangan lebih dari 6,2 V: motor TT dan servo MG90S dirancang untuk paling tinggi 6 V.',
         'Trimpot CC jangan diubah dulu. Beri label "6V MOTOR" di modul.',
+        f'Saklar OFF. Siapkan dua WAGO lagi: selotip hijau (<b>WAGO 6V</b>) dan hitam bertulisan 6 (<b>WAGO −6</b>). Potong hijau 22 AWG <b>{KB.p("w6+")}</b>: OUT+ → WAGO 6V. Potong hitam <b>{KB.p("w6-")}</b>: OUT− → WAGO −6. Saklar ON, ukur WAGO 6V ke WAGO −6: tetap 5,9-6,1 V.',
     ], figs=photo(IMG + 'xl4015_anot.jpg', 'XL4015 dengan nomor bagian') + xl_legend,
         ok_='OUT+ ke OUT− terbaca 5,9-6,1 V tanpa beban.',
         gagal=['Nanti saat motor jalan tegangan turun jauh dan ada LED merah menyala di XL4015: batas arus (CC) terlalu rendah. Putar trimpot CC beberapa putaran searah jarum jam, lalu cek lagi.'])
 
     tahap += stage(S, 7, 'Setel LM2596 #2 ke 5,0 V (rel kamera)', ['LM2596 kedua (kalau sudah ada)', 'Multimeter'], [
-        'Ulangi Tahap 5 untuk LM2596 kedua: masukan dari rel plus dan GND, setel ke <b>5,0 V</b> tanpa beban.',
+        f'Saklar OFF. Potong merah 22 AWG <b>{KB.p("lm2+")}</b> dan hitam <b>{KB.p("lm2-")}</b>. Merah: WAGO + → IN+, hitam: WAGO − → IN−.',
+        'Setel ke <b>5,0 V</b> tanpa beban seperti langkah 2-5 Tahap 5.',
         'Beri label "5V KAMERA".',
-        'Belum punya LM2596 kedua? Lewati dulu. Sementara, ESP32-CAM boleh ikut LM2596 #1, dan volume speaker jangan dibesarkan (lihat Bagian 4).',
     ], ok_='Keluaran 5,0 V. Rel kamera terpisah membuat lonjakan arus WiFi kamera tidak mengganggu ESP32-S3.')
 
     tahap += stage(S, 8, 'Uji tiap rel dengan beban kecil', ['LED', 'Resistor 330 Ω (oranye-oranye-hitam-hitam-coklat)', 'Breadboard', 'Kabel jumper'], [
         'Saklar OFF. Di breadboard, pasang LED dan resistor 330 Ω seri: kaki panjang LED ke satu ujung resistor.',
         'Sambung ujung lain resistor ke OUT+ LM2596 #1, kaki pendek LED ke OUT−.',
         'Saklar ON: LED menyala. Ukur OUT lagi: tetap sekitar 5,0 V.',
-        'Pindahkan ke XL4015 (6 V): LED tetap menyala, sedikit lebih terang.',
+        'Pindahkan ke WAGO 6V dan WAGO −6 (XL4015): LED tetap menyala, sedikit lebih terang.',
         'Saklar OFF. Lepas LED dan resistor.',
     ], ok_='LED menyala di kedua rel dan tegangan tidak berubah. Kamu sekarang punya sumber daya yang aman untuk ketiga board.',
         learn='Resistor 330 Ω membatasi arus LED sekitar (5 - 2) / 330 = 9 mA. Tanpa resistor, LED langsung putus.')
@@ -143,7 +151,7 @@ def halaman():
     isi += section('rakit', 'Langkah', 'Rakit sistem daya', '<div class="parts" style="gap:16px">' + tahap + '</div>',
                    'Kerjakan berurutan. Setiap tahap punya tanda berhasil sebelum lanjut ke tahap berikutnya.')
 
-    isi += section('peta', 'Ringkasan', 'Peta jalur daya', fig(diag.daya(), 'Cara membagi rel plus dan GND ke tiga konverter: sambungan Y yang disolder lalu diberi heat shrink, atau konektor WAGO 221-415 5 lubang (disarankan): satu untuk rel plus (masuk dari saklar, keluar ke 3 konverter, 1 cadangan), satu untuk GND (masuk dari P−, keluar ke 3 konverter). Kabel tipis BAT+ jangan ke WAGO, jepit di terminal IN+ LM2596.') + table(
+    isi += section('peta', 'Ringkasan', 'Peta jalur daya', fig(diag.daya(), 'Empat WAGO 221-415: WAGO + (masuk dari saklar, keluar ke 3 konverter, 1 cadangan), WAGO − (masuk dari P−, keluar ke 3 konverter), WAGO 6V dan WAGO −6 (dari XL4015 ke TB6612, kedua servo, kapasitor 470 µF). Kabel tipis pengukur baterai jangan ke WAGO, jepit di terminal IN+ LM2596 #1. Panjang tiap kabel ada di tabel Bagian 6.') + table(
         ['Titik ukur', 'Harus terbaca', 'Kalau tidak'],
         [['P+ ke P− BMS', '7,4 - 8,4 V', 'Tahap 3'], ['Rel plus ke GND, saklar ON', '7,4 - 8,4 V', 'Tahap 4'], ['OUT LM2596 #1', '4,95 - 5,1 V', 'Tahap 5'],
          ['OUT XL4015', '5,9 - 6,1 V', 'Tahap 6'], ['OUT LM2596 #2', '4,95 - 5,1 V', 'Tahap 7'], ['Rel plus, saklar OFF', '0 V', 'saklar salah kaki']]))

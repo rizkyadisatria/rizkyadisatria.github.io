@@ -1,4 +1,5 @@
 from build import *
+import kabel as KB
 
 S = '4-mata'
 IMG = '../img/'
@@ -40,12 +41,11 @@ def halaman():
         'Supaya alamat kamera tidak berubah, buka pengaturan router dan beri alamat tetap (DHCP reservation) untuk perangkat bernama esp32-... atau robotcam. Catat alamat itu untuk Bagian 5.',
     ], ok_='Foto dan video tampil. <code>robotcam.local</code> mungkin juga bisa dibuka di laptop, tapi di banyak HP Android tidak; alamat IP selalu bisa.')
 
-    t += stage(S, 3, 'Pindah ke daya robot dan pasang di kepala', ['LM2596 #2 (5,0 V)', 'Kapasitor 1000 µF', '2 kabel F-M', '2 cable ties'], [
+    t += stage(S, 3, 'Pindah ke daya robot dan pasang di kepala', ['LM2596 #2 (5,0 V)', 'Kapasitor 1000 µF', 'Kabel 26 AWG merah dan hitam', '2 potongan jumper betina 3 cm', 'Heat shrink', '2 cable ties'], [
         'Saklar baterai OFF. Cabut ESP32-CAM dari MB.',
-        f'Kabel F-M: pin {pin("5V")} ESP32-CAM → OUT+ LM2596 #2, pin {pin("GND")} di sebelahnya → OUT−. Ujung jantan dijepit di terminal sekrup.',
+        f'Potong 26 AWG merah dan hitam masing-masing <b>{KB.p("5vcam")}</b> (dari LM2596 #2 di lantai 1 naik ke kepala di lantai 3, dengan kelonggaran untuk kepala menoleh). Solder satu ujung masing-masing ke potongan jumper betina 3 cm, heat shrink. Merah: OUT+ LM2596 #2 → pin {pin("5V")} ESP32-CAM. Hitam: OUT− → pin {pin("GND")} di sebelahnya. Ujung tanpa jumper dijepit di terminal sekrup.',
         f'<b>Jangan</b> memakai pin {pin("VCC")} atau {pin("3V3")} ESP32-CAM untuk memasukkan daya. VCC adalah keluaran, bukan masukan.',
-        'Kapasitor 1000 µF di dekat ESP32-CAM, di antara 5V dan GND: kaki panjang ke 5V. Bisa dijepit di terminal LM2596 #2 kalau kabelnya pendek (di bawah 20 cm).',
-        'Belum ada LM2596 #2? Sementara ambil dari OUT LM2596 #1, dan jaga volume speaker rendah.',
+        'Kapasitor 1000 µF di dekat ESP32-CAM, di antara 5V dan GND: solder kakinya ke kabel merah dan hitam sekitar 3 cm sebelum jumper betina (kaki panjang ke merah), lalu isolasi. Kabelnya lebih dari 20 cm, jadi kapasitor harus di ujung kamera, bukan di LM2596.',
         'Saklar ON. Tunggu 10 detik, lalu buka alamat IP kamera di browser: foto tetap tampil.',
         'ESP32-CAM tidak punya lubang baut, jadi ikat ke dudukan depan kepala pan-tilt dengan 2 cable ties: satu melintang di tepi paling atas (di atas kamera, lewat slot SD), satu melintang di area tulisan ESP32-CAM di bawah konektor pita. Jangan melintasi lensa, LED flash, atau konektor pita. Nilon tidak mengganggu antena; yang mengganggu hanya logam. Kencangkan secukupnya sampai tidak goyang.',
     ], ok_='Foto bisa dibuka dari browser walau ESP32-CAM hanya mendapat daya dari baterai. Saat kepala menoleh, kamera ikut menoleh.',
