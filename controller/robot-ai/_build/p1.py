@@ -85,12 +85,13 @@ def halaman():
                'Tegangan total sekitar 0 V atau hanya satu sel: sambungan titik tengah lepas, atau satu sel terbalik. Cabut sel, cek tanda +.',
                'Ada yang panas saat sel dimasukkan: cabut sel segera. Biasanya ada korsleting atau sel terbalik.'])
 
-    tahap += stage(S, 4, 'Pasang sekring, saklar utama, dan WAGO baterai', ['Dudukan sekring + sekring 7,5 A', 'Saklar rocker merah', 'Kabel 22 AWG merah', '2 WAGO 221-415 (5 lubang)', 'Selotip merah dan hitam', 'Multimeter'], [
-        'Sekringmu <b>7,5 A</b> (angka tercetak di badannya). Itu cocok: arus robot biasanya 1-3 A dan sesaat bisa sekitar 5-6 A kalau keempat motor tertahan bersamaan, jadi 7,5 A tidak putus saat dipakai normal, tapi langsung putus kalau ada korsleting (puluhan ampere). Kabel bawaan dudukannya lebih tebal dari 22 AWG, jadi aman dipakai apa adanya.',
+    tahap += stage(S, 4, 'Pasang sekring, saklar utama, dan WAGO baterai', ['Dudukan sekring + sekring 7,5 A', 'Saklar rocker merah', 'Kabel 22 AWG merah', 'Heat shrink 6 mm', '2 WAGO 221-415 (5 lubang)', 'Selotip merah dan hitam', 'Multimeter'], [
+        'Sekringmu <b>7,5 A</b> (angka tercetak di badannya). Itu cocok: arus robot biasanya 1-3 A dan sesaat bisa sekitar 5-6 A kalau keempat motor tertahan bersamaan, jadi 7,5 A tidak putus saat dipakai normal, tapi langsung putus kalau ada korsleting (puluhan ampere). ',
         '<b>Keluarkan kedua sel dari holder</b> sebelum menyolder di BMS.',
-        f'Dudukan sekringmu berbentuk lingkaran kabel merah. Potong lingkaran itu sehingga ujung 1 sepanjang <b>{KB.pn("sek1")}</b> dan ujung 2 sepanjang <b>{KB.pn("sek2")}</b>, diukur dari badan dudukan. Kalau lingkarannya lebih pendek, sambung dengan merah 22 AWG.',
-        'Solder ujung 1 ke pad <b>⊕ (P+)</b> BMS. Label "P+".',
-        'Solder ujung 2 ke salah satu kaki saklar rocker. Kalau saklarnya 3 kaki, pakai kaki tengah dan satu kaki ujung (tes dengan kontinuitas: bunyi saat ON, diam saat OFF).',
+        f'Kabel dudukan sekringmu sangat tebal (sekitar 12-14 AWG; cek tulisan di kulit kabelnya, atau ukur tembaganya: 12 AWG sekitar 2 mm, 14 AWG sekitar 1,6 mm). Tebal itu aman, tapi terlalu kaku dan terlalu besar untuk pad BMS dan kaki saklar. Jadi potong lingkarannya di tengah, lalu potong lagi tiap ujung sehingga tersisa <b>3 cm</b> dari badan dudukan. Kupas 8 mm.',
+        f'Potong merah 22 AWG <b>{KB.pn("sek1")}</b> dan <b>{KB.pn("sek2")}</b>. Masukkan heat shrink <b>6 mm</b> dulu, lilitkan ujung 22 AWG di tembaga tebal, solder sampai timah meresap ke keduanya, lalu tutup heat shrink. Ujung 1 dapat kabel {KB.p("sek1")}, ujung 2 dapat {KB.p("sek2")}.',
+        'Solder kabel 22 AWG dari ujung 1 ke pad <b>⊕ (P+)</b> BMS. Label "P+".',
+        'Solder kabel 22 AWG dari ujung 2 ke salah satu kaki saklar rocker. Kalau saklarnya 3 kaki, pakai kaki tengah dan satu kaki ujung (tes dengan kontinuitas: bunyi saat ON, diam saat OFF).',
         f'Potong merah 22 AWG <b>{KB.pn("sakw")}</b>, solder ke kaki saklar yang lain. Ini <b>rel plus baterai</b>. Kaki saklar yang disolder ditutup heat shrink.',
         'WAGO: tempel selotip merah di satu WAGO (<b>WAGO +</b>) dan hitam di satu lagi (<b>WAGO −</b>). Cara memasukkan kabel: angkat tuas oranye, masukkan ujung yang dikupas 11 mm sampai mentok, tutup tuas, tarik pelan untuk mengecek.',
         'Kabel rel plus dari saklar → WAGO +. Kabel P− dari BMS → WAGO −. Lubang lainnya untuk ketiga konverter di Tahap 5-7.',
