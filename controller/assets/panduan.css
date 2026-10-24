@@ -93,7 +93,7 @@ details>div{display:grid;gap:10px;margin-top:10px}
 .quiz .card:not(.shown) .name{filter:blur(7px);user-select:none}
 .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .parts{display:grid;gap:12px}
-.partcard{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;text-decoration:none;color:inherit}
+.partcard{display:grid;grid-template-columns:120px auto 1fr auto;gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;text-decoration:none;color:inherit}
 a.partcard:hover{border-color:var(--accent)}
 .partcard .num{font-family:var(--display);font-size:2.2rem;font-weight:600;color:var(--accent);line-height:1;min-width:1.4em;text-align:center}
 .partcard p{font-size:.9rem;color:var(--muted)}
@@ -104,7 +104,10 @@ a.partcard:hover{border-color:var(--accent)}
 .pager a span{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
 .pager a.next{text-align:right}
 footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between}
-@media (max-width:520px){h1{font-size:2.1rem}h2{font-size:1.65rem}.stage,.panel{padding:16px 13px}.partcard{grid-template-columns:auto 1fr}.partcard .pp{grid-column:2}}
+@media (max-width:520px){h1{font-size:2.1rem}h2{font-size:1.65rem}.stage,.panel{padding:16px 13px}.partcard{grid-template-columns:auto 1fr}.partcard .thumb{grid-column:1/-1}.partcard .pp{grid-column:2}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 .cap.geser{display:none}@media (max-width:640px){.cap.geser{display:block;font-family:var(--mono);font-size:.72rem}}
 .photos .photo img{aspect-ratio:4/3;object-fit:contain}
+
+svg.cover{display:block;width:100%;height:auto;border-radius:18px;margin:4px 0 2px}
+.partcard .thumb svg.cover{border-radius:10px;margin:0}
