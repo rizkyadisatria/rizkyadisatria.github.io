@@ -59,11 +59,34 @@ def gambar(lantai, x0, x1, barang, kabel, tanda=(), lubang=(), redup=(), k=4.0, 
             cx, cy = bow
         else:
             cx, cy = (ax + bx) / 2 - dy / L * bow, (ay + by) / 2 + dx / L * bow
-        d = f'M{X(ax)},{Y(ay)} Q{X(cx)},{Y(cy)} {X(bx)},{Y(by)}'
         lebar = 4 if KB.K[kode][2] == '22' else 2.6
-        if warna == 'hitam':
-            s += f'<path d="{d}" fill="none" stroke="#e9ece9" stroke-width="{lebar + 2.4}" stroke-linecap="round"/>'
-        s += f'<path d="{d}" fill="none" stroke="{WARNA[warna]}" stroke-width="{lebar}" stroke-linecap="round"/>'
+
+        def garis(p0, c, p1, col, w):
+            d = f'M{X(p0[0])},{Y(p0[1])} Q{X(c[0])},{Y(c[1])} {X(p1[0])},{Y(p1[1])}'
+            out = ''
+            if col == 'hitam':
+                out += f'<path d="{d}" fill="none" stroke="#e9ece9" stroke-width="{w + 2.2}" stroke-linecap="round"/>'
+            return out + f'<path d="{d}" fill="none" stroke="{WARNA[col]}" stroke-width="{w}" stroke-linecap="round"/>'
+
+        def geser(o):   # kurva sejajar, digeser o mm ke samping
+            nx, ny = -dy / L * o, dx / L * o
+            return (ax + nx, ay + ny), (cx + nx, cy + ny), (bx + nx, by + ny)
+
+        if warna == 'pasang':          # merah + hitam berdampingan (5 V dan GND, kabel motor)
+            s += garis(*geser(-0.9), 'merah', lebar) + garis(*geser(0.9), 'hitam', lebar)
+        elif warna == 'merah-hitam':   # separuh merah, separuh hitam, disambung di tengah (titik tengah holder)
+            m0 = ((ax + cx) / 2, (ay + cy) / 2); m1 = ((cx + bx) / 2, (cy + by) / 2); mid = ((m0[0] + m1[0]) / 2, (m0[1] + m1[1]) / 2)
+            s += garis((ax, ay), m0, mid, 'merah', lebar) + garis(mid, m1, (bx, by), 'hitam', lebar)
+        elif warna in ('merah-kuning', 'merah-biru'):   # merah tipis dengan heat shrink berwarna di kedua ujung
+            s += garis((ax, ay), (cx, cy), (bx, by), 'merah', lebar)
+            tanda_w = WARNA[warna.split('-')[1]]
+            for t in (0.06, 0.94):
+                px = (1 - t) ** 2 * ax + 2 * (1 - t) * t * cx + t * t * bx
+                py = (1 - t) ** 2 * ay + 2 * (1 - t) * t * cy + t * t * by
+                s += f'<circle cx="{X(px)}" cy="{Y(py)}" r="4.5" fill="{tanda_w}" stroke="#0d0f0e"/>'
+        else:
+            s += garis((ax, ay), (cx, cy), (bx, by), warna, lebar)
+        warna = {'pasang': 'merah', 'merah-hitam': 'merah', 'merah-kuning': 'merah', 'merah-biru': 'merah'}.get(warna, warna)
         mx, my = 0.25 * ax + 0.5 * cx + 0.25 * bx, 0.25 * ay + 0.5 * cy + 0.25 * by   # titik tengah kurva
         rim = '#e9ece9' if warna == 'hitam' else WARNA[warna]
         badges += f'<circle cx="{X(mx)}" cy="{Y(my)}" r="10.5" fill="#0d0f0e" stroke="{rim}" stroke-width="1.8"/>'
@@ -74,7 +97,7 @@ def gambar(lantai, x0, x1, barang, kabel, tanda=(), lubang=(), redup=(), k=4.0, 
     for x, y, t, *arah in lubang:
         kiri = arah and arah[0] == 'kiri'
         s += diag.text(X(x) + (-13 if kiri else 13), Y(y) + 4, t, 10.5, anchor='end' if kiri else 'start', fill='#ffd8a8', weight=600)
-    s += diag.text(m, H - 10, '◎ = kabel lewat lubang plat ke lantai lain. Nomor = baris di tabel di bawah gambar.', 11, fill='#cfd8d4')
+    s += diag.text(m, H - 10, '◎ = lubang plat. Warna garis = warna kabelmu (abu-abu = jumper). Nomor = tabel.', 11, fill='#cfd8d4')
     return diag.svg(int(W), int(H), s, label)
 
 
@@ -97,8 +120,8 @@ H7, H8, HXL, HX6, HSV, H23, HUA, HST = (L[k] for k in ('H7', 'H8', 'HXL', 'HX6',
 
 # ================= lantai 2 belakang: baterai (Bagian 1 Tahap 2-4) =================
 BATERAI = [
-    ('tengah', 'merah', (22, 106), (46, 101), 6),
-    ('b42', 'kuning', (80, 82), (44, 104), (56, 80)),
+    ('tengah', 'merah-hitam', (22, 106), (46, 101), 6),
+    ('b42', 'merah-kuning', (80, 82), (44, 104), (56, 80)),
     ('b0', 'hitam', (22, 33), (87, 38), -14),
     ('b8', 'merah', (46, 28), (73, 38), -6),
     ('sek1', 'merah', (75, 74), (92, 115), (106, 96)),
@@ -133,14 +156,14 @@ LANTAI1 = [
     ('vmg', 'hitam', (220, 108), (226, 78), (228, 98)),
     ('servo+', 'hijau', (216, 46), HSV, (252, 70)),
     ('servo-', 'hitam', (218, 120), HSV, 3),
-    ('5v30', 'merah', (61, 70), H7, -3),
-    ('5vs3', 'merah', (61, 74), H7, 5),
-    ('5vcam', 'merah', (181, 74), HSV, (196, 104)),
-    ('bat', 'biru', (116, 66), HXL, (140, 62)),
-    ('motor', 'abu', (111, 39), (240, 70), (180, 52)),
-    ('motor', 'abu', (111, 114), (240, 82), (170, 96)),
-    ('motord', 'abu', (129, 39), (138, 44), 2),
-    ('motord', 'abu', (129, 114), (135, 106), -2),
+    ('5v30', 'pasang', (61, 70), H7, -3),
+    ('5vs3', 'pasang', (61, 74), H7, 5),
+    ('5vcam', 'pasang', (181, 74), HSV, (196, 104)),
+    ('bat', 'merah-biru', (116, 66), HXL, (140, 62)),
+    ('motor', 'pasang', (111, 39), (240, 70), (180, 52)),
+    ('motor', 'pasang', (111, 114), (240, 82), (170, 96)),
+    ('motord', 'pasang', (129, 39), (138, 44), 2),
+    ('motord', 'pasang', (129, 114), (135, 106), -2),
     ('hcb', 'abu', (22, 76), H7, -8),
     ('mpu', 'abu', (206, 82), HX6, 4),
     ('tbsig', 'abu', (234, 86), HX6, -4),
@@ -170,9 +193,9 @@ LANTAI2 = [
     ('xl-', 'hitam', HXL, (163, 112), -2),
     ('w6+', 'hijau', (211, 99), HX6, -2),
     ('w6-', 'hitam', (211, 112), HX6, 2),
-    ('5v30', 'merah', H7, (172, 60), (110, 26)),
-    ('5vs3', 'merah', H7, H23, -6),
-    ('bat', 'biru', HXL, (123, 75), 6),
+    ('5v30', 'pasang', H7, (172, 60), (110, 26)),
+    ('5vs3', 'pasang', H7, H23, -6),
+    ('bat', 'merah-biru', HXL, (123, 75), 6),
     ('hcb', 'abu', H7, (100, 60), 4),
     ('hctrig', 'abu', (104, 62), (195, 64), (150, 70)),
     ('stop', 'abu', HST, (130, 75), (118, 50)),
@@ -193,12 +216,12 @@ def lantai2():
 
 # ================= lantai 3: otak dan kepala =================
 LANTAI3 = [
-    ('5vs3', 'merah', H23, (77, 40), 3),
+    ('5vs3', 'pasang', H23, (77, 40), 3),
     ('uart', 'abu', HUA, (90, 60), (120, 40)),
     ('stop', 'abu', (136, 11), HST, 2),
     ('servo+', 'hijau', HSV, (225, 84), -4),
     ('servo-', 'hitam', HSV, (229, 84), 4),
-    ('5vcam', 'merah', HSV, (232, 76), (246, 104)),
+    ('5vcam', 'pasang', HSV, (232, 76), (246, 104)),
 ]
 
 

@@ -57,8 +57,8 @@ def cm(a, b, extra=0, via=()):
 # (kode, warna, ukuran, dari, ke, tambahan mm untuk naik ke kepala/gerak)
 DAFTAR = [
     ('tengah', 'kabel bawaan holder (merah holder 1 + hitam holder 2)', '-', 'H1+', 'H2-', 0, 'titik tengah: holder 1 (+) disambung langsung ke holder 2 (−)'),
-    ('b8', 'merah', '22', 'H2+', 'B8', 0, 'holder 2 (+) → pad 8.4V BMS'),
-    ('b0', 'hitam', '22', 'H1-', 'B0', 0, 'holder 1 (−) → pad 0V BMS'),
+    ('b8', 'kabel bawaan holder 2 (merah)', '-', 'H2+', 'B8', 0, 'holder 2 (+) → pad 8.4V BMS'),
+    ('b0', 'kabel bawaan holder 1 (hitam)', '-', 'H1-', 'B0', 0, 'holder 1 (−) → pad 0V BMS'),
     ('b42', 'merah tipis bertanda kuning', '26', 'B42', 'TT', 0, 'pad 4.2V BMS → titik tengah'),
     ('sek1', 'merah (kabel dudukan sekring)', '-', 'BP+', 'SEK1', 0, 'pad ⊕ (P+) BMS → ujung 1 dudukan sekring'),
     ('sek2', 'merah (kabel dudukan sekring)', '-', 'SEK2', 'SAK', 0, 'ujung 2 dudukan sekring → saklar'),
@@ -75,7 +75,7 @@ DAFTAR = [
     ('vm', 'hijau', '22', 'W6', 'TB', 0, 'WAGO 6V → VM TB6612'),
     ('vmg', 'hitam', '22', 'W6G', 'TB', 0, 'WAGO −6 → GND (sebelah VM) TB6612'),
     ('servo+', 'hijau', '22', 'W6', 'KPL', 0, 'WAGO 6V → kepala (merah kedua servo)'),
-    ('servo-', 'hitam', '22', 'W6G', 'KPL', 0, 'WAGO −6 → kepala (coklat kedua servo)'),
+    ('servo-', 'hitam', '26', 'W6G', 'KPL', 0, 'WAGO −6 → kepala (coklat kedua servo)'),
     # 5 V dan sinyal: 26 AWG atau kabel jumper
     ('5v30', 'merah + hitam', '26', 'LM1OUT', 'P30', 0, 'OUT LM2596 #1 → blok daya papan 30P (5V dan GND)'),
     ('5vs3', 'merah + hitam', '26', 'LM1OUT', 'S3', 0, 'OUT LM2596 #1 → blok daya papan S3 (5V dan GND)'),

@@ -102,7 +102,7 @@ def isi():
 
     belum = table(['Barang', 'Jumlah', 'Untuk', 'Tanpa barang ini'], [
         ['BME280', '1 (opsional)', 'suhu, kelembapan, tekanan', 'pakai DHT11 dari kit cuaca'],
-        ['Tambahan kabel 22 AWG hitam', '1 m', 'hitam (GND) dipakai di paling banyak titik: total sekitar ' + str(KB.total('22')['hitam']) + ' cm, sedangkan yang ada 1 m. Satu meter pertama cukup untuk Bagian 1 dan TB6612; kabel GND servo dari tambahan ini (lihat tabel kabel di Bagian 6)', 'sisanya disambung dari kabel lain dan diberi selotip hitam di kedua ujung; merah dan hijau tidak boleh dipakai untuk GND tanpa tanda'],
+        ['Tambahan kabel 22 AWG hitam (opsional)', '1 m', 'cadangan: hitam 22 AWG terpakai sekitar ' + str(KB.total('22')['hitam']) + ' cm dari 1 m, jadi sisanya tipis kalau ada potongan yang salah ukur', 'potong yang terpanjang dulu dan ukur di robot sebelum memotong'],
         ['Konektor WAGO 221-415 (5 lubang) atau tiruannya', '4 (+1 cadangan)', '2 untuk rel baterai (+ dan GND ke 3 konverter), 2 untuk rel 6 V (+ dan GND ke TB6612, 2 servo, kapasitor)', 'harus menyolder sambungan Y'],
         ['Papan persegi 256 x 152 mm, tebal 3-4 mm', '1 (opsional)', 'pengganti plat ketiga bila lantai 3 terlalu rapat (speaker, TFT)', 'tetap pakai plat ketiga yang sempit'],
         ['Dudukan (bracket) HC-SR04', '2 (opsional)', 'memegang HC-SR04 tegak di tepi depan dan belakang, dibaut ke plat', 'HC-SR04 diikat cable ties; lebih mudah miring dan salah baca'],

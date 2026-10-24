@@ -21,7 +21,7 @@ def halaman():
     t22 = KB.total('22')
     kabel = table(['No', 'Kabel 22 AWG', 'Potong', 'Dari → ke'], baris('22') + [
         ['', '<b>Total</b>', '<b>' + ', '.join(f'{w} {n} cm' for w, n in t22.items()) + '</b>',
-         f'merah dan hijau cukup dari 1 m; <b>hitam kurang {t22["hitam"] - 100} cm</b>: 1 m pertama cukup untuk Bagian 1 dan TB6612, kabel GND servo dari tambahan']],
+         f'ketiga warna cukup dari 1 m (sisa hitam sekitar {100 - t22["hitam"]} cm, jadi potong yang terpanjang dulu)']],
         'Perkiraan dari tata letak di atas: jarak mendatar + naik-turun antar-lantai (permukaan lantai 2 sekitar 3,3 cm di atas lantai 1, lantai 3 sekitar 6,3 cm di atas lantai 2), ditambah 3 cm untuk kupasan dan kelonggaran, galat sekitar ±2 cm. Kabel antar-lantai dihitung lewat lubang plat yang ada di peta tiap tahap. Angka yang sama dipakai di tiap langkah Bagian 1-4.') + table(
         ['No', 'Kabel 26 AWG dan jumper', 'Panjang', 'Dari → ke'], baris('26') + baris('jumper') + baris('-'),
         'Jalur 5 V cukup 26 AWG: arusnya paling besar sekitar 1 A, dan 25 cm pergi-pulang hanya menurunkan sekitar 0,07 V. Kabel jumper biasanya 20 cm; yang tertulis 20 cm ke atas pas-pasan, jadi sambung dengan kabel M-F kalau kurang.')
