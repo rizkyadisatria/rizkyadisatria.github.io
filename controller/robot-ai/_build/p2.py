@@ -139,7 +139,7 @@ def halaman():
     tahap += stage(S, 4, 'Kepala pan-tilt (servo MG90S)', ['Pan-tilt dengan 2 MG90S', 'Kabel M-F', 'Kabel 22 AWG hijau dan hitam', 'Kapasitor 470 µF', 'Heat shrink', 'WAGO 6V dan WAGO −6'], [
         'Saklar OFF. Kabel servo: <b>coklat = GND</b>, <b>merah = daya</b>, <b>oranye = sinyal</b>.',
         f'Servo bawah (pan, menoleh kiri-kanan): oranye ke pin S baris {pin("D23")}. Servo atas (tilt, mengangguk): oranye ke pin S baris {pin("D4")}. Pakai kabel M-F: ujung jantan masuk ke lubang soket servo.',
-        f'Daya servo dari WAGO 6V, lewat satu pasang kabel 22 AWG yang sampai dari lantai 1 ke kepala di lantai 3: potong hijau <b>{KB.pn("servo+")}</b> dan hitam <b>{KB.pn("servo-")}</b>. Hitam 1 m yang pertama biasanya sudah habis di Bagian 1 dan TB6612, jadi hitam ini dari tambahan.',
+        f'Daya servo dari WAGO 6V/−6 ke kepala di lantai 3: potong hijau 22 AWG <b>{KB.pn("servo+")}</b> dan hitam <b>26 AWG</b> (kabel UL1007-mu) <b>{KB.pn("servo-")}</b>. Arus kedua servo paling besar sekitar 1,5 A, jadi 26 AWG cukup untuk GND-nya, dan hitam 22 AWG tidak kurang.',
         'Potong kabel <b>merah dan coklat</b> tiap servo 10 cm dari badan servo. Kabel <b>oranye</b> dan colokannya jangan dipotong. Sisa merah-coklat di sisi colokan diisolasi selotip.',
         'Masukkan heat shrink dulu. Solder kedua merah servo ke satu ujung kabel hijau, kedua coklat ke satu ujung kabel hitam. Di sambungan yang sama, solder kapasitor 470 µF kedua: kaki panjang ke merah-hijau, sisi bergaris ke coklat-hitam. Tutup heat shrink.',
         'Ujung lain kabel hijau → WAGO 6V, hitam → WAGO −6. Kabel servo terlalu tipis untuk WAGO, itulah sebabnya disambung ke 22 AWG dulu.',
