@@ -149,6 +149,7 @@ def daya():
 
 
 def bms():
+    import kabel as KB
     W, H = 860, 470
     s = ''
     # dua holder
@@ -172,19 +173,20 @@ def bms():
         s += text(x + (18 if n in ('⊕', '⊖') else (-18 if x > bx + 150 else 18)), y + 5, n, 13, anchor='start' if n in ('⊕', '⊖') or x < bx + 150 else 'end', weight=600, font=MONO)
     # kabel
     s += line([(40, 101), (20, 101), (20, 420), (bx + 270, 420), (bx + 270, by + 178)], 'gnd', 4)     # sel1 − ke 0V
-    s += tag(250, 420, '1. sel 1 (−) → 0V')
-    s += line([(300, 101), (330, 101), (330, 205), (30, 205), (30, 261), (40, 261)], 'oranye', 4)  # sel1+ ke sel2−
+    s += tag(250, 420, f'1. sel 1 (−) → 0V: hitam 22 AWG {KB.p("b0")}')
+    s += line([(300, 101), (330, 101), (330, 205), (30, 205), (30, 261), (40, 261)], 'bat', 4)  # sel1+ ke sel2−
+    s += tag(180, 205, f'titik tengah: merah 22 AWG {KB.p("tengah")}')
     s += line([(330, 160), (470, 160), (470, by + 100), (bx + 17, by + 100)], 'oranye', 3)              # titik tengah ke 4.2V
-    s += tag(400, 160, '2. titik tengah → 4.2V')
+    s += tag(415, 160, f'2. → 4.2V: tipis {KB.p("b42")}')
     s += line([(300, 261), (360, 261), (360, 330), (bx + 300 + 20, 330), (bx + 300 + 20, by + 60), (bx + 283, by + 60)], 'bat', 4)
-    s += tag(470, 330, '3. sel 2 (+) → 8.4V')
+    s += tag(610, 330, f'3. sel 2 (+) → 8.4V: merah 22 AWG {KB.p("b8")}')
     # keluaran
     s += line([(bx + 90, by + 57), (bx + 90, 62), (bx + 120, 62)], '5v', 4)
-    s += text(bx + 126, 67, 'P+ → sekring → saklar', 12.5, weight=600)
-    s += line([(bx + 77, by + 135), (bx + 50, by + 135), (bx + 50, 380), (bx + 210, 380)], 'gnd', 4)
-    s += text(bx + 216, 385, 'P− ke GND bersama', 12.5, weight=600)
+    s += text(bx + 126, 67, f'P+ → sekring ({KB.p("sek1")}) → saklar', 12.5, weight=600)
+    s += line([(bx + 77, by + 135), (bx + 50, by + 135), (bx + 50, 380), (bx + 80, 380)], 'gnd', 4)
+    s += text(bx + 86, 385, f'P−: hitam {KB.p("pminw")} → WAGO −', 12.5, weight=600)
     s += text(40, 40, 'Sambung dengan urutan 1 → 2 → 3. Lepas dengan urutan terbalik.', 13, fill='#ffd8a8', weight=600)
-    s += text(40, 455, 'Kabel hitam/oranye/merah tebal (≥ 22 AWG) untuk jalur 1, 3, P+ dan P−. Jalur 2 boleh kabel tipis.', 12, fill='#e8efe9')
+    s += text(40, 455, 'Semua jalur 22 AWG kecuali jalur 2 (ke pad 4.2V), yang hanya untuk mengukur sel, jadi boleh kabel tipis 26 AWG.', 12, fill='#e8efe9')
     return svg(W, H, s, 'Cara menyambung dua sel 18650 ke BMS 2S')
 
 
@@ -376,7 +378,7 @@ def motor():
     s += line([(518, 242), (600, 242), (600, 234), (660, 234)], '#e5392f', 3) + line([(600, 242), (600, 304), (660, 304)], '#e5392f', 3)
     s += line([(518, 220), (630, 220), (630, 254), (660, 254)], '#1b1b1b', 3) + line([(630, 254), (630, 324), (660, 324)], '#1b1b1b', 3)
     # VM dan GND
-    s += box(20, 60, 200, 70, 'XL4015 OUT+ (6 V)', 'lewat kabel tebal', fill='#241a3a', stroke='#b08cff')
+    s += box(20, 60, 200, 70, 'WAGO 6V (dari XL4015)', 'hijau 22 AWG', fill='#241a3a', stroke='#b08cff')
     s += line([(220, 95), (260, 95), (260, 110), (302, 110)], '6v', 4)
     s += box(20, 150, 200, 60, 'GND bersama', '', fill='#101312')
     s += line([(220, 180), (270, 180), (270, 154), (302, 154)], 'gnd', 4)
