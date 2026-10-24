@@ -35,6 +35,8 @@ def gambar(lantai, x0, x1, barang, kabel, tanda=(), lubang=(), redup=(), k=4.0, 
     s += diag.text(m, Y(layout.PLAT_W) + 16, 'kanan robot', 11, fill='#cfd8d4')
     for n, x, y, w, h, t, c in [it for it in LANTAI[lantai] if it[0] in redup]:
         s += f'<rect x="{X(x)}" y="{Y(y)}" width="{w * k}" height="{h * k}" rx="4" fill="{c}" fill-opacity=".35" stroke="#e9ece9" stroke-opacity=".3"/>'
+        if n != 'motor' and x >= x0 and x + w <= x1:
+            s += diag.text(X(x + w / 2), Y(y + h / 2) + 4, n, 9.5, anchor='middle', fill='#f4f6f5')
     for nama in barang:
         n, x, y, w, h, t, c = _cari(lantai, nama)
         s += f'<rect x="{X(x)}" y="{Y(y)}" width="{w * k}" height="{h * k}" rx="4" fill="{c}" stroke="#e9ece9" stroke-opacity=".8"/>'
@@ -135,7 +137,7 @@ TANDA_BAT = [(22, 33, '−'), (22, 106, '+'), (46, 28, '+'), (46, 101, '−'),
 
 def baterai():
     return gambar(2, -2, 102, ['holder 1', 'holder 2', 'BMS', 'saklar', 'sekring'], BATERAI, TANDA_BAT,
-                  [(*H7, '7 turun ke WAGO +', 'kiri'), (*H8, '8 turun', 'kiri')], redup=['breadboard 1'], k=4.6,
+                  [(*H7, '7 turun ke WAGO +', 'kiri'), (*H8, '8 turun', 'kiri')], k=4.6,
                   label='Peta kabel baterai di lantai 2, posisi sama dengan di robot',
                   judul='LANTAI 2 bagian belakang: baterai, BMS, sekring, saklar')
 
@@ -210,7 +212,7 @@ def lantai2():
     return gambar(2, 88, 258, ['breadboard 1', 'DevKit + 30P', 'XL4015', 'HC-SR04 dpn'], LANTAI2,
                   [(163, 99, 'IN+'), (163, 112, 'IN−'), (211, 99, 'OUT+'), (211, 112, 'OUT−'), (172, 60, '5V'), (195, 60, 'D16'), (123, 75, 'a20')],
                   [(*H7, 'H7'), (*HXL, 'HXL'), (*HX6, 'HX6'), (*HSV, 'HSV'), (*H23, 'H23'), (*HUA, 'HUA'), (*HST, 'HST')],
-                  redup=['sekring', 'saklar', 'BMS'], k=4.4, label='Peta kabel lantai 2 bagian depan, posisi sama dengan di robot',
+                  k=4.4, label='Peta kabel lantai 2 bagian depan, posisi sama dengan di robot',
                   judul='LANTAI 2 bagian depan: DevKit, XL4015, breadboard 1')
 
 
