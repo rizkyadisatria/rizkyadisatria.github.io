@@ -70,7 +70,8 @@ def kartu(g, n, f, s):
 
 
 def isi():
-    o = '<header class="top"><a class="back" href="../">← Semua panduan</a><span class="eyebrow">ESP32-S3 · DevKit V1 · ESP32-CAM · Claude</span>'
+    import cover
+    o = '<header class="top"><a class="back" href="../">← Semua panduan</a>' + cover.utama() + '<span class="eyebrow">ESP32-S3 · DevKit V1 · ESP32-CAM · Claude</span>'
     o += '<h1>Robot AI 4WD</h1>'
     o += ('<p class="lead">Robot beroda empat yang bisa diajak ngobrol, digerakkan dari layar sentuh atau Telegram, melihat lewat kamera, '
           'memutar musik, mengikuti benda di depannya, dan berjaga. Dirakit bertahap dari baterai sampai AI, dengan tes kecil di setiap langkah.</p>')
@@ -87,7 +88,7 @@ def isi():
 
     parts = ''
     for i, (slug, nama, ket) in enumerate(PARTS, 1):
-        parts += (f'<a class="partcard" href="{slug}/"><span class="num">{i}</span><div><h3>{nama}</h3><p>{ket}</p></div>'
+        parts += (f'<a class="partcard" href="{slug}/"><span class="thumb">{cover.SAMPUL[slug]()}</span><span class="num">{i}</span><div><h3>{nama}</h3><p>{ket}</p></div>'
                   f'<span class="pp" data-progres="robot-ai/{slug}">belum mulai</span></a>')
     o += section('bagian', 'Urutan', 'Enam bagian, kerjakan berurutan', f'<div class="parts">{parts}</div>',
                  'Setiap bagian punya tahap-tahap kecil dengan tanda berhasil. Centang langkah yang selesai; progres tersimpan di browser-mu.')

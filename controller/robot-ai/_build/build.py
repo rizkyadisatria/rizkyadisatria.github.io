@@ -3,6 +3,7 @@
 import html, os, re, shutil, sys, zipfile
 sys.path.insert(0, os.path.dirname(__file__))
 import diag
+import cover
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) + '/'
 KODE = ROOT + 'kode/'
@@ -19,7 +20,7 @@ PARTS = [
     ('3-otak', 'Otak', 'ESP32-S3 dengan layar sentuh, SD card, speaker, mikrofon, lalu disambung ke badan lewat UART.'),
     ('4-mata', 'Mata', 'ESP32-CAM: upload lewat papan MB, lihat foto di browser, lalu pindah ke daya robot dan kepala pan-tilt.'),
     ('5-ai', 'Kecerdasan', 'Bot Telegram, AI Claude, suara ke teks, lalu kode otak lengkap: wajah, ngobrol, melihat, mode ikuti dan jaga.'),
-    ('6-rakit', 'Rakit akhir', 'Tata letak di chassis dua lantai, pindah ke daya baterai, uji di lantai, kalibrasi, dan daftar masalah umum.'),
+    ('6-rakit', 'Rakit akhir', 'Tata letak di chassis tiga lantai, pindah ke daya baterai, uji di lantai, kalibrasi, dan daftar masalah umum.'),
 ]
 
 # ---------------- komponen kecil ----------------
@@ -116,7 +117,7 @@ def halaman_bagian(slug, judul_h1, lead, isi, desc):
     nxt = (f'../{PARTS[idx + 1][0]}/', f'Bagian {idx + 2}: {PARTS[idx + 1][1]}') if idx + 1 < len(PARTS) else ('../', 'Kembali ke halaman utama robot')
     out = HEAD.format(title=f'Bagian {nomor}: {PARTS[idx][1]} · Robot AI 4WD', desc=esc(desc), a='../../assets/')
     out += f'<body data-key="robot-ai/{slug}"><div class="wrap">'
-    out += (f'<header class="top"><a class="back" href="../">← Robot AI 4WD</a><span class="eyebrow">Robot AI 4WD · Bagian {nomor} dari {len(PARTS)}</span>'
+    out += (f'<header class="top"><a class="back" href="../">← Robot AI 4WD</a>{cover.SAMPUL[slug]()}<span class="eyebrow">Robot AI 4WD · Bagian {nomor} dari {len(PARTS)}</span>'
             f'<h1>{judul_h1}</h1><p class="lead">{lead}</p>'
             f'<div class="progress"><span id="prog">0 / 0 langkah</span><div class="bar"><i id="progbar"></i></div></div>{toc(slug, "../")}</header>')
     out += isi
