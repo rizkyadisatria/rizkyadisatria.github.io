@@ -4,48 +4,67 @@
 # adalah PERKIRAAN dari foto listing (panjang ujung lebar ~ 52 mm), belum diukur di plat asli.
 # Ukuran modul: perkiraan dari foto (skala pin 2,54 mm / chip) dan ukuran umum modul sejenis.
 import diag
-PLAT_L, PLAT_W = 256, 152
-# persegi-persegi yang membentuk plat chassis: (x1, y1, x2, y2)
-PLAT = [(0, 22, 10, 130), (10, 0, 52, 152), (52, 26, 204, 126), (204, 0, 246, 152), (246, 22, 256, 130)]
-OUTLINE = [(0, 22), (10, 22), (10, 0), (52, 0), (52, 26), (204, 26), (204, 0), (246, 0), (246, 22), (256, 22),
-           (256, 130), (246, 130), (246, 152), (204, 152), (204, 126), (52, 126), (52, 152), (10, 152), (10, 130), (0, 130)]
-LUAS_PLAT = sum((c - a) * (d - b) for a, b, c, d in PLAT)      # ~30.100 mm2
-LUAS_L3 = PLAT_L * PLAT_W                                       # lantai 3 = papan persegi 256 x 152
+PLAT_L, PLAT_W = 257, 152
+# Bentuk plat dibaca dari FOTO platmu (kotak cutting mat sebagai skala, ±1-2 mm):
+#  - sayap ujung berbentuk busur, panjang ±34 mm, lebar penuh 152 mm
+#  - pinggang 101 mm lebar (y 25,5 s.d. 126,5) sepanjang ±190 mm
+#  - dua sayap samping di tengah (x 109-145) yang melebar lagi ke 152 mm
+def _ok(x, y):
+    d = abs(y - 76)
+    if x < 0 or x > PLAT_L or d > 76:
+        return False
+    if x <= 34:
+        return x >= 31 * (d / 76) ** 2
+    if x >= PLAT_L - 33:
+        return (PLAT_L - x) >= 31 * (d / 76) ** 2
+    if 109 <= x <= 145:
+        return True
+    return d <= 50.5
+
+def _outline():
+    p = [(31 * (abs(y - 76) / 76) ** 2, y) for y in range(0, 153, 4)]
+    p += [(34, 152), (34, 126.5), (109, 126.5), (109, 152), (145, 152), (145, 126.5), (PLAT_L - 33, 126.5), (PLAT_L - 33, 152)]
+    p += [(PLAT_L - 31 * (abs(y - 76) / 76) ** 2, y) for y in range(152, -1, -4)]
+    p += [(PLAT_L - 33, 0), (PLAT_L - 33, 25.5), (145, 25.5), (145, 0), (109, 0), (109, 25.5), (34, 25.5), (34, 0)]
+    return p
+OUTLINE = _outline()
+LUAS_PLAT = sum(1 for x in range(PLAT_L) for y in range(PLAT_W) if _ok(x + .5, y + .5))   # ~28.200 mm2
+LUAS_L3 = 256 * 152                                              # lantai 3 = papan persegi
 
 # (nama, x, y, panjang_x, lebar_y, tinggi_mm, warna)
 L1 = [  # lantai bawah, di ANTARA plat bawah dan plat atas: tinggi maks 27 mm
-    ('motor', 54, 26, 70, 23, 19, '#f1c40f'), ('motor', 132, 26, 70, 23, 19, '#f1c40f'),
-    ('motor', 54, 103, 70, 23, 19, '#f1c40f'), ('motor', 132, 103, 70, 23, 19, '#f1c40f'),
-    ('HC-SR04 blk', 1, 53, 16, 46, 21, '#1d4f86'),
-    ('XL4015', 21, 49, 29, 54, 20, '#241a3a'),
-    ('LM2596 #1', 60, 58, 66, 36, 15, '#33240f'), ('LM2596 #2', 132, 58, 66, 36, 15, '#33240f'),
-    ('TB6612', 206, 66, 20, 20, 25, '#8c1d18'), ('MPU', 232, 66, 21, 16, 8, '#1d3a6b'),
-    ('WAGO', 24, 18, 20, 18, 9, '#5a5a5a'), ('WAGO', 24, 116, 20, 18, 9, '#5a5a5a'),
-    ('WAGO', 206, 20, 20, 18, 9, '#5a5a5a'), ('WAGO', 206, 114, 20, 18, 9, '#5a5a5a'),
+    # posisi motor = perkiraan dari slot silang dan 2 lubang baut di sisinya (jarak 22 mm); dianggap ada di lantai 1 (pilihan paling hati-hati)
+    ('motor', 34, 41, 70, 22, 19, '#f1c40f'), ('motor', 34, 86, 70, 22, 19, '#f1c40f'),
+    ('motor', 153, 41, 70, 22, 19, '#f1c40f'), ('motor', 153, 86, 70, 22, 19, '#f1c40f'),
+    ('HC-SR04 blk', 6, 53, 16, 46, 21, '#1d4f86'),
+    ('WAGO', 12, 30, 18, 20, 9, '#5a5a5a'), ('WAGO', 12, 102, 18, 20, 9, '#5a5a5a'),
+    ('LM2596 #1', 108, 26, 36, 66, 15, '#33240f'), ('XL4015', 110, 96, 29, 54, 20, '#241a3a'),
+    ('MPU', 176, 66, 21, 16, 8, '#1d3a6b'),
+    ('WAGO', 226, 32, 20, 18, 9, '#5a5a5a'), ('WAGO', 226, 102, 20, 18, 9, '#5a5a5a'),
+    ('TB6612', 230, 66, 20, 20, 25, '#8c1d18'),
 ]
 L2 = [  # di atas plat atas, di bawah lantai 3: tinggi maks ~57 mm
-    ('holder 1', 6, 38, 21, 77, 19, '#3a1513'), ('holder 2', 32, 38, 21, 77, 19, '#3a1513'),
-    ('BMS', 59, 40, 22, 50, 6, '#1d6b3a'), ('saklar', 61, 100, 15, 21, 25, '#7a1010'),
-    ('breadboard 1', 88, 33, 55, 83, 25, '#d9d9cf'), ('DevKit + 30P', 151, 38, 72, 50, 45, '#1d3324'),
+    ('holder 1', 14, 38, 21, 77, 19, '#3a1513'), ('holder 2', 38, 38, 21, 77, 19, '#3a1513'),
+    ('BMS', 65, 46, 22, 50, 6, '#1d6b3a'), ('saklar', 67, 102, 15, 21, 25, '#7a1010'),
+    ('breadboard 1', 92, 34, 55, 83, 25, '#d9d9cf'), ('DevKit + 30P', 155, 38, 72, 50, 45, '#1d3324'),
     ('HC-SR04 dpn', 236, 53, 16, 46, 21, '#1d4f86'),
 ]
 L3 = [  # di atas lantai 3 (papan persegi baru): tanpa batas tinggi
     ('S3 + ekspansi', 2, 4, 83, 81, 30, '#13283a'), ('breadboard 2', 90, 34, 55, 83, 20, '#d9d9cf'),
     ('layar TFT', 152, 40, 30, 72, 37, '#8c1d18'), ('speaker', 6, 102, 58, 30, 25, '#2a2a2a'),
-    ('STOP', 95, 125, 16, 16, 12, '#7a1010'), ('kepala', 202, 56, 40, 40, 70, '#3a2a13'),
+    ('STOP', 95, 125, 16, 16, 12, '#7a1010'), ('LM2596 #2', 150, 115, 66, 36, 15, '#33240f'),
+    ('kepala', 202, 56, 40, 40, 70, '#3a2a13'),
 ]
 HEAD = (222, 76, 34)      # pusat x, y dan jari-jari ruang putar kepala (tidak boleh ada barang lain di sini)
 TINGGI = {'L1': 27, 'L2': 57}
-GAP = 4                   # jarak minimal antar-barang (mm) untuk kabel
+GAP = 3                   # jarak minimal antar-barang (mm) untuk kabel
 
 
 def _di_plat(x, y, w, h):
-    """True kalau seluruh kotak berada di dalam bentuk plat (cek titik di sepanjang tepi, tiap 1 mm)."""
-    def ok(px, py):
-        return any(a <= px <= c and b <= py <= d for a, b, c, d in PLAT)
+    """True kalau seluruh kotak berada di dalam bentuk plat (titik tepi tiap 1 mm)."""
     pts = [(px, py) for px in range(int(x), int(x + w) + 1) for py in (y, y + h)]
     pts += [(px, py) for py in range(int(y), int(y + h) + 1) for px in (x, x + w)]
-    return all(ok(px, py) for px, py in pts)
+    return all(_ok(px, py) for px, py in pts)
 
 
 def cek():
@@ -102,7 +121,7 @@ def svg():
                 s += f'<circle cx="{X + w * k / 2}" cy="{Y + h * k / 2}" r="{w * k / 2}" fill="{c}" stroke="#bbb"/>'
             else:
                 s += f'<rect x="{X}" y="{Y}" width="{w * k}" height="{h * k}" rx="3" fill="{c}" stroke="#e9ece9" stroke-opacity=".7"/>'
-            fs = 10 if min(w, h) * k > 30 else (8.5 if w * k > 36 else 7.5)
+            fs = 10 if min(w, h) * k > 30 else (8.5 if w * k > 36 else (7.5 if w * k > 34 else 6.5))
             col = '#222' if c in ('#f1c40f', '#d9d9cf') else '#f4f6f5'
             if n == 'motor':
                 continue
@@ -112,12 +131,12 @@ def svg():
                 s += diag.text(X + w * k / 2, Y + h * k / 2 + 4, n, fs, anchor='middle', fill=col)
         # kaki lantai 3 (spacer bertumpuk), di lubang plat chassis: posisi contoh
         if nama in ('L2', 'L3'):
-            for (sx, sy) in ((14, 10), (14, 142), (128, 32), (128, 120), (240, 10), (240, 142)):
+            for (sx, sy) in ((22, 18), (22, 134), (127, 6), (127, 146), (235, 18), (235, 134)):
                 s += f'<circle cx="{30 + sx * k}" cy="{y0 + sy * k}" r="4" fill="#c9a227" stroke="#000"/>'
         s += diag.text(30 + PLAT_L * k, y0 - 10, 'depan →', 11, anchor='end', fill='#ffd8a8', weight=600)
         y0 += PLAT_W * k + 48
-    caps = ['Berskala, dari ukuran listing plat (25,6 x 10 cm, ujung 15,2 cm).',
-            'Bentuk ujung lebar adalah perkiraan dari foto.',
+    caps = ['Berskala; bentuk plat dibaca dari foto platmu.',
+            'Motor lantai 1 digambar di slot silangnya (perkiraan).',
             'Lingkaran kuning = contoh kaki lantai 3 (pakai lubang platmu).',
             'Garis putus oranye = ruang kepala menoleh.']
     for n, c in enumerate(caps):
