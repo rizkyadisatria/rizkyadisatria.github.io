@@ -12,14 +12,14 @@ MERAH = '#c0392b'
 PUTIH = '#eef3f0'
 
 
-def bingkai(isi, label, id_):
+def bingkai(isi, label, id_, W=W, H=H):
     grid = ''.join(f'<path d="M{x} 0V{H}" stroke="#ffffff" stroke-opacity=".04"/>' for x in range(0, W, 20))
     grid += ''.join(f'<path d="M0 {y}H{W}" stroke="#ffffff" stroke-opacity=".04"/>' for y in range(0, H, 20))
     return (f'<svg class="cover" viewBox="0 0 {W} {H}" role="img" aria-label="{label}" xmlns="http://www.w3.org/2000/svg">'
             f'<defs><linearGradient id="bg{id_}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{BG1}"/><stop offset="1" stop-color="{BG2}"/></linearGradient>'
             f'<radialGradient id="glow{id_}" cx=".72" cy=".45" r=".55"><stop offset="0" stop-color="{ORANYE}" stop-opacity=".22"/><stop offset="1" stop-color="{ORANYE}" stop-opacity="0"/></radialGradient></defs>'
             f'<rect width="{W}" height="{H}" rx="18" fill="url(#bg{id_})"/>{grid}<rect width="{W}" height="{H}" rx="18" fill="url(#glow{id_})"/>'
-            f'<ellipse cx="520" cy="252" rx="250" ry="14" fill="#000" opacity=".28"/>{isi}</svg>')
+            f'<ellipse cx="{W * .65}" cy="{H - 28}" rx="{W * .31}" ry="14" fill="#000" opacity=".28"/>{isi}</svg>')
 
 
 # ---------- potongan gambar ----------
@@ -221,3 +221,39 @@ def rakit():
 
 
 SAMPUL = {'': utama, '1-daya': daya, '2-badan': badan, '3-otak': otak, '4-mata': mata, '5-ai': ai, '6-rakit': rakit}
+
+
+# ---------- gambar kartu di daftar panduan (controller/), rasio 16:10 ----------
+def kartu_robot():
+    isi = robot(250, 170, 1.45)
+    isi += gelombang(730, 170, 3, ORANYE, 1)
+    isi += f'<g transform="translate(46 70)"><rect width="190" height="70" rx="18" fill="#26332e" stroke="#3a4a44"/><path d="M30 70 L22 92 L52 70Z" fill="#26332e"/>'
+    isi += f'<text x="95" y="44" text-anchor="middle" font-family="IBM Plex Sans,Arial,sans-serif" font-size="24" fill="{PUTIH}" font-weight="600">Halo, aku Robi!</text></g>'
+    isi += f'<g transform="translate(60 180)"><rect width="150" height="52" rx="16" fill="{ORANYE2}"/><text x="75" y="34" text-anchor="middle" font-family="IBM Plex Sans,Arial,sans-serif" font-size="20" fill="#fff" font-weight="600">maju 1 m</text></g>'
+    return bingkai(isi, 'Ilustrasi robot AI 4WD', 'k', 800, 500)
+
+
+def kartu_cuaca():
+    isi = pcb(250, 200, 220, 150, '#1a1a1a') + chip(300, 240, 100, 70)
+    isi += f'<text x="350" y="282" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="16" fill="#9aa">ESP32</text>'
+    # DHT11
+    isi += f'<g transform="translate(110 220)"><rect width="80" height="100" rx="6" fill="#2d7fd0"/>'
+    isi += ''.join(f'<rect x="{12 + (i % 4) * 15}" y="{14 + (i // 4) * 15}" width="9" height="9" rx="2" fill="#1b5c9c"/>' for i in range(20))
+    isi += '</g><path d="M190 270 H250" stroke="#e6c35c" stroke-width="4" stroke-dasharray="6 5"/>'
+    # termometer
+    isi += f'<g transform="translate(520 170)"><rect x="18" y="0" width="28" height="150" rx="14" fill="{PUTIH}"/><rect x="26" y="40" width="12" height="100" rx="6" fill="{MERAH}"/><circle cx="32" cy="160" r="26" fill="{MERAH}"/></g>'
+    isi += f'<text x="640" y="250" font-family="IBM Plex Sans,Arial,sans-serif" font-size="46" fill="{PUTIH}" font-weight="600">27°C</text>'
+    isi += f'<text x="640" y="295" font-family="IBM Plex Mono,monospace" font-size="20" fill="#9fc9b0">lembap 65%</text>'
+    # matahari dan awan
+    isi += f'<circle cx="150" cy="110" r="44" fill="#ffd54a"/>' + ''.join(f'<rect x="146" y="40" width="8" height="18" rx="4" fill="#ffd54a" transform="rotate({i * 45} 150 110)"/>' for i in range(8))
+    isi += f'<path d="M190 150 a34 34 0 0 1 60 -26 a28 28 0 0 1 50 14 a24 24 0 0 1 -4 48 h-100 a22 22 0 0 1 -6 -36z" fill="{PUTIH}" opacity=".92"/>'
+    # telegram
+    isi += f'<g transform="translate(560 60)"><rect width="200" height="64" rx="18" fill="#26332e" stroke="#3a4a44"/>'
+    isi += f'<circle cx="34" cy="32" r="20" fill="#2aa3d6"/><path d="M22 32 L46 22 L40 44 L33 37 L28 41 L29 34Z" fill="#fff"/>'
+    isi += f'<text x="120" y="40" text-anchor="middle" font-family="IBM Plex Sans,Arial,sans-serif" font-size="19" fill="{PUTIH}">/cuaca</text></g>'
+    return bingkai(isi, 'Ilustrasi stasiun cuaca ESP32 dengan sensor DHT11 dan bot Telegram', 'c', 800, 500)
+
+
+def tulis_kartu(root):
+    open(root + 'robot-ai/img/sampul.svg', 'w', encoding='utf-8').write(kartu_robot().replace('class="cover" ', ''))
+    open(root + 'stasiun-cuaca/img/sampul.svg', 'w', encoding='utf-8').write(kartu_cuaca().replace('class="cover" ', ''))

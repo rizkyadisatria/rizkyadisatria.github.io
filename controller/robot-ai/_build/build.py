@@ -156,6 +156,7 @@ def salin_kode():
 
 if __name__ == '__main__':
     salin_kode()
+    cover.tulis_kartu(ROOT + '../')
     import p0, p1, p2, p3, p4, p5, p6
     halaman_utama(p0.isi())
     for m in (p1, p2, p3, p4, p5, p6):
