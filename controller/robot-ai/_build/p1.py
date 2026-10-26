@@ -99,7 +99,7 @@ def halaman():
     ], figs=f'<div class="photos">{photo(IMG + "sekring.jpg", "Dudukan sekring blade dengan kabel merah", "Dudukan sekring dan sekring blade.")}{photo(IMG + "saklar.jpg", "Saklar rocker merah", "Saklar rocker. Cek tulisan arus maksimum di badannya.")}</div>',
         ok_='Saklar benar-benar memutus dan menyambung rel plus, sekring terpasang di antara BMS dan saklar, dan WAGO + / WAGO − terbaca 7,4-8,4 V saat saklar ON.',
         learn='Sekring dipasang sedekat mungkin dengan baterai, supaya kalau ada kabel yang terkelupas dan korsleting di mana pun setelahnya, sekring putus sebelum kabel terbakar.',
-        gagal=['Belum punya WAGO: sambungan Y. Kupas tengah kabel rel plus 1 cm tanpa memotongnya, lilitkan ujung kabel konverter di situ, solder, tutup heat shrink (masukkan heat shrink sebelum menyolder). Panjang kabel tetap sama.'])
+        gagal=['Kabel mudah lepas dari WAGO: kupasannya kurang panjang atau tuas belum menutup penuh. Kupas tepat 11 mm, masukkan sampai mentok, tutup tuas sampai berbunyi klik, lalu tarik pelan.'])
 
     lm_legend = ul([
         f'<b>1</b> {pin("IN+")} masukan plus (dari rel plus baterai). <b>2</b> {pin("IN−")} masukan minus (rel GND). Tulisan VIN+ dan VIN− ada di PCB.',

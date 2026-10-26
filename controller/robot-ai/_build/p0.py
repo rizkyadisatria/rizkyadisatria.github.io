@@ -13,6 +13,9 @@ KIT = [
     ('plat', '3 plat chassis Starlectric', 'Plat bawah, plat atas, dan plat lantai 3. Akrilik buram, ujung lebar 15,2 cm, pinggang 10 cm.', 1),
     ('spacer30', 'Spacer kuningan 30+6 mm', '12 buah, 12 baut, 12 mur: 6 kaki lantai 3, tiap kaki 2 bertumpuk (60 mm).', 1),
     ('kabel22', 'Kabel 22 AWG merah, hijau, hitam', 'Masing-masing 1 m. Jalur daya: merah +7,4 V, hijau +6 V, hitam GND.', 1),
+    ('kabel22b', 'Kabel 22 AWG merah + hitam tambahan', 'Merah dan hitam, 2 m. Sisa dan cadangan untuk jalur daya.', 1),
+    ('kabel26oren', 'Kabel 26 AWG oranye', '1 m. Cadangan untuk sinyal atau penanda kabel.', 2),
+    ('wago', 'WAGO 221-415 (5 lubang) ×4', 'WAGO +, WAGO −, WAGO 6V, WAGO −6.', 1),
     ('baterai', '2 sel 18650', 'RakkiPanda 3000 mAh, dirangkai seri 7,4 V.', 1),
     ('bms', 'BMS 2S 20A', 'Pelindung baterai: kosong, penuh, arus lebih.', 1),
     ('sekring', 'Sekring blade 7,5 A + dudukan', 'Kabel dudukannya tebal. Putus kalau ada korsleting.', 1),
@@ -103,14 +106,12 @@ def isi():
 
     belum = table(['Barang', 'Jumlah', 'Untuk', 'Tanpa barang ini'], [
         ['BME280', '1 (opsional)', 'suhu, kelembapan, tekanan', 'pakai DHT11 dari kit cuaca'],
-        ['Tambahan kabel 22 AWG hitam (opsional)', '1 m', 'cadangan: hitam 22 AWG terpakai sekitar ' + str(KB.total('22')['hitam']) + ' cm dari 1 m, jadi sisanya tipis kalau ada potongan yang salah ukur', 'potong yang terpanjang dulu dan ukur di robot sebelum memotong'],
-        ['Konektor WAGO 221-415 (5 lubang) atau tiruannya', '4 (+1 cadangan)', '2 untuk rel baterai (+ dan GND ke 3 konverter), 2 untuk rel 6 V (+ dan GND ke TB6612, 2 servo, kapasitor)', 'harus menyolder sambungan Y'],
         ['Papan persegi 256 x 152 mm, tebal 3-4 mm', '1 (opsional)', 'pengganti plat ketiga bila lantai 3 terlalu rapat (speaker, TFT)', 'tetap pakai plat ketiga yang sempit'],
         ['Dudukan (bracket) HC-SR04', '2 (opsional)', 'memegang HC-SR04 tegak di tepi depan dan belakang, dibaut ke plat', 'HC-SR04 diikat cable ties; lebih mudah miring dan salah baca'],
     ])
     kartu_html = ''.join(kartu(*k) for k in KIT)
     o += section('barang', 'Barang', 'Yang sudah kamu punya, dan yang masih kurang', f'''
-<div class="panel"><h3>Masih perlu dibeli</h3>{belum}<p class="cap">Sudah datang dan dicoret dari daftar ini: spacer kuningan (12 buah untuk 6 kaki lantai 3), plat lantai 3, kit spacer nilon, heat shrink, TB6612FNG, layar TFT, MAX98357A, ESP32-CAM + MB, LM2596 kedua, holder kedua, kapasitor 100 nF, cable ties, dan kartu SD. Kabel USB-C dan micro-USB sudah ada sejak awal. Kabel 22 AWG merah, hijau, hitam masing-masing 1 m sudah datang; kabel 26 AWG lama hanya untuk sinyal.</p></div>
+<div class="panel"><h3>Masih perlu dibeli</h3>{belum}<p class="cap">Sudah datang dan dicoret dari daftar ini: spacer kuningan (12 buah untuk 6 kaki lantai 3), plat lantai 3, kit spacer nilon, heat shrink, TB6612FNG, layar TFT, MAX98357A, ESP32-CAM + MB, LM2596 kedua, holder kedua, kapasitor 100 nF, cable ties, dan kartu SD. Kabel USB-C dan micro-USB sudah ada sejak awal. Kabel 22 AWG merah, hijau, hitam masing-masing 1 m sudah datang, begitu juga tambahan merah + hitam 22 AWG 2 m, kabel 26 AWG oranye 1 m, dan empat WAGO 221-415; kabel 26 AWG lama hanya untuk sinyal.</p></div>
 <div class="toolbar"><button id="quizbtn" aria-pressed="false" type="button">Mode tebak nama</button><span class="cap" id="quizhint"></span></div>
 <div class="grid" id="kit">{kartu_html}</div>
 <p class="cap">Foto dari barang milikmu sendiri. Mode tebak nama menyamarkan nama tiap barang; ketuk kartunya untuk mengecek.</p>''')
