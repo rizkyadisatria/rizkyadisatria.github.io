@@ -388,3 +388,43 @@ def motor():
     s += text(20, 335, 'Dua motor satu sisi dipasang paralel ke satu kanal. Kabel merah/hitam motor', 12.5, fill='#e8efe9')
     s += text(20, 354, 'tidak menentukan arah: tukar saja kalau satu roda berputar terbalik.', 12.5, fill='#e8efe9')
     return svg(W, H, s, 'TB6612FNG ke empat motor TT')
+
+
+def motor_kapasitor():
+    """Kapasitor 100 nF melintang di dua kaki logam motor TT."""
+    w, h = 760, 410
+    s = text(30, 34, 'Kapasitor 100 nF di satu motor TT (dilihat dari belakang motor)', 16, weight=600)
+    # badan motor dan pelat ujung
+    s += '<rect x="40" y="110" width="170" height="180" rx="20" fill="#b9c0c4" stroke="#0008" stroke-width="1.5"/>'
+    s += text(125, 205, 'badan motor', 14, fill='#1c2326', anchor='middle', weight=600)
+    s += text(125, 224, '(kaleng logam)', 12, fill='#1c2326', anchor='middle')
+    s += '<rect x="210" y="130" width="28" height="140" rx="4" fill="#8a9297" stroke="#0008" stroke-width="1.2"/>'
+    # dua kaki logam
+    for y in (150, 234):
+        s += f'<rect x="238" y="{y}" width="108" height="16" rx="3" fill="#cfa14a" stroke="#0008" stroke-width="1.2"/>'
+        s += f'<circle cx="326" cy="{y + 8}" r="4" fill="{BG}"/>'
+    s += text(250, 140, 'kaki logam motor (atas)', 12)
+    s += text(250, 272, 'kaki logam motor (bawah)', 12)
+    # kabel merah dan hitam
+    s += f'<line x1="338" y1="158" x2="690" y2="158" stroke="#0b0d0c" stroke-opacity=".5" stroke-width="9" stroke-linecap="round"/><line x1="338" y1="158" x2="690" y2="158" stroke="{WIRE["5v"]}" stroke-width="6" stroke-linecap="round"/>'
+    s += f'<line x1="338" y1="242" x2="690" y2="242" stroke="#f4f6f5" stroke-opacity=".55" stroke-width="9" stroke-linecap="round"/><line x1="338" y1="242" x2="690" y2="242" stroke="{WIRE["gnd"]}" stroke-width="6" stroke-linecap="round"/>'
+    s += text(700, 163, 'merah', 13, fill=WIRE['5v'], weight=600)
+    s += text(700, 247, 'hitam', 13, weight=600)
+    # solderan kabel
+    for y in (158, 242):
+        s += f'<ellipse cx="338" cy="{y}" rx="9" ry="7" fill="#dfe3e6" stroke="#111" stroke-width="1.2"/>'
+    # kapasitor di antara dua kaki
+    s += '<line x1="274" y1="166" x2="274" y2="186" stroke="#dfe3e6" stroke-width="3"/><line x1="290" y1="214" x2="290" y2="234" stroke="#dfe3e6" stroke-width="3"/>'
+    s += '<ellipse cx="282" cy="200" rx="22" ry="17" fill="#e08a2e" stroke="#111" stroke-width="1.5"/>'
+    s += text(282, 205, '104', 14, fill='#1b1b1b', anchor='middle', weight=700, font=MONO)
+    for p in ((274, 166), (290, 234)):
+        s += f'<ellipse cx="{p[0]}" cy="{p[1]}" rx="6" ry="5" fill="#dfe3e6" stroke="#111" stroke-width="1.2"/>'
+    s += text(380, 192, 'kapasitor 104 (100 nF)', 14, weight=600)
+    s += text(380, 211, 'tidak berkutub: kaki mana pun boleh di sisi mana pun', 12)
+    s += '<path d="M306 200 L372 200" stroke="#f4f6f5" stroke-width="1.5" fill="none" stroke-dasharray="4 3"/>'
+    # langkah
+    s += text(30, 318, '1  Solder kabel merah dan hitam ke dua kaki logam (bulatan perak di kanan).', 13)
+    s += text(30, 342, '2  Solder satu kaki kapasitor ke tiap kaki logam, dekat solderan kabel (bulatan perak kecil).', 13)
+    s += text(30, 366, '3  Kedua kaki kapasitor tidak boleh saling menyentuh, dan tidak boleh menyentuh badan motor.', 13)
+    s += text(30, 390, 'Kapasitor dipasang melintang di antara dua kaki motor, seperti jembatan kecil.', 13, fill='#e8efe9')
+    return svg(w, h, s, 'Kapasitor 100 nF disolder melintang di antara dua kaki logam motor TT')
