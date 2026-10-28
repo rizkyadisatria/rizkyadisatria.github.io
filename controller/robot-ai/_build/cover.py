@@ -4,7 +4,7 @@
 W, H = 800, 280
 INK = '#0f1413'
 BG1, BG2 = '#356555', '#2a5245'   # hijau alas potong, sama dengan latar diagram
-ORANYE, ORANYE2 = '#e58c51', '#a9531c'
+ORANYE, ORANYE2 = '#f87171', '#dc2626'   # aksen merah, sama dengan tema situs
 KUNING = '#f1c40f'
 BIRU = '#3f8de0'
 HIJAU = '#2f8f5a'
