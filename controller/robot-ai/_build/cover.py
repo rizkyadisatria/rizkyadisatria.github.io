@@ -1,9 +1,9 @@
 # Ilustrasi sampul (cover) tiap halaman panduan Robot AI 4WD. SVG buatan sendiri, tanpa berkas gambar.
-# Latar gelap di dalam bingkai sendiri, jadi tampil sama di tema terang dan gelap.
+# Latar hijau alas potong (sama dengan diagram) di dalam bingkai sendiri, jadi tampil sama di tema terang dan gelap.
 
 W, H = 800, 280
 INK = '#0f1413'
-BG1, BG2 = '#1c2a25', '#13201c'
+BG1, BG2 = '#356555', '#2a5245'   # hijau alas potong, sama dengan latar diagram
 ORANYE, ORANYE2 = '#e58c51', '#a9531c'
 KUNING = '#f1c40f'
 BIRU = '#3f8de0'
@@ -13,11 +13,11 @@ PUTIH = '#eef3f0'
 
 
 def bingkai(isi, label, id_, W=W, H=H):
-    grid = ''.join(f'<path d="M{x} 0V{H}" stroke="#ffffff" stroke-opacity=".04"/>' for x in range(0, W, 20))
-    grid += ''.join(f'<path d="M0 {y}H{W}" stroke="#ffffff" stroke-opacity=".04"/>' for y in range(0, H, 20))
+    grid = ''.join(f'<path d="M{x} 0V{H}" stroke="#ffffff" stroke-opacity="{".14" if x % 100 == 0 else ".06"}"/>' for x in range(20, W, 20))
+    grid += ''.join(f'<path d="M0 {y}H{W}" stroke="#ffffff" stroke-opacity="{".14" if y % 100 == 0 else ".06"}"/>' for y in range(20, H, 20))
     return (f'<svg class="cover" viewBox="0 0 {W} {H}" role="img" aria-label="{label}" xmlns="http://www.w3.org/2000/svg">'
             f'<defs><linearGradient id="bg{id_}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{BG1}"/><stop offset="1" stop-color="{BG2}"/></linearGradient>'
-            f'<radialGradient id="glow{id_}" cx=".72" cy=".45" r=".55"><stop offset="0" stop-color="{ORANYE}" stop-opacity=".22"/><stop offset="1" stop-color="{ORANYE}" stop-opacity="0"/></radialGradient></defs>'
+            f'<radialGradient id="glow{id_}" cx=".72" cy=".45" r=".55"><stop offset="0" stop-color="#ffffff" stop-opacity=".07"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient></defs>'
             f'<rect width="{W}" height="{H}" rx="18" fill="url(#bg{id_})"/>{grid}<rect width="{W}" height="{H}" rx="18" fill="url(#glow{id_})"/>'
             f'<ellipse cx="{W * .65}" cy="{H - 28}" rx="{W * .31}" ry="14" fill="#000" opacity=".28"/>{isi}</svg>')
 
