@@ -17,7 +17,8 @@
 <script src="assets/tema.js"></script>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65;padding:0 16px 72px;overflow-x:clip}
+html{background:var(--bg)}
+body{margin:0;background:transparent;color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65;padding:0 16px 72px;overflow-x:clip}
 .wrap{max-width:1040px;margin:0 auto}
 h1,h2,h3{font-family:var(--display);font-weight:650;line-height:1.1;text-wrap:balance;margin:0}
 h1{font-size:clamp(2.4rem,7vw,4rem);font-weight:700;letter-spacing:-.04em}
@@ -30,9 +31,6 @@ a{color:var(--accent-ink)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 
 header.hero{position:relative;padding-block:72px 16px;display:grid;gap:18px}
-header.hero::before{content:"";position:absolute;top:-140px;left:50%;width:100vw;height:560px;transform:translateX(-50%);z-index:-1;pointer-events:none;
-  background:radial-gradient(600px 260px at 28% 45%,var(--accent-soft),transparent 72%),radial-gradient(520px 240px at 78% 30%,var(--ok-soft),transparent 72%);
-  -webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
 .pill{justify-self:start;display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:500;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px 5px 8px;box-shadow:var(--shadow)}
 .pill i{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
 .lead{max-width:56ch;color:var(--muted);font-size:1.12rem}
@@ -75,9 +73,16 @@ footer a{color:var(--muted)}footer a:hover{color:var(--ink)}
 
 @media (max-width:480px){header.hero{padding-block:40px 8px}.lead{font-size:1.02rem}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Latar kontur diagonal bergerak, di belakang semua isi */
+.bg-kontur{--kontur-line:24,24,27;position:fixed;inset:0;z-index:-1;background:var(--bg);pointer-events:none}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .bg-kontur{--kontur-line:255,255,255}}
+:root[data-theme="dark"] .bg-kontur{--kontur-line:255,255,255}
+.bg-kontur canvas{display:block;width:100%;height:100%}
 </style>
 </head>
 <body>
+<div class="bg-kontur" aria-hidden="true"><canvas id="kontur-canvas"></canvas></div>
 <div class="wrap">
   <header class="hero">
     <span class="pill"><i></i>ESP32 · Arduino · untuk pemula</span>
@@ -131,6 +136,53 @@ footer a{color:var(--muted)}footer a:hover{color:var(--ink)}
   render('');
   const repo=(window.SITE&&window.SITE.repo)||'';
   if(repo)document.getElementById('repo').innerHTML=`<a href="${esc(repo)}">Sumber di GitHub</a>`;
+})();
+</script>
+<script>
+/* Latar kontur diagonal: garis topografi tipis yang mengalir miring. Warna mengikuti tema terang/gelap. */
+(function () {
+  var OPSI = { rows: 26, speed: 0.34, amp: 15, step: 12, angle: -0.32 };
+  var wrap = document.querySelector('.bg-kontur'), canvas = document.getElementById('kontur-canvas');
+  if (!wrap || !canvas || !canvas.getContext) return;
+  var ctx = canvas.getContext('2d'), W = 0, H = 0, dpr = 1, garis = '24,24,27', latar = '#fafaf9';
+  function warna() {
+    var cs = getComputedStyle(wrap);
+    garis = cs.getPropertyValue('--kontur-line').trim() || garis;
+    latar = cs.backgroundColor || latar;
+  }
+  function resize() {
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    W = canvas.width = Math.max(1, Math.round(innerWidth * dpr));
+    H = canvas.height = Math.max(1, Math.round(innerHeight * dpr));
+  }
+  function draw(t) {
+    ctx.fillStyle = latar; ctx.fillRect(0, 0, W, H);
+    ctx.lineWidth = dpr;
+    ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(OPSI.angle); ctx.translate(-W / 2, -H / 2);
+    var rows = OPSI.rows, L = -H, R = W + H, T = -H * 0.4, B = H * 1.4;
+    var stepY = (B - T) / rows, dx = OPSI.step * dpr, amp = OPSI.amp * dpr;
+    for (var i = 0; i <= rows; i++) {
+      var f = i / rows, baseY = T + i * stepY;
+      ctx.strokeStyle = 'rgba(' + garis + ',' + (0.05 + 0.10 * (1 - Math.abs(f - 0.5) * 2)) + ')';
+      ctx.beginPath();
+      for (var x = L; x <= R; x += dx) {
+        var y = baseY + Math.sin(x * 0.006 + t * OPSI.speed + i * 0.5) * amp
+                      + Math.sin(x * 0.013 - t * OPSI.speed * 0.62 + i) * amp * 0.5;
+        if (x === L) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  var diam = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function ulang() { warna(); if (diam) draw(2); }
+  addEventListener('resize', function () { resize(); if (diam) draw(2); });
+  new MutationObserver(ulang).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  if (window.matchMedia) { var mq = matchMedia('(prefers-color-scheme: dark)'); (mq.addEventListener ? mq.addEventListener('change', ulang) : mq.addListener(ulang)); }
+  resize(); warna();
+  if (diam) { draw(2); return; }
+  var mulai = performance.now();
+  (function loop(now) { draw((now - mulai) / 1000); requestAnimationFrame(loop); })(mulai);
 })();
 </script>
 </body>
