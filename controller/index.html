@@ -61,6 +61,14 @@ a.card:hover .cover img{transform:scale(1.03)}
 .meta .lv{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 35%,transparent);background:var(--accent-soft)}
 .status{justify-self:start;display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--ok-soft);color:var(--ok)}
 .status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.status[hidden]{display:none}
+.st-muat,.st-belum{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.st-jalan{background:var(--accent-soft);color:var(--accent-ink)}
+.st-selesai{background:var(--ok-soft);color:var(--ok)}
+.pbar{height:4px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:-4px}
+.pbar[hidden]{display:none}
+.pbar.ok i{background:var(--ok)}
+.pbar i{display:block;height:100%;width:0;background:var(--accent);border-radius:999px;transition:width .4s ease}
 .go{font-size:.88rem;font-weight:600;color:var(--ink);margin-top:auto;padding-top:6px;display:inline-flex;gap:6px;align-items:center}
 .go::after{content:"→";transition:transform .2s}
 a.card:hover .go::after{transform:translateX(3px)}
@@ -122,7 +130,7 @@ footer a{color:var(--muted)}footer a:hover{color:var(--ink)}
   function kartu(g){
     const cover=g.gambar?`<div class="cover"><img src="${esc(g.gambar)}" alt="" loading="lazy"></div>`:`<div class="cover none">tanpa gambar</div>`;
     const meta=[`<span class="lv">${esc(g.level||'')}</span>`,g.tahap?`<span>${esc(g.tahap)}</span>`:''].filter(Boolean).join('')+(g.komponen||[]).map(k=>`<span>${esc(k)}</span>`).join('');
-    return `<a class="card" href="${esc(g.slug)}/">${cover}<div class="cbody"><h3>${esc(g.judul)}</h3>${g.status?`<span class="status">${esc(g.status)}</span>`:''}<p>${esc(g.ringkas)}</p><div class="meta">${meta}</div>${g.diperbarui?`<p class="muted" style="font-size:.8rem">Diperbarui ${esc(tgl(g.diperbarui))}</p>`:''}<span class="go">Buka panduan</span></div></a>`;
+    return `<a class="card" href="${esc(g.slug)}/">${cover}<div class="cbody"><h3>${esc(g.judul)}</h3><span class="status st-muat" data-progres="${esc(g.slug)}">Menghitung progres…</span><div class="pbar" aria-hidden="true"><i data-pbar="${esc(g.slug)}"></i></div><p>${esc(g.ringkas)}</p><div class="meta">${meta}</div>${g.diperbarui?`<p class="muted" style="font-size:.8rem">Diperbarui ${esc(tgl(g.diperbarui))}</p>`:''}<span class="go">Buka panduan</span></div></a>`;
   }
   const soon=`<div class="card soon" aria-hidden="true"><div class="cbody"><span class="eyebrow">Segera</span><h3>Panduan berikutnya</h3><p>Panduan baru akan muncul di sini.</p></div></div>`;
   function render(q){
@@ -131,9 +139,41 @@ footer a{color:var(--muted)}footer a:hover{color:var(--ink)}
     box.innerHTML=list.map(kartu).join('')+(q?'':soon);
     kosong.hidden=list.length>0;
   }
+  // label status otomatis: dihitung dari daftar langkah tiap panduan dan centang yang tersimpan di browser ini
+  const LANGKAH={};
+  function hitung(slug){
+    const d=LANGKAH[slug];if(!d)return null;
+    let n=0,s=0;
+    for(const h of d.halaman){let st={};try{st=JSON.parse(localStorage.getItem(h.kunci)||'{}')||{}}catch(e){}
+      for(const id of h.id){n++;if(st[id])s++}}
+    return {s,n};
+  }
+  function tampilProgres(){
+    document.querySelectorAll('[data-progres]').forEach(el=>{
+      const slug=el.dataset.progres,r=hitung(slug),bar=document.querySelector(`[data-pbar="${slug}"]`);
+      if(LANGKAH[slug]===false){el.hidden=true;if(bar)bar.parentNode.hidden=true;return}
+      if(!r)return;
+      const pct=r.n?Math.round(r.s/r.n*100):0;
+      el.className='status '+(r.s===0?'st-belum':r.s>=r.n?'st-selesai':'st-jalan');
+      el.textContent=r.s===0?`Belum mulai · ${r.n} langkah`:r.s>=r.n?`Selesai · ${r.n} langkah`:`Sedang dikerjakan · ${r.s}/${r.n} langkah (${pct}%)`;
+      el.title='Dihitung otomatis dari langkah yang kamu centang di browser ini';
+      if(bar){bar.style.width=pct+'%';bar.parentNode.hidden=r.s===0;bar.parentNode.classList.toggle('ok',r.s>=r.n)}
+    });
+  }
+  function muatProgres(){
+    G.forEach(g=>{
+      if(g.slug in LANGKAH)return;
+      LANGKAH[g.slug]=null;
+      fetch(g.slug+'/langkah.json',{cache:'no-cache'}).then(r=>r.ok?r.json():Promise.reject()).then(d=>{LANGKAH[g.slug]=d;tampilProgres()}).catch(()=>{LANGKAH[g.slug]=false;tampilProgres()});
+    });
+    tampilProgres();
+  }
+  addEventListener('storage',tampilProgres);
+  addEventListener('pageshow',tampilProgres);
   if(G.length>=4)cari.hidden=false;
-  cari.addEventListener('input',()=>render(cari.value));
+  cari.addEventListener('input',()=>{render(cari.value);tampilProgres()});
   render('');
+  muatProgres();
   const repo=(window.SITE&&window.SITE.repo)||'';
   if(repo)document.getElementById('repo').innerHTML=`<a href="${esc(repo)}">Sumber di GitHub</a>`;
 })();

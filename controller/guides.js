@@ -2,7 +2,9 @@
    Menambah panduan baru:
    1. Buat folder baru di dalam folder ini (controller/), mis. "sensor-jarak/" berisi index.html (tautkan ../assets/tema.css).
    2. Tambahkan satu objek di bawah. Urutan bebas: home page menampilkan yang terbaru dulu (berdasarkan "diperbarui").
-   Field "gambar" opsional (path relatif dari folder ini). */
+   Field "gambar" opsional (path relatif dari folder ini).
+   Label status di kartu dibuat otomatis dari <slug>/langkah.json dan centang langkah di browser pembaca
+   (lihat _alat/langkah.py), jadi tidak perlu ditulis di sini. */
 window.SITE = {
   judul: "Panduan Elektronika",
   repo: "https://github.com/rizkyadisatria/rizkyadisatria.github.io/tree/master/controller"
@@ -16,7 +18,6 @@ window.GUIDES = [
     level: "Menengah",
     tahap: "6 bagian, 38 tahap",
     komponen: ["ESP32-S3", "ESP32 DevKit", "ESP32-CAM", "TB6612", "TFT sentuh", "18650", "Claude"],
-    status: "Kode sudah dikompilasi, belum diuji di robot nyata",
     gambar: "robot-ai/img/sampul.svg",
     diperbarui: "2026-10-24"
   },
@@ -27,7 +28,6 @@ window.GUIDES = [
     level: "Pemula",
     tahap: "8 tahap (tahap 7 opsional)",
     komponen: ["ESP32", "DHT11", "LDR", "LED", "Buzzer", "Breadboard"],
-    status: "Tahap 0–6 sudah dicoba di kit nyata",
     gambar: "stasiun-cuaca/img/sampul.svg",
     diperbarui: "2026-10-18"
   }

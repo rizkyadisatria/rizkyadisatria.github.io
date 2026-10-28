@@ -162,4 +162,8 @@ if __name__ == '__main__':
     halaman_utama(p0.isi())
     for m in (p1, p2, p3, p4, p5, p6):
         halaman_bagian(*m.halaman())
-    print('selesai')
+    # daftar langkah untuk label progres otomatis di halaman utama (controller/index.html)
+    sys.path.insert(0, ROOT + '../_alat')
+    import langkah
+    n = langkah.tulis_langkah('robot-ai', [ROOT + 'index.html'] + [ROOT + p[0] + '/index.html' for p in PARTS])
+    print('selesai,', n, 'langkah')
