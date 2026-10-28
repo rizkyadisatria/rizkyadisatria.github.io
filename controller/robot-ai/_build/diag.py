@@ -431,34 +431,47 @@ def motor_kapasitor():
 
 
 def servo_kapasitor():
-    """Dua servo MG90S: merah digabung ke hijau, coklat ke hitam, kapasitor 470 uF di antara dua sambungan."""
-    w, h = 860, 575
+    """Dua servo MG90S: potongan merah digabung ke hijau, coklat ke hitam, kapasitor 470 uF di antara dua sambungan.
+    Colokan servo tetap satu blok 3 lubang: merah dan coklat sisa (sisi colokan) hanya diselotip, oranye tidak dipotong."""
+    w, h = 860, 600
     cx = 430
+    top, bot = 183, 357
     s = text(30, 28, 'Daya dua servo MG90S + kapasitor 470 µF (skema, bukan skala)', 16, weight=600)
-    # servo kiri (pan) dan kanan (tilt)
-    s += box(30, 150, 120, 100, 'Servo PAN', ['MG90S bawah'], fill='#1f4e79', stroke='#8ec5ff')
-    s += box(710, 150, 120, 100, 'Servo TILT', ['MG90S atas'], fill='#1f4e79', stroke='#8ec5ff')
-    # WAGO atas dan bawah
     s += box(340, 44, 180, 56, 'WAGO 6V', ['dari XL4015'], fill='#241a3a', stroke='#b08cff')
     s += box(340, 405, 180, 56, 'WAGO −6', ['GND bersama'], fill='#101312')
-    # kabel servo ke sambungan atas (merah) dan bawah (coklat)
-    top, bot = 183, 357
-    s += line([(150, 172), (cx, top)], '5v', 5) + line([(710, 172), (cx, top)], '5v', 5)
-    s += line([(150, 196), (290, 196), (290, bot), (cx, bot)], 'coklat', 5)
-    s += line([(710, 196), (570, 196), (570, bot), (cx, bot)], 'coklat', 5)
-    # oranye tidak dipotong
-    s += line([(150, 220), (185, 220), (185, 300)], 'oranye', 5) + line([(710, 220), (675, 220), (675, 300)], 'oranye', 5)
-    s += tag(110, 326, 'oranye ke S baris D23') + tag(750, 326, 'oranye ke S baris D4')
-    s += text(110, 348, 'tidak dipotong', 11, anchor='middle', fill='#ffd8a8') + text(750, 348, 'tidak dipotong', 11, anchor='middle', fill='#ffd8a8')
-    # tanda potong (10 cm dari badan servo)
-    for x in (215, 645):
-        for y in (172, 196):
-            s += f'<line x1="{x - 5}" y1="{y + 10}" x2="{x + 5}" y2="{y - 10}" stroke="#fff" stroke-width="2.2"/>'
-    s += text(165, 150, 'merah + coklat dipotong, 10 cm dari badan', 11, fill='#e8efe9')
-    s += text(695, 150, 'merah + coklat dipotong, 10 cm dari badan', 11, fill='#e8efe9', anchor='end')
+    for m in (0, 1):
+        f = (lambda x: x) if m == 0 else (lambda x: 860 - x)
+        a = 'start' if m == 0 else 'end'
+        nama, sub, pin = (('Servo PAN', 'MG90S bawah', 'D23'), ('Servo TILT', 'MG90S atas', 'D4'))[m]
+        s += box(20 if m == 0 else 740, 150, 100, 100, nama, [sub], fill='#1f4e79', stroke='#8ec5ff')
+        # potongan sisi badan servo: merah naik ke sambungan atas, coklat turun ke sambungan bawah
+        s += line([(f(120), 172), (f(142), 172), (f(142), 128), (f(340), 128), (cx, top)], '5v', 5)
+        s += line([(f(120), 196), (f(142), 196), (f(142), bot), (cx, bot)], 'coklat', 5)
+        # sisa merah dan coklat di sisi colokan: tetap terpasang di colokan, ujungnya diselotip
+        for y, col in ((172, '5v'), (196, 'coklat')):
+            s += line([(f(158), y), (f(195), y)], col, 5)
+            s += f'<rect x="{f(158) - 3}" y="{y - 6}" width="6" height="12" rx="2" fill="#f4f6f5" stroke="#111" stroke-width="1"/>'
+            s += f'<line x1="{f(150) - 4}" y1="{y + 10}" x2="{f(150) + 4}" y2="{y - 10}" stroke="#fff" stroke-width="2.2"/>'
+        # oranye utuh dari servo sampai colokan (melompati kabel coklat)
+        o = WIRE['oranye']
+        d = f'M{f(120)} 220 L{f(135)} 220 Q{f(142)} 204 {f(149)} 220 L{f(195)} 220'
+        s += f'<path d="{d}" fill="none" stroke="#0b0d0c" stroke-opacity=".45" stroke-width="7.6" stroke-linecap="round"/><path d="{d}" fill="none" stroke="{o}" stroke-width="5" stroke-linecap="round"/>'
+        # colokan 3 lubang (satu blok)
+        px = 195 if m == 0 else 860 - 195 - 42
+        s += f'<rect x="{px}" y="158" width="42" height="78" rx="6" fill="#1b1f22" stroke="#9aa5a1" stroke-width="1.6"/>'
+        hx = px + 21
+        for y, col in ((172, WIRE['5v']), (196, WIRE['coklat']), (220, o)):
+            s += f'<circle cx="{hx}" cy="{y}" r="7" fill="#0b0d0c" stroke="{col}" stroke-width="2.4"/>'
+        s += text(px + 21, 150, 'colokan servo', 11, anchor='middle', fill='#e8efe9')
+        # kabel jumper M-F hanya di lubang oranye
+        jx = px + 42 + 30 if m == 0 else px - 30
+        s += line([(hx, 220), (jx, 220), (jx, 306)], 'oranye', 5)
+        s += f'<circle cx="{hx}" cy="220" r="3.2" fill="#dfe3e6"/>'
+        s += tag(jx, 326, f'ke S baris {pin}') + text(jx, 346, 'kabel M-F', 11, anchor='middle', fill='#ffd8a8')
+        s += text(f(142), 112, 'dipotong 10 cm dari badan', 11, fill='#e8efe9', anchor=a)
     # kabel ke WAGO
     s += line([(cx, 100), (cx, top)], 'hijau', 5) + line([(cx, bot), (cx, 405)], 'gnd', 5)
-    s += text(cx + 14, 130, 'hijau 22 AWG', 12, weight=600) + text(cx + 14, 392, 'hitam 26 AWG', 12, weight=600)
+    s += text(cx + 14, 122, 'hijau 22 AWG', 12, weight=600) + text(cx + 14, 392, 'hitam 26 AWG', 12, weight=600)
     # kapasitor 470 uF
     s += f'<path d="M448 238 L448 210 L{cx + 2} {top + 2}" fill="none" stroke="#dfe3e6" stroke-width="3" stroke-linejoin="round"/>'
     s += f'<path d="M410 306 L410 330 L{cx - 2} {bot - 2}" fill="none" stroke="#dfe3e6" stroke-width="3" stroke-linejoin="round"/>'
@@ -475,8 +488,9 @@ def servo_kapasitor():
     s += text(cx + 40, 246, 'kaki panjang (+)', 12, weight=600) + text(cx + 40, 262, 'ke merah + hijau', 11.5, fill='#e8efe9')
     s += text(cx + 40, 296, 'sisi bergaris (−)', 12, weight=600) + text(cx + 40, 312, 'ke coklat + hitam', 11.5, fill='#e8efe9')
     # langkah
-    s += text(30, 490, '1  Masukkan heat shrink ke kabel hijau dan hitam dulu, sebelum disolder.', 13)
-    s += text(30, 512, '2  Atas: dua merah servo + kabel hijau + kaki panjang (+) kapasitor, jadi satu solderan.', 13)
-    s += text(30, 534, '3  Bawah: dua coklat servo + kabel hitam + kaki bergaris (−) kapasitor, jadi satu solderan.', 13)
-    s += text(30, 556, '4  Tarik heat shrink ke tiap solderan lalu panaskan. Dua solderan tidak boleh bersentuhan.', 13, fill='#ffd8a8')
-    return svg(w, h, s, 'Dua merah servo disambung ke kabel hijau, dua coklat ke kabel hitam, dengan kapasitor 470 µF di antara dua sambungan')
+    s += text(30, 492, '1  Masukkan heat shrink ke kabel hijau dan hitam dulu, sebelum disolder.', 13)
+    s += text(30, 514, '2  Atas: dua merah servo + kabel hijau + kaki panjang (+) kapasitor, jadi satu solderan.', 13)
+    s += text(30, 536, '3  Bawah: dua coklat servo + kabel hitam + kaki bergaris (−) kapasitor, jadi satu solderan.', 13)
+    s += text(30, 558, '4  Tarik heat shrink ke tiap solderan lalu panaskan. Dua solderan tidak boleh bersentuhan.', 13)
+    s += text(30, 580, '5  Colokan servo tetap satu blok: sisa merah dan coklat di sisinya diselotip, hanya lubang oranye yang dicolok.', 13, fill='#ffd8a8')
+    return svg(w, h, s, 'Dua merah servo disambung ke kabel hijau, dua coklat ke kabel hitam, dengan kapasitor 470 µF di antara dua sambungan; colokan servo tiga lubang tetap utuh')
