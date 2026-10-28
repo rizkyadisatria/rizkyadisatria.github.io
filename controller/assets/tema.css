@@ -3,7 +3,7 @@
    Mode: ikut sistem, atau dipaksa lewat <html data-theme="light|dark"> (diatur tombol di tema.js). */
 :root{
   --bg:#fafaf9; --surface:#ffffff; --surface-2:#f4f4f2; --ink:#18181b; --muted:#6b6b72; --line:#e7e6e3; --line-2:#d6d5d1;
-  --accent:#e0561b; --accent-ink:#b8410d; --accent-soft:#fdece3; --ok:#15803d; --ok-soft:#e8f6ec;
+  --accent:#dc2626; --accent-ink:#b91c1c; --accent-soft:#fdeceb; --ok:#15803d; --ok-soft:#e8f6ec;
   --warn:#a15c07; --warn-soft:#fdf3e3; --photo:#efeeeb;
   --chip:#18181b; --chip-fg:#fafaf9;
   --shadow:0 1px 2px rgba(24,24,27,.04),0 4px 16px -6px rgba(24,24,27,.08);
@@ -16,12 +16,12 @@
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0b0b0c; --surface:#141416; --surface-2:#1b1b1e; --ink:#ececee; --muted:#9d9da6; --line:#26262a; --line-2:#34343a;
-  --accent:#ff7a3d; --accent-ink:#ff9a68; --accent-soft:#2a1810; --ok:#4ade80; --ok-soft:#10241a;
+  --accent:#f87171; --accent-ink:#fca5a5; --accent-soft:#2b1214; --ok:#4ade80; --ok-soft:#10241a;
   --warn:#f5b454; --warn-soft:#271d0e; --photo:#1d1d20; --chip:#ececee; --chip-fg:#111113;
   --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-lg:0 18px 40px -16px rgba(0,0,0,.7); color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0b0b0c; --surface:#141416; --surface-2:#1b1b1e; --ink:#ececee; --muted:#9d9da6; --line:#26262a; --line-2:#34343a;
-  --accent:#ff7a3d; --accent-ink:#ff9a68; --accent-soft:#2a1810; --ok:#4ade80; --ok-soft:#10241a;
+  --accent:#f87171; --accent-ink:#fca5a5; --accent-soft:#2b1214; --ok:#4ade80; --ok-soft:#10241a;
   --warn:#f5b454; --warn-soft:#271d0e; --photo:#1d1d20; --chip:#ececee; --chip-fg:#111113;
   --shadow:0 1px 2px rgba(0,0,0,.4); --shadow-lg:0 18px 40px -16px rgba(0,0,0,.7); color-scheme:dark}
 

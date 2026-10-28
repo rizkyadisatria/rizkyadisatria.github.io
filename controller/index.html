@@ -31,7 +31,7 @@ a{color:var(--accent-ink)}
 
 header.hero{position:relative;padding-block:72px 16px;display:grid;gap:18px}
 header.hero::before{content:"";position:absolute;top:-140px;left:50%;width:100vw;height:560px;transform:translateX(-50%);z-index:-1;pointer-events:none;
-  background:radial-gradient(600px 260px at 28% 45%,var(--accent-soft),transparent 72%),radial-gradient(520px 240px at 78% 30%,var(--ok-soft),transparent 72%);
+  background:radial-gradient(600px 260px at 28% 45%,var(--accent-soft),transparent 72%),radial-gradient(520px 240px at 78% 30%,color-mix(in srgb,var(--accent-soft) 60%,transparent),transparent 72%);
   -webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
 .pill{justify-self:start;display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:500;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px 5px 8px;box-shadow:var(--shadow)}
 .pill i{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
