@@ -145,7 +145,7 @@ def halaman():
         'Ujung lain kabel hijau → WAGO 6V, hitam → WAGO −6. Kabel 26 AWG sedikit lebih kecil dari ukuran terkecil yang dijepit kuat oleh WAGO, jadi ujung hitamnya dikupas 22 mm lalu dilipat dua (11 mm berlapis dua) sebelum dimasukkan. Tarik pelan: tidak boleh lepas.',
         '<b>Jangan</b> memberi daya servo dari pin V atau 5V papan ekspansi. Saat bergerak, servo menarik arus besar dan bisa membuat DevKit restart.',
         'Lepas sekrup lengan servo dulu. Upload kode tes. Setelah servo diam di 90°, pasang lengan sehingga kepala lurus ke depan dan tegak, baru kencangkan sekrup.',
-    ], figs=photo(IMG + 'pantilt.jpg', 'Pan-tilt dengan dua servo MG90S yang sudah dirakit', 'Pan-tilt rakitanmu. Servo bawah = pan, servo atas = tilt.', 420),
+    ], figs=photo(IMG + 'pantilt.jpg', 'Pan-tilt dengan dua servo MG90S yang sudah dirakit', 'Pan-tilt rakitanmu. Servo bawah = pan, servo atas = tilt.', 420) + fig(diag.servo_kapasitor(), 'Sambungan daya kepala: dua kabel merah servo jadi satu ke hijau, dua coklat jadi satu ke hitam, kapasitor 470 µF melintang di antara dua sambungan (kaki panjang + ke sisi merah). Kabel oranye tidak dipotong.'),
         code=kode_tes('tes_servo'),
         ok_='Kepala menoleh ke kiri, tengah, kanan, lalu mengangguk. Ketik <code>90 90</code> di Serial Monitor: kepala lurus ke depan.',
         learn='Servo membaca lebar pulsa 50 kali per detik: 0,6 ms = 0°, 1,5 ms = 90°, 2,4 ms = 180°. Sudut tilt dibatasi 40-150° di kode supaya kepala tidak membentur bracket.',

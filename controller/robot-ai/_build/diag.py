@@ -428,3 +428,55 @@ def motor_kapasitor():
     s += text(30, 366, '3  Kedua kaki kapasitor tidak boleh saling menyentuh, dan tidak boleh menyentuh badan motor.', 13)
     s += text(30, 390, 'Kapasitor dipasang melintang di antara dua kaki motor, seperti jembatan kecil.', 13, fill='#e8efe9')
     return svg(w, h, s, 'Kapasitor 100 nF disolder melintang di antara dua kaki logam motor TT')
+
+
+def servo_kapasitor():
+    """Dua servo MG90S: merah digabung ke hijau, coklat ke hitam, kapasitor 470 uF di antara dua sambungan."""
+    w, h = 860, 575
+    cx = 430
+    s = text(30, 28, 'Daya dua servo MG90S + kapasitor 470 µF (skema, bukan skala)', 16, weight=600)
+    # servo kiri (pan) dan kanan (tilt)
+    s += box(30, 150, 120, 100, 'Servo PAN', ['MG90S bawah'], fill='#1f4e79', stroke='#8ec5ff')
+    s += box(710, 150, 120, 100, 'Servo TILT', ['MG90S atas'], fill='#1f4e79', stroke='#8ec5ff')
+    # WAGO atas dan bawah
+    s += box(340, 44, 180, 56, 'WAGO 6V', ['dari XL4015'], fill='#241a3a', stroke='#b08cff')
+    s += box(340, 405, 180, 56, 'WAGO −6', ['GND bersama'], fill='#101312')
+    # kabel servo ke sambungan atas (merah) dan bawah (coklat)
+    top, bot = 183, 357
+    s += line([(150, 172), (cx, top)], '5v', 5) + line([(710, 172), (cx, top)], '5v', 5)
+    s += line([(150, 196), (290, 196), (290, bot), (cx, bot)], 'coklat', 5)
+    s += line([(710, 196), (570, 196), (570, bot), (cx, bot)], 'coklat', 5)
+    # oranye tidak dipotong
+    s += line([(150, 220), (185, 220), (185, 300)], 'oranye', 5) + line([(710, 220), (675, 220), (675, 300)], 'oranye', 5)
+    s += tag(110, 326, 'oranye ke S baris D23') + tag(750, 326, 'oranye ke S baris D4')
+    s += text(110, 348, 'tidak dipotong', 11, anchor='middle', fill='#ffd8a8') + text(750, 348, 'tidak dipotong', 11, anchor='middle', fill='#ffd8a8')
+    # tanda potong (10 cm dari badan servo)
+    for x in (215, 645):
+        for y in (172, 196):
+            s += f'<line x1="{x - 5}" y1="{y + 10}" x2="{x + 5}" y2="{y - 10}" stroke="#fff" stroke-width="2.2"/>'
+    s += text(165, 150, 'merah + coklat dipotong, 10 cm dari badan', 11, fill='#e8efe9')
+    s += text(695, 150, 'merah + coklat dipotong, 10 cm dari badan', 11, fill='#e8efe9', anchor='end')
+    # kabel ke WAGO
+    s += line([(cx, 100), (cx, top)], 'hijau', 5) + line([(cx, bot), (cx, 405)], 'gnd', 5)
+    s += text(cx + 14, 130, 'hijau 22 AWG', 12, weight=600) + text(cx + 14, 392, 'hitam 26 AWG', 12, weight=600)
+    # kapasitor 470 uF
+    s += f'<path d="M448 238 L448 210 L{cx + 2} {top + 2}" fill="none" stroke="#dfe3e6" stroke-width="3" stroke-linejoin="round"/>'
+    s += f'<path d="M410 306 L410 330 L{cx - 2} {bot - 2}" fill="none" stroke="#dfe3e6" stroke-width="3" stroke-linejoin="round"/>'
+    s += '<rect x="402" y="236" width="56" height="72" rx="7" fill="#1d2f4a" stroke="#0008" stroke-width="1.5"/>'
+    s += '<rect x="402" y="236" width="14" height="72" rx="5" fill="#c9d1d6"/>'
+    for y in (252, 272, 292):
+        s += text(409, y + 4, '−', 12, anchor='middle', fill='#1b1b1b', weight=700)
+    s += text(437, 268, '470', 12, anchor='middle', weight=700, font=MONO) + text(437, 284, 'µF', 11, anchor='middle', font=MONO)
+    # solderan dan heat shrink
+    for y in (top, bot):
+        s += f'<ellipse cx="{cx}" cy="{y}" rx="9" ry="7" fill="#dfe3e6" stroke="#111" stroke-width="1.2"/>'
+        s += f'<rect x="{cx - 48}" y="{y - 19}" width="96" height="38" rx="19" fill="#9aa5a1" fill-opacity=".28" stroke="#e9ece9" stroke-width="1.2" stroke-dasharray="5 3"/>'
+    s += text(cx + 56, top + 32, 'heat shrink', 11, fill='#e8efe9') + text(cx - 56, bot + 24, 'heat shrink', 11, fill='#e8efe9', anchor='end')
+    s += text(cx + 40, 246, 'kaki panjang (+)', 12, weight=600) + text(cx + 40, 262, 'ke merah + hijau', 11.5, fill='#e8efe9')
+    s += text(cx + 40, 296, 'sisi bergaris (−)', 12, weight=600) + text(cx + 40, 312, 'ke coklat + hitam', 11.5, fill='#e8efe9')
+    # langkah
+    s += text(30, 490, '1  Masukkan heat shrink ke kabel hijau dan hitam dulu, sebelum disolder.', 13)
+    s += text(30, 512, '2  Atas: dua merah servo + kabel hijau + kaki panjang (+) kapasitor, jadi satu solderan.', 13)
+    s += text(30, 534, '3  Bawah: dua coklat servo + kabel hitam + kaki bergaris (−) kapasitor, jadi satu solderan.', 13)
+    s += text(30, 556, '4  Tarik heat shrink ke tiap solderan lalu panaskan. Dua solderan tidak boleh bersentuhan.', 13, fill='#ffd8a8')
+    return svg(w, h, s, 'Dua merah servo disambung ke kabel hijau, dua coklat ke kabel hitam, dengan kapasitor 470 µF di antara dua sambungan')
