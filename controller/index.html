@@ -5,75 +5,88 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Panduan Elektronika · ESP32 untuk pemula</title>
 <meta name="description" content="Panduan rakit elektronika langkah demi langkah dengan ESP32: kenali komponen, rakit di breadboard, dan jalankan kode tes di setiap tahap.">
-<meta name="theme-color" content="#a9531c">
+<meta name="theme-color" content="#fafaf9">
 <meta property="og:title" content="Panduan Elektronika">
 <meta property="og:description" content="Panduan rakit ESP32 langkah demi langkah untuk pemula.">
 <meta property="og:type" content="website">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="assets/tema.css">
+<script src="assets/tema.js"></script>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;padding:0 16px 64px}
-.wrap{max-width:980px;margin:0 auto}
-h1,h2,h3{font-family:var(--display);font-weight:600;line-height:1.08;text-wrap:balance;margin:0}
-h1{font-size:3.2rem;letter-spacing:.005em}
-h2{font-size:1.9rem}
-h3{font-size:1.55rem}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65;padding:0 16px 72px;overflow-x:clip}
+.wrap{max-width:1040px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);font-weight:650;line-height:1.1;text-wrap:balance;margin:0}
+h1{font-size:clamp(2.4rem,7vw,4rem);font-weight:700;letter-spacing:-.04em}
+h2{font-size:clamp(1.5rem,3.5vw,1.9rem)}
+h3{font-size:1.2rem;letter-spacing:-.015em}
 p{margin:0}
-a{color:var(--accent)}
-.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+a{color:var(--accent-ink)}
+.eyebrow{font-family:var(--mono);font-size:.72rem;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
 .muted{color:var(--muted)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 
-header.hero{padding-block:48px 12px;display:grid;gap:14px}
-.lead{max-width:60ch;color:var(--muted);font-size:1.05rem}
+header.hero{position:relative;padding-block:72px 16px;display:grid;gap:18px}
+header.hero::before{content:"";position:absolute;top:-140px;left:50%;width:100vw;height:560px;transform:translateX(-50%);z-index:-1;pointer-events:none;
+  background:radial-gradient(600px 260px at 28% 45%,var(--accent-soft),transparent 72%),radial-gradient(520px 240px at 78% 30%,var(--ok-soft),transparent 72%);
+  -webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
+.pill{justify-self:start;display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:500;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px 5px 8px;box-shadow:var(--shadow)}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+.lead{max-width:56ch;color:var(--muted);font-size:1.12rem}
 
-.how{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin-top:20px;padding:0;list-style:none}
-.how li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:4px}
-.how b{font-family:var(--display);font-size:1.15rem;font-weight:600}
-.how span{font-size:.92rem;color:var(--muted)}
+.how{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-top:28px;padding:0;list-style:none}
+.how li{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:6px;box-shadow:var(--shadow)}
+.how .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink);margin-bottom:4px}
+.how .ic svg{width:18px;height:18px}
+.how b{font-family:var(--display);font-size:1rem;font-weight:650;letter-spacing:-.01em}
+.how span{font-size:.9rem;color:var(--muted)}
 
-section.list{padding-block:44px 0;display:grid;gap:18px}
+section.list{padding-block:64px 0;display:grid;gap:20px}
 .listhead{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
-.search{font:inherit;font-size:.92rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-width:min(260px,100%)}
+.search{font:inherit;font-size:.9rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:9px 16px;min-width:min(280px,100%)}
 .search[hidden]{display:none}
 
-.cards{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s}
-a.card:hover{border-color:var(--accent);transform:translateY(-2px)}
-.cover{background:var(--photo);aspect-ratio:16/10;display:grid;place-items:center;overflow:hidden}
-.cover img{display:block;height:100%;width:100%;object-fit:contain}
+.cards{display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;text-decoration:none;color:inherit;box-shadow:var(--shadow);transition:transform .25s,box-shadow .25s,border-color .25s}
+a.card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);border-color:var(--line-2)}
+.cover{background:var(--photo);aspect-ratio:16/10;display:grid;place-items:center;overflow:hidden;border-bottom:1px solid var(--line)}
+.cover img{display:block;height:100%;width:100%;object-fit:cover;transition:transform .4s}
+a.card:hover .cover img{transform:scale(1.03)}
 .cover.none{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
-.cbody{padding:16px 16px 18px;display:grid;gap:10px;align-content:start;flex:1}
-.cbody p{font-size:.93rem;color:var(--muted)}
-.meta{display:flex;flex-wrap:wrap;gap:6px;font-family:var(--mono);font-size:.72rem}
-.meta span{border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:var(--bg);color:var(--muted)}
-.meta .lv{color:var(--accent);border-color:var(--accent)}
-.status{justify-self:start;font-family:var(--mono);font-size:.72rem;letter-spacing:.03em;padding:3px 8px;border-radius:4px;background:var(--ok-soft);color:var(--ok)}
-.go{font-family:var(--mono);font-size:.85rem;color:var(--accent);margin-top:auto;padding-top:4px}
-.card.soon{border-style:dashed;background:transparent;justify-content:center;min-height:220px}
+.cbody{padding:18px 20px 20px;display:grid;gap:10px;align-content:start;flex:1}
+.cbody p{font-size:.92rem;color:var(--muted)}
+.meta{display:flex;flex-wrap:wrap;gap:6px;font-size:.74rem}
+.meta span{border:1px solid var(--line);border-radius:999px;padding:2px 10px;background:var(--surface-2);color:var(--muted)}
+.meta .lv{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 35%,transparent);background:var(--accent-soft)}
+.status{justify-self:start;display:inline-flex;align-items:center;gap:6px;font-size:.76rem;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--ok-soft);color:var(--ok)}
+.status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.go{font-size:.88rem;font-weight:600;color:var(--ink);margin-top:auto;padding-top:6px;display:inline-flex;gap:6px;align-items:center}
+.go::after{content:"→";transition:transform .2s}
+a.card:hover .go::after{transform:translateX(3px)}
+.card.soon{border-style:dashed;background:transparent;box-shadow:none;justify-content:center;min-height:240px}
 .card.soon .cbody{text-align:center;justify-items:center;align-content:center}
 .empty{color:var(--muted);font-size:.95rem}
 
-footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);font-size:.85rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between}
+footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);font-size:.84rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between}
+footer a{color:var(--muted)}footer a:hover{color:var(--ink)}
 
-@media (max-width:480px){h1{font-size:2.5rem}h2{font-size:1.65rem}header.hero{padding-block:32px 8px}}
+@media (max-width:480px){header.hero{padding-block:40px 8px}.lead{font-size:1.02rem}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="hero">
-    <span class="eyebrow">ESP32 · Arduino · Pemula</span>
+    <span class="pill"><i></i>ESP32 · Arduino · untuk pemula</span>
     <h1>Panduan Elektronika</h1>
     <p class="lead">Panduan rakit dan kode untuk kit ESP32, ditulis untuk yang baru mulai. Setiap tahap kecil dan punya kode tes sendiri, jadi kamu tahu bagian itu berhasil sebelum lanjut ke yang berikutnya.</p>
     <ul class="how" aria-label="Cara kerja panduan">
-      <li><b>Kenali dulu komponennya</b><span>Foto dan nama setiap komponen, lengkap dengan mode tebak nama untuk menghafal.</span></li>
-      <li><b>Rakit sedikit demi sedikit</b><span>Posisi kabel ditunjukkan di gambar breadboard dengan alamat lubang yang jelas.</span></li>
-      <li><b>Progres tersimpan</b><span>Centang langkah yang sudah selesai. Tersimpan di browser, jadi bisa dilanjut besok.</span></li>
+      <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></span><b>Kenali dulu komponennya</b><span>Foto dan nama setiap komponen, lengkap dengan mode tebak nama untuk menghafal.</span></li>
+      <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h6"/></svg></span><b>Rakit sedikit demi sedikit</b><span>Posisi kabel ditunjukkan di gambar breadboard dengan alamat lubang yang jelas.</span></li>
+      <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><b>Progres tersimpan</b><span>Centang langkah yang sudah selesai. Tersimpan di browser, jadi bisa dilanjut besok.</span></li>
     </ul>
   </header>
 
@@ -104,7 +117,7 @@ footer{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);font-si
   function kartu(g){
     const cover=g.gambar?`<div class="cover"><img src="${esc(g.gambar)}" alt="" loading="lazy"></div>`:`<div class="cover none">tanpa gambar</div>`;
     const meta=[`<span class="lv">${esc(g.level||'')}</span>`,g.tahap?`<span>${esc(g.tahap)}</span>`:''].filter(Boolean).join('')+(g.komponen||[]).map(k=>`<span>${esc(k)}</span>`).join('');
-    return `<a class="card" href="${esc(g.slug)}/">${cover}<div class="cbody"><h3>${esc(g.judul)}</h3>${g.status?`<span class="status">${esc(g.status)}</span>`:''}<p>${esc(g.ringkas)}</p><div class="meta">${meta}</div>${g.diperbarui?`<p class="muted" style="font-size:.8rem">Diperbarui ${esc(tgl(g.diperbarui))}</p>`:''}<span class="go">Buka panduan →</span></div></a>`;
+    return `<a class="card" href="${esc(g.slug)}/">${cover}<div class="cbody"><h3>${esc(g.judul)}</h3>${g.status?`<span class="status">${esc(g.status)}</span>`:''}<p>${esc(g.ringkas)}</p><div class="meta">${meta}</div>${g.diperbarui?`<p class="muted" style="font-size:.8rem">Diperbarui ${esc(tgl(g.diperbarui))}</p>`:''}<span class="go">Buka panduan</span></div></a>`;
   }
   const soon=`<div class="card soon" aria-hidden="true"><div class="cbody"><span class="eyebrow">Segera</span><h3>Panduan berikutnya</h3><p>Panduan baru akan muncul di sini.</p></div></div>`;
   function render(q){

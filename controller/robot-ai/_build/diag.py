@@ -8,8 +8,8 @@ WIRE = {
     'kuning': '#f2c230', 'hijau': '#3fae4a', 'biru': '#3b82f6', 'putih': '#f2f2f2', 'cyan': '#26c6da',
     'pink': '#ec6fb4', 'coklat': '#a0682f', 'abu': '#9aa5a1', 'oranye': '#f08a24',
 }
-MONO = 'IBM Plex Mono,ui-monospace,monospace'
-SANS = 'IBM Plex Sans,system-ui,sans-serif'
+MONO = 'JetBrains Mono,ui-monospace,monospace'
+SANS = 'Inter,system-ui,sans-serif'
 
 
 def grid(w, h):

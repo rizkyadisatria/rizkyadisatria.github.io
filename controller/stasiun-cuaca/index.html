@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Stasiun Cuaca Kamar + Bot Telegram · Panduan Elektronika</title>
 <meta name="description" content="Rakit stasiun cuaca ESP32 dengan DHT11, LDR, LED dan buzzer, lalu kontrol lewat bot Telegram. Panduan bertahap untuk pemula.">
-<meta name="theme-color" content="#a9531c">
+<meta name="theme-color" content="#fafaf9">
 <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="../assets/tema.css">
+<script src="../assets/tema.js"></script>
 <style>
 /* Layout: satu kolom seperti buku petunjuk di meja kerja; diagram breadboard di atas alas potong hijau */
 *{box-sizing:border-box}
@@ -102,6 +103,23 @@ ul.plain{margin:0;padding-left:1.1rem;display:grid;gap:6px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
 .back{display:inline-block;font-family:var(--mono);font-size:.82rem;margin-bottom:10px}
+</style>
+<link rel="stylesheet" href="../assets/panduan.css">
+<style>
+/* Penyesuaian halaman ini di atas gaya bersama panduan.css */
+.wrap{max-width:800px}
+header{padding-block:28px 8px;display:grid;gap:14px}
+nav{display:flex;flex-wrap:wrap;gap:6px}
+nav a{font-family:var(--body);font-size:.82rem;font-weight:500;color:var(--muted);border-radius:999px;padding:6px 12px;transition:color .15s,border-color .15s}
+nav a:hover,nav a:focus-visible{color:var(--ink);border-color:var(--line-2)}
+.back{font-family:var(--body);font-size:.85rem;font-weight:500;color:var(--muted);text-decoration:none;margin-bottom:4px}
+.back:hover{color:var(--ink)}
+.grid{grid-template-columns:repeat(auto-fill,minmax(225px,1fr))}
+.card img{object-fit:contain}
+.card .name{font-size:1.05rem}
+.card .what{font-size:.9rem;color:var(--ink)}
+.badge.later{background:var(--accent-soft);color:var(--accent-ink)}
+.figure svg{min-width:520px}
 </style>
 </head>
 <body><div class="wrap">
@@ -340,8 +358,8 @@ function resistor(a,b,bands){
   return s+'</g>'+dot(a)+dot(b);
 }
 function legs(holes,to){return holes.map((h,i)=>{const p=H(h),q=to[i];return `<line x1="${p.x}" y1="${p.y}" x2="${q.x}" y2="${q.y}" stroke="#9ea4a7" stroke-width="2"/>`}).join('')}
-function tag(x,y,t,side){const w=Math.max(30,t.length*7.4+12);return `<rect x="${x-w/2}" y="${y-9}" width="${w}" height="18" rx="3" fill="#0d0f0e" stroke="#e9ece9" stroke-width=".6"/><text x="${x}" y="${y+4}" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="#f4f6f5">${t}</text>`}
-function ltag(y,t){return `<rect x="6" y="${y-9}" width="42" height="18" rx="3" fill="#0d0f0e" stroke="#e9ece9" stroke-width=".6"/><text x="27" y="${y+4}" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="#f4f6f5">${t}</text>`}
+function tag(x,y,t,side){const w=Math.max(30,t.length*7.4+12);return `<rect x="${x-w/2}" y="${y-9}" width="${w}" height="18" rx="3" fill="#0d0f0e" stroke="#e9ece9" stroke-width=".6"/><text x="${x}" y="${y+4}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="#f4f6f5">${t}</text>`}
+function ltag(y,t){return `<rect x="6" y="${y-9}" width="42" height="18" rx="3" fill="#0d0f0e" stroke="#e9ece9" stroke-width=".6"/><text x="27" y="${y+4}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="#f4f6f5">${t}</text>`}
 const RED='#e5392f',GND='#262626';
 
 const PARTS=[
@@ -352,7 +370,7 @@ const PARTS=[
  {s:2,svg:()=>resistor(H('g16'),H('g20'),['r','r','k','k','n'])},
  {s:2,svg:()=>wire(H('j17'),RP('bm',17),GND)},
  {s:2,svg:()=>wire(H('i20'),{x:C(20),y:395},'#f08a24',0,false)+tag(C(20),404,'D25')},
- {s:3,svg:()=>legs(['f24','f27'],[{x:525,y:222},{x:546,y:222}])+`<circle cx="535.5" cy="208" r="16" fill="#1d1d1d" stroke="#000"/><circle cx="535.5" cy="208" r="4" fill="#4a4a4a"/><text x="522" y="203" font-family="IBM Plex Mono,monospace" font-size="10" fill="#fff">+</text>`+dot(H('f24'))+dot(H('f27'))},
+ {s:3,svg:()=>legs(['f24','f27'],[{x:525,y:222},{x:546,y:222}])+`<circle cx="535.5" cy="208" r="16" fill="#1d1d1d" stroke="#000"/><circle cx="535.5" cy="208" r="4" fill="#4a4a4a"/><text x="522" y="203" font-family="JetBrains Mono,monospace" font-size="10" fill="#fff">+</text>`+dot(H('f24'))+dot(H('f27'))},
  {s:3,svg:()=>wire(H('j27'),RP('bm',27),GND)},
  {s:3,svg:()=>resistor(H('h22'),H('h24'),['n','k','k','k','n'])},
  {s:3,svg:()=>wire(H('i22'),{x:C(23),y:395},'#3fae4a',0,false)+tag(C(23),404,'D26')},
@@ -384,8 +402,8 @@ function board(stage,mode){
     for(const r in RY)s+=`<rect x="${C(c)-3}" y="${RY[r]-3}" width="6" height="6" rx="1" fill="#55554f"/>`;
     for(const r in RAIL)if(c<30)s+=`<rect x="${C(c)-3}" y="${RAIL[r]-3}" width="6" height="6" rx="1" fill="#55554f"/>`;
   }
-  for(const r in RY)s+=`<text x="${C(30)+16}" y="${RY[r]+4}" font-size="10" fill="#7d7d76" font-family="IBM Plex Mono,monospace">${r}</text>`;
-  [1,5,10,15,20,25,30].forEach(c=>{s+=`<text x="${C(c)}" y="97" font-size="9" fill="#7d7d76" text-anchor="middle" font-family="IBM Plex Mono,monospace">${c}</text><text x="${C(c)}" y="329" font-size="9" fill="#7d7d76" text-anchor="middle" font-family="IBM Plex Mono,monospace">${c}</text>`});
+  for(const r in RY)s+=`<text x="${C(30)+16}" y="${RY[r]+4}" font-size="10" fill="#7d7d76" font-family="JetBrains Mono,monospace">${r}</text>`;
+  [1,5,10,15,20,25,30].forEach(c=>{s+=`<text x="${C(c)}" y="97" font-size="9" fill="#7d7d76" text-anchor="middle" font-family="JetBrains Mono,monospace">${c}</text><text x="${C(c)}" y="329" font-size="9" fill="#7d7d76" text-anchor="middle" font-family="JetBrains Mono,monospace">${c}</text>`});
   if(mode==='explain'){
     s+=`<rect x="${C(5)-7}" y="102" width="14" height="96" rx="4" fill="#2d9c5a" fill-opacity=".35" stroke="#1f7a44" stroke-width="1.5"/>`;
     s+=`<rect x="${C(5)-7}" y="222" width="14" height="96" rx="4" fill="#f08a24" fill-opacity=".35" stroke="#c0661a" stroke-width="1.5"/>`;

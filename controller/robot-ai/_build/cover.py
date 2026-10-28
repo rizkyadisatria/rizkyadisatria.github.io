@@ -44,7 +44,7 @@ def sel(x, y, w=110, h=30, label=''):
     s += f'<rect x="{x + w - 10}" y="{y + h * .3}" width="10" height="{h * .4}" rx="2" fill="#cfd6dd"/>'
     s += f'<rect x="{x + 10}" y="{y + 4}" width="{w - 30}" height="5" rx="2.5" fill="#ffffff" opacity=".25"/>'
     if label:
-        s += f'<text x="{x + w / 2 - 4}" y="{y + h / 2 + 5}" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="13" fill="#e8f1fb" font-weight="600">{label}</text>'
+        s += f'<text x="{x + w / 2 - 4}" y="{y + h / 2 + 5}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="13" fill="#e8f1fb" font-weight="600">{label}</text>'
     return s
 
 
@@ -96,7 +96,7 @@ def motor(x, y, w=64, h=20):
 
 
 def baut(x, y, t='+'):
-    return f'<circle cx="{x}" cy="{y}" r="9" fill="#fff" opacity=".1"/><text x="{x}" y="{y + 5}" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="15" fill="{ORANYE}" font-weight="600">{t}</text>'
+    return f'<circle cx="{x}" cy="{y}" r="9" fill="#fff" opacity=".1"/><text x="{x}" y="{y + 5}" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="15" fill="{ORANYE}" font-weight="600">{t}</text>'
 
 
 def kilat(x, y, s_=1, warna=ORANYE):
@@ -134,19 +134,19 @@ def utama():
     isi = robot(340, 58, .95)
     isi += gelombang(700, 90, 3, ORANYE, 1)
     isi += f'<g transform="translate(70 70)"><rect width="170" height="64" rx="16" fill="#26332e" stroke="#3a4a44"/><path d="M28 64 L20 84 L46 64Z" fill="#26332e"/>'
-    isi += f'<text x="85" y="40" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="20" fill="{PUTIH}" font-weight="600">Halo, aku Robi!</text></g>'
-    isi += f'<g transform="translate(90 160)"><rect width="120" height="44" rx="14" fill="{ORANYE2}"/><text x="60" y="29" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="16" fill="#fff" font-weight="600">maju 1 m</text></g>'
+    isi += f'<text x="85" y="40" text-anchor="middle" font-family="Inter,sans-serif" font-size="20" fill="{PUTIH}" font-weight="600">Halo, aku Robi!</text></g>'
+    isi += f'<g transform="translate(90 160)"><rect width="120" height="44" rx="14" fill="{ORANYE2}"/><text x="60" y="29" text-anchor="middle" font-family="Inter,sans-serif" font-size="16" fill="#fff" font-weight="600">maju 1 m</text></g>'
     return bingkai(isi, 'Ilustrasi robot AI 4WD tiga lantai dengan layar wajah dan kepala kamera', 'u')
 
 
 def daya():
     isi = sel(300, 70, 190, 46, '18650 · 3,7 V') + sel(300, 132, 190, 46, '18650 · 3,7 V')
     isi += pcb(510, 86, 110, 76, '#1d6b3a', False) + chip(530, 104, 30, 22) + chip(572, 104, 30, 22)
-    isi += f'<text x="565" y="150" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="12" fill="#cfe9d8">BMS 2S</text>'
+    isi += f'<text x="565" y="150" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="12" fill="#cfe9d8">BMS 2S</text>'
     isi += f'<path d="M490 93 H510 M490 155 H510" stroke="#ff5a4f" stroke-width="5"/>'
     # multimeter
     isi += f'<g transform="translate(650 50)"><rect width="104" height="170" rx="14" fill="#f2c230"/><rect x="12" y="14" width="80" height="44" rx="6" fill="#c9dccc"/>'
-    isi += f'<text x="52" y="45" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="22" fill="#1b2a22" font-weight="600">7.40</text>'
+    isi += f'<text x="52" y="45" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="22" fill="#1b2a22" font-weight="600">7.40</text>'
     isi += f'<circle cx="52" cy="108" r="30" fill="#2a2a2a"/><rect x="49" y="80" width="6" height="26" rx="3" fill="#ddd" transform="rotate(35 52 108)"/>'
     isi += f'<circle cx="30" cy="154" r="7" fill="#111"/><circle cx="74" cy="154" r="7" fill="{MERAH}"/></g>'
     isi += kilat(170, 70, 2.2)
@@ -170,7 +170,7 @@ def badan():
 
 def otak():
     isi = pcb(260, 70, 200, 150, '#13283a') + chip(320, 110, 80, 60)
-    isi += f'<text x="360" y="146" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="13" fill="#9fb8cc">ESP32-S3</text>'
+    isi += f'<text x="360" y="146" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="13" fill="#9fb8cc">ESP32-S3</text>'
     isi += wajah(500, 66, 150, 104)
     isi += f'<rect x="680" y="96" width="60" height="90" rx="10" fill="#2a2a2a"/><circle cx="710" cy="141" r="20" fill="#111" stroke="#555" stroke-width="3"/>'
     isi += gelombang(752, 141, 3, ORANYE, 1)
@@ -184,7 +184,7 @@ def mata():
     isi = pcb(300, 70, 150, 160, '#1a1a1a', False)
     isi += f'<rect x="340" y="96" width="70" height="70" rx="6" fill="#2a2e33"/><circle cx="375" cy="131" r="27" fill="#0b0d10" stroke="#5b6066" stroke-width="6"/><circle cx="384" cy="122" r="7" fill="#6fa8ff" opacity=".8"/>'
     isi += f'<rect x="318" y="190" width="18" height="18" rx="3" fill="#fff6c0"/>'
-    isi += f'<text x="375" y="218" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="12" fill="#9aa">ESP32-CAM</text>'
+    isi += f'<text x="375" y="218" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="12" fill="#9aa">ESP32-CAM</text>'
     isi += ''.join(f'<path d="M{480 + i * 22} {150 - 26 - i * 18} A{30 + i * 22} {30 + i * 22} 0 0 1 {480 + i * 22} {150 + 26 + i * 18}" stroke="{ORANYE}" stroke-width="5" fill="none" stroke-linecap="round" opacity="{1 - i * .25}"/>' for i in range(3))
     isi += f'<g transform="translate(600 70) rotate(4)"><rect width="150" height="120" rx="8" fill="{PUTIH}"/><rect x="10" y="10" width="130" height="84" fill="#7fb3d5"/>'
     isi += f'<path d="M10 94 L60 44 L96 80 L114 62 L140 88 V94Z" fill="#3c7a52"/><circle cx="112" cy="32" r="10" fill="#ffd54a"/></g>'
@@ -193,9 +193,9 @@ def mata():
 
 def ai():
     isi = f'<g transform="translate(250 54)"><rect width="250" height="66" rx="18" fill="#26332e" stroke="#3a4a44"/><path d="M30 66 L22 86 L52 66Z" fill="#26332e"/>'
-    isi += f'<text x="125" y="41" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="19" fill="{PUTIH}">"Robi, lihat ke kiri"</text></g>'
+    isi += f'<text x="125" y="41" text-anchor="middle" font-family="Inter,sans-serif" font-size="19" fill="{PUTIH}">"Robi, lihat ke kiri"</text></g>'
     isi += f'<g transform="translate(300 150)"><rect width="270" height="66" rx="18" fill="{ORANYE2}"/><path d="M240 66 L250 86 L216 66Z" fill="{ORANYE2}"/>'
-    isi += f'<text x="135" y="41" text-anchor="middle" font-family="IBM Plex Sans,sans-serif" font-size="19" fill="#fff">"Ada kucing di sofa."</text></g>'
+    isi += f'<text x="135" y="41" text-anchor="middle" font-family="Inter,sans-serif" font-size="19" fill="#fff">"Ada kucing di sofa."</text></g>'
     isi += wajah(610, 80, 120, 84)
     isi += f'<g transform="translate(110 96)"><circle cx="40" cy="40" r="40" fill="#2aa3d6"/><path d="M18 40 L62 22 L52 62 L40 48 L30 56 L32 44Z" fill="#fff"/></g>'
     isi += ''.join(f'<path transform="translate({x} {y}) scale({k})" d="M0 -14 L4 -4 L14 0 L4 4 L0 14 L-4 4 L-14 0 L-4 -4Z" fill="#ffd54a"/>' for x, y, k in ((600, 60, 1), (750, 200, .8), (230, 220, .7)))
@@ -207,7 +207,7 @@ def rakit():
     # tiga lantai dalam tampilan miring (terurai)
     for i, (yy, isi_) in enumerate(((180, 'lantai 1'), (110, 'lantai 2'), (40, 'lantai 3'))):
         g += f'<path d="M0 {yy} L260 {yy} L320 {yy + 34} L60 {yy + 34}Z" fill="#dfe7e3" fill-opacity="{.20 + i * .05}" stroke="#dfe7e3" stroke-opacity=".8"/>'
-        g += f'<text x="-14" y="{yy + 24}" text-anchor="end" font-family="IBM Plex Mono,monospace" font-size="13" fill="#cfd8d4">{isi_}</text>'
+        g += f'<text x="-14" y="{yy + 24}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="13" fill="#cfd8d4">{isi_}</text>'
     for x, y in ((18, 214), (258, 214), (62, 214), (302, 214)):
         pass
     g += f'<path d="M60 190 h60 v14 h-60z M150 190 h60 v14 h-60z" fill="#1d3f7a"/>' + motor(40, 200, 50, 12) + motor(210, 200, 50, 12)
@@ -228,29 +228,29 @@ def kartu_robot():
     isi = robot(250, 170, 1.45)
     isi += gelombang(730, 170, 3, ORANYE, 1)
     isi += f'<g transform="translate(46 70)"><rect width="190" height="70" rx="18" fill="#26332e" stroke="#3a4a44"/><path d="M30 70 L22 92 L52 70Z" fill="#26332e"/>'
-    isi += f'<text x="95" y="44" text-anchor="middle" font-family="IBM Plex Sans,Arial,sans-serif" font-size="24" fill="{PUTIH}" font-weight="600">Halo, aku Robi!</text></g>'
-    isi += f'<g transform="translate(60 180)"><rect width="150" height="52" rx="16" fill="{ORANYE2}"/><text x="75" y="34" text-anchor="middle" font-family="IBM Plex Sans,Arial,sans-serif" font-size="20" fill="#fff" font-weight="600">maju 1 m</text></g>'
+    isi += f'<text x="95" y="44" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="24" fill="{PUTIH}" font-weight="600">Halo, aku Robi!</text></g>'
+    isi += f'<g transform="translate(60 180)"><rect width="150" height="52" rx="16" fill="{ORANYE2}"/><text x="75" y="34" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="20" fill="#fff" font-weight="600">maju 1 m</text></g>'
     return bingkai(isi, 'Ilustrasi robot AI 4WD', 'k', 800, 500)
 
 
 def kartu_cuaca():
     isi = pcb(250, 200, 220, 150, '#1a1a1a') + chip(300, 240, 100, 70)
-    isi += f'<text x="350" y="282" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="16" fill="#9aa">ESP32</text>'
+    isi += f'<text x="350" y="282" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="16" fill="#9aa">ESP32</text>'
     # DHT11
     isi += f'<g transform="translate(110 220)"><rect width="80" height="100" rx="6" fill="#2d7fd0"/>'
     isi += ''.join(f'<rect x="{12 + (i % 4) * 15}" y="{14 + (i // 4) * 15}" width="9" height="9" rx="2" fill="#1b5c9c"/>' for i in range(20))
     isi += '</g><path d="M190 270 H250" stroke="#e6c35c" stroke-width="4" stroke-dasharray="6 5"/>'
     # termometer
     isi += f'<g transform="translate(520 170)"><rect x="18" y="0" width="28" height="150" rx="14" fill="{PUTIH}"/><rect x="26" y="40" width="12" height="100" rx="6" fill="{MERAH}"/><circle cx="32" cy="160" r="26" fill="{MERAH}"/></g>'
-    isi += f'<text x="640" y="250" font-family="IBM Plex Sans,Arial,sans-serif" font-size="46" fill="{PUTIH}" font-weight="600">27°C</text>'
-    isi += f'<text x="640" y="295" font-family="IBM Plex Mono,monospace" font-size="20" fill="#9fc9b0">lembap 65%</text>'
+    isi += f'<text x="640" y="250" font-family="Inter,Arial,sans-serif" font-size="46" fill="{PUTIH}" font-weight="600">27°C</text>'
+    isi += f'<text x="640" y="295" font-family="JetBrains Mono,monospace" font-size="20" fill="#9fc9b0">lembap 65%</text>'
     # matahari dan awan
     isi += f'<circle cx="150" cy="110" r="44" fill="#ffd54a"/>' + ''.join(f'<rect x="146" y="40" width="8" height="18" rx="4" fill="#ffd54a" transform="rotate({i * 45} 150 110)"/>' for i in range(8))
     isi += f'<path d="M190 150 a34 34 0 0 1 60 -26 a28 28 0 0 1 50 14 a24 24 0 0 1 -4 48 h-100 a22 22 0 0 1 -6 -36z" fill="{PUTIH}" opacity=".92"/>'
     # telegram
     isi += f'<g transform="translate(560 60)"><rect width="200" height="64" rx="18" fill="#26332e" stroke="#3a4a44"/>'
     isi += f'<circle cx="34" cy="32" r="20" fill="#2aa3d6"/><path d="M22 32 L46 22 L40 44 L33 37 L28 41 L29 34Z" fill="#fff"/>'
-    isi += f'<text x="120" y="40" text-anchor="middle" font-family="IBM Plex Sans,Arial,sans-serif" font-size="19" fill="{PUTIH}">/cuaca</text></g>'
+    isi += f'<text x="120" y="40" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="19" fill="{PUTIH}">/cuaca</text></g>'
     return bingkai(isi, 'Ilustrasi stasiun cuaca ESP32 dengan sensor DHT11 dan bot Telegram', 'c', 800, 500)
 
 
