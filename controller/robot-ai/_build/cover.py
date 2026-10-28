@@ -202,22 +202,82 @@ def ai():
     return bingkai(isi, 'Ilustrasi obrolan Telegram dengan robot dan jawaban AI', 'a')
 
 
+def _gelap(hexw, k):
+    h = hexw.lstrip('#'); r, g, b = (int(h[i:i + 2], 16) for i in (0, 2, 4))
+    return '#%02x%02x%02x' % (int(r * k), int(g * k), int(b * k))
+
+
 def rakit():
-    g = '<g transform="translate(300 18)">'
-    # tiga lantai dalam tampilan miring (terurai)
-    for i, (yy, isi_) in enumerate(((180, 'lantai 1'), (110, 'lantai 2'), (40, 'lantai 3'))):
-        g += f'<path d="M0 {yy} L260 {yy} L320 {yy + 34} L60 {yy + 34}Z" fill="#dfe7e3" fill-opacity="{.20 + i * .05}" stroke="#dfe7e3" stroke-opacity=".8"/>'
-        g += f'<text x="-14" y="{yy + 24}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="13" fill="#cfd8d4">{isi_}</text>'
-    for x, y in ((18, 214), (258, 214), (62, 214), (302, 214)):
-        pass
-    g += f'<path d="M60 190 h60 v14 h-60z M150 190 h60 v14 h-60z" fill="#1d3f7a"/>' + motor(40, 200, 50, 12) + motor(210, 200, 50, 12)
-    g += sel(40, 118, 70, 18) + f'<rect x="130" y="120" width="90" height="16" rx="3" fill="#d9d9cf"/>' + f'<rect x="230" y="118" width="50" height="22" rx="3" fill="#1d3324"/>'
-    g += f'<rect x="40" y="46" width="70" height="22" rx="3" fill="#13283a"/><rect x="130" y="48" width="56" height="18" rx="3" fill="{MERAH}"/>' + kepala(232, -14, .6)
-    for x in (10, 250):
-        g += f'<path d="M{x} 74 V180 M{x + 60} 108 V214" stroke="#c9a227" stroke-width="4" stroke-dasharray="2 0"/>'
-    g += '</g>'
-    g += f'<g transform="translate(130 100)"><circle cx="40" cy="40" r="40" fill="{HIJAU}"/><path d="M20 42 L34 56 L62 26" stroke="#fff" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>'
-    return bingkai(g, 'Ilustrasi tiga lantai robot yang dirakit bertumpuk', 'r')
+    """Robot tiga lantai dalam tampilan miring: tiap lantai dengan isinya, spacer di pojok, roda di bawah."""
+    X0, L, DX, DY = 340, 330, 70, 26          # pojok depan-kiri, panjang, geser kedalaman
+    LANTAI = {1: 222, 2: 160, 3: 90}           # tinggi permukaan tiap plat (lantai 2 ke 3 lebih tinggi, sama dengan robot asli)
+
+    def P(u, v, y):                            # titik di plat: u = 0..1 dari belakang ke depan, v = 0..1 dari dekat ke jauh
+        return X0 + u * L + v * DX, y - v * DY
+
+    def kotak(u, v, lu, lv, t, warna, y, atas=None):
+        """Balok kecil di atas plat: sisi depan, sisi kanan, lalu tutup atas."""
+        a, b_, c, d = P(u, v, y), P(u + lu, v, y), P(u + lu, v + lv, y), P(u, v + lv, y)
+        up = lambda p: (p[0], p[1] - t)
+        s_ = f'<path d="M{a[0]} {a[1]} L{b_[0]} {b_[1]} L{b_[0]} {b_[1] - t} L{a[0]} {a[1] - t}Z" fill="{_gelap(warna, .72)}"/>'
+        s_ += f'<path d="M{b_[0]} {b_[1]} L{c[0]} {c[1]} L{c[0]} {c[1] - t} L{b_[0]} {b_[1] - t}Z" fill="{_gelap(warna, .55)}"/>'
+        A, B, C, D = map(up, (a, b_, c, d))
+        s_ += f'<path d="M{A[0]} {A[1]} L{B[0]} {B[1]} L{C[0]} {C[1]} L{D[0]} {D[1]}Z" fill="{atas or warna}"/>'
+        return s_
+
+    def plat_(y):
+        a, b_, c, d = P(0, 0, y), P(1, 0, y), P(1, 1, y), P(0, 1, y)
+        s_ = f'<path d="M{a[0]} {a[1]} L{b_[0]} {b_[1]} L{b_[0]} {b_[1] + 5} L{a[0]} {a[1] + 5}Z" fill="#b9c7c1"/>'
+        s_ += f'<path d="M{b_[0]} {b_[1]} L{c[0]} {c[1]} L{c[0]} {c[1] + 5} L{b_[0]} {b_[1] + 5}Z" fill="#9fb0a9"/>'
+        s_ += f'<path d="M{a[0]} {a[1]} L{b_[0]} {b_[1]} L{c[0]} {c[1]} L{d[0]} {d[1]}Z" fill="#e6eeea" fill-opacity=".34" stroke="#eef4f1" stroke-opacity=".9" stroke-width="1.5"/>'
+        return s_
+
+    def tiang(u, v, y1, y2):
+        x, ya = P(u, v, y1); _, yb = P(u, v, y2)
+        return f'<rect x="{x - 3}" y="{yb}" width="6" height="{ya - yb}" fill="#c9a227"/><rect x="{x - 3}" y="{yb}" width="2" height="{ya - yb}" fill="#f3d36b" opacity=".7"/>'
+
+    POJOK = ((.04, .1), (.96, .1), (.04, .9), (.96, .9))
+    g = ''
+    # roda belakang (jauh), lalu plat bawah
+    for u in (.2, .8):
+        x, y = P(u, 1, LANTAI[1] + 14)
+        g += f'<g opacity=".85">{roda(x, y, 28)}</g>'
+    g += plat_(LANTAI[1])
+    y = LANTAI[1]
+    g += kotak(.06, .05, .2, .2, 12, KUNING, y) + kotak(.74, .05, .2, .2, 12, KUNING, y)          # motor kiri depan dan belakang
+    g += kotak(.06, .75, .2, .2, 12, KUNING, y) + kotak(.74, .75, .2, .2, 12, KUNING, y)
+    g += kotak(.3, .35, .17, .3, 7, '#1d4f9c', y) + kotak(.5, .35, .17, .3, 7, '#1d4f9c', y)       # dua LM2596
+    g += kotak(.82, .38, .1, .24, 6, MERAH, y)                                                     # TB6612
+    for u, v in POJOK:
+        g += tiang(u, v, LANTAI[1], LANTAI[2])
+    g += plat_(LANTAI[2])
+    y = LANTAI[2]
+    g += kotak(.04, .14, .13, .72, 14, BIRU, y, '#5aa3ee')                                          # holder baterai
+    g += kotak(.2, .3, .1, .4, 4, '#1d6b3a', y)                                                    # BMS
+    g += kotak(.36, .2, .2, .55, 8, '#e9ecea', y, '#f6f8f7')                                       # breadboard 1
+    g += kotak(.6, .2, .2, .55, 10, '#13283a', y, '#1f3d58')                                       # DevKit di papan 30P
+    g += kotak(.84, .3, .1, .4, 8, '#1d4f9c', y)                                                   # XL4015
+    for u, v in POJOK:
+        g += tiang(u, v, LANTAI[2], LANTAI[3])
+    g += plat_(LANTAI[3])
+    y = LANTAI[3]
+    g += kotak(.05, .2, .22, .55, 10, '#13283a', y, '#1f3d58')                                     # ESP32-S3 + papan
+    g += kotak(.31, .2, .18, .55, 8, '#e9ecea', y, '#f6f8f7')                                      # breadboard 2
+    g += kotak(.53, .32, .07, .4, 22, '#2b2f33', y)                                                # speaker berdiri
+    tx, ty = P(.63, .3, y)
+    g += wajah(tx, ty - 44, 54, 32)                                                                # TFT dengan wajah
+    hx, hy = P(.9, .4, y)
+    g += kepala(hx - 22, hy - 72, .9)                                                             # kepala pan-tilt
+    # roda depan (dekat), menutupi motor
+    for u in (.2, .8):
+        x, yy = P(u, 0, LANTAI[1] + 14)
+        g += roda(x, yy, 30)
+    # label lantai
+    for n, teks in ((3, 'lantai 3 · otak'), (2, 'lantai 2 · baterai + badan'), (1, 'lantai 1 · motor + daya')):
+        x, yy = P(0, 0, LANTAI[n])
+        g += f'<path d="M{x - 34} {yy} H{x - 8}" stroke="#dfe7e3" stroke-opacity=".7" stroke-dasharray="3 3"/>'
+        g += f'<text x="{x - 42}" y="{yy + 4}" text-anchor="end" font-family="JetBrains Mono,monospace" font-size="13" fill="#e6eeea">{teks}</text>'
+    return bingkai(g, 'Ilustrasi robot tiga lantai: motor dan konverter di lantai 1, baterai dan DevKit di lantai 2, ESP32-S3, layar, dan kepala kamera di lantai 3', 'r')
 
 
 SAMPUL = {'': utama, '1-daya': daya, '2-badan': badan, '3-otak': otak, '4-mata': mata, '5-ai': ai, '6-rakit': rakit}
