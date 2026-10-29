@@ -12,6 +12,16 @@ window.SITE = {
 
 window.GUIDES = [
   {
+    slug: "elektronika-dasar",
+    judul: "Elektronika Dasar untuk Merakit Robot",
+    ringkas: "Tegangan, arus, GND bersama, seri-paralel, sekering, baterai dan konverter, resistor, kapasitor, LED, PWM dan servo, multimeter, solder, dan cara mencari kesalahan. Tiap bab memakai kejadian nyata saat merakit robot, dengan kalkulator, pertanyaan, dan latihan.",
+    level: "Pemula",
+    tahap: "12 bab",
+    komponen: ["Multimeter", "GND", "Resistor", "Kapasitor", "LED", "PWM", "Servo"],
+    gambar: "elektronika-dasar/img/sampul.svg",
+    diperbarui: "2026-10-29"
+  },
+  {
     slug: "robot-ai",
     judul: "Robot AI 4WD",
     ringkas: "Robot beroda empat yang bisa diajak ngobrol lewat AI Claude, digerakkan dari layar sentuh atau Telegram, melihat lewat ESP32-CAM, memutar musik, mengikuti benda di depannya, dan berjaga. Enam bagian: daya baterai, badan, otak, mata, kecerdasan, rakit akhir.",

@@ -102,7 +102,9 @@ def isi():
   <div class="rule"><b>Daya mati saat merakit</b><p>Saklar baterai OFF dan USB dicabut setiap kali memindah kabel.</p></div>
   <div class="rule"><b>Satu perubahan, satu tes</b><p>Tambah satu modul, tes, baru lanjut. Kalau gagal, kamu tahu penyebabnya ada di modul terakhir.</p></div>
   <div class="rule"><b>Roda terangkat</b><p>Semua tes motor dilakukan dengan robot di atas kotak, sampai Bagian 6.</p></div>
-</div>''')
+  <div class="rule"><b>GND selalu bersama</b><p>Papan dan modul yang saling mengirim sinyal harus tersambung GND-nya, walaupun dayanya dari sumber berbeda. Cek dengan tes bip.</p></div>
+</div>
+<p class="cap">Belum yakin dengan istilah tegangan, GND, PWM, atau cara memakai multimeter? Baca dulu <a href="../elektronika-dasar/">Elektronika Dasar untuk Merakit Robot</a>: contoh-contohnya diambil dari robot ini.</p>''')
 
     belum = table(['Barang', 'Jumlah', 'Untuk', 'Tanpa barang ini'], [
         ['BME280', '1 (opsional)', 'suhu, kelembapan, tekanan', 'pakai DHT11 dari kit cuaca'],
