@@ -9,9 +9,9 @@ from buat_alat import HEAD, GAYA, esc  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(HERE, '..')) + '/'
 CTRL = os.path.abspath(os.path.join(HERE, '..', '..')) + '/'
-JUDUL = 'Elektronika Dasar untuk Merakit Robot'
-DESK = ('Konsep elektronika yang dipakai saat merakit robot ESP32: tegangan, arus, GND bersama, seri-paralel, sekering, baterai dan konverter, '
-        'resistor, kapasitor, LED, PWM, servo, multimeter, solder, dan cara mencari kesalahan. Dengan kalkulator dan latihan.')
+JUDUL = 'Elektronika Dasar untuk IoT dan Mikrokontroler'
+DESK = ('Elektronika yang dipakai di proyek ESP32, Arduino, dan IoT: tegangan dan arus, GND bersama, regulator, umur baterai, resistor, kapasitor, '
+        'LED, transistor dan relay, pin mikrokontroler, PWM dan servo, I2C/SPI/UART, multimeter, breadboard, dan cara mencari kesalahan. Dengan kalkulator dan latihan.')
 
 
 def halaman():
@@ -19,10 +19,10 @@ def halaman():
     out = HEAD.format(title=f'{JUDUL} · Panduan Elektronika', desc=esc(DESK), a='../assets/').replace('</head>', GAYA + '</head>')
     out += '<body data-key="elektronika-dasar"><div class="wrap">'
     out += (f'<header class="top"><a class="back" href="../">← Semua panduan</a>{g.sampul()}'
-            '<span class="eyebrow">Panduan · Pemula · 12 bab</span>'
+            '<span class="eyebrow">Panduan · Pemula · 16 bab</span>'
             f'<h1>{JUDUL}</h1>'
-            '<p class="lead">Konsep yang ada di balik setiap langkah panduan robot dan stasiun cuaca, dijelaskan dengan kejadian nyata saat merakit: '
-            'kenapa servo bergerak sendiri tanpa GND bersama, kenapa multimeter menunjukkan 0, dan apa yang sebenarnya dilakukan kapasitor.</p>'
+            '<p class="lead">Dasar yang berlaku untuk proyek mikrokontroler apa pun, dari stasiun cuaca sampai robot: kenapa modul membaca angka acak tanpa GND bersama, '
+            'berapa lama baterai bertahan, cara menyalakan relay dari pin 3,3 V, dan cara memeriksa rangkaian dengan multimeter.</p>'
             '<div class="progress"><span id="prog">0 / 0 langkah</span><div class="bar"><i id="progbar"></i></div></div>'
             f'<nav class="toc" aria-label="Daftar bab">{toc}</nav></header>')
     out += isi.pendahuluan()
@@ -30,7 +30,7 @@ def halaman():
         out += getattr(isi, nama)()
     out += isi.istilah() + isi.sumber()
     out += ('<div class="pager"><a href="../"><span>← Kembali</span>Semua panduan</a>'
-            '<a class="next" href="../robot-ai/"><span>Terapkan →</span>Robot AI 4WD</a></div>')
+            '<a class="next" href="../stasiun-cuaca/"><span>Coba proyek pertama →</span>Stasiun cuaca kamar</a></div>')
     out += ('<footer><span>Dibuat untuk belajar merakit dengan tegangan rendah. Angka komponen adalah nilai umum; lembar data komponenmu lebih tepat.</span>'
             '<a href="../">Semua panduan</a></footer>')
     out += '</div><script src="../assets/panduan.js"></script><script src="kalkulator.js"></script></body></html>\n'

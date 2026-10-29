@@ -71,6 +71,24 @@
     k.addEventListener('input', hitung); hitung();
   });
 
+  // Umur baterai
+  document.querySelectorAll('[data-kalk="baterai"]').forEach(function (k) {
+    var out = k.querySelector('output');
+    function v(n) { return angka(k.querySelector('[name="' + n + '"]').value); }
+    function hitung() {
+      var cap = v('cap'), ia = v('ia'), ta = v('ta'), is = v('is'), per = v('per');
+      if ([cap, ia, ta, is, per].some(function (x) { return x === null || isNaN(x) || x < 0; }) || cap <= 0 || per <= 0) return tulis(out, 'Isi semua kotak dengan angka (boleh 0 untuk arus tidur).', true);
+      var T = per * 60, ts = T - ta;
+      if (ts < 0) return tulis(out, 'Lama aktif lebih panjang dari satu siklus.', true);
+      var muatanAktif = ia * ta, muatanTidur = is * ts, avg = (muatanAktif + muatanTidur) / T;
+      var jam = cap / avg, nyata = jam * 0.7;
+      var lama = function (h) { return h >= 48 ? fmt(h / 24, 0) + ' hari' : fmt(h, 1) + ' jam'; };
+      tulis(out, 'Arus rata-rata <b>' + fmt(avg, 3) + ' mA</b> (' + fmt(muatanTidur / (muatanAktif + muatanTidur) * 100, 0) + '% di antaranya terpakai saat tidur). ' +
+        'Hitungan kasar ' + lama(jam) + '; perkiraan yang lebih jujur, dikali 0,7 untuk regulator, suhu, dan baterai yang tidak bisa dikosongkan penuh: <b>' + lama(nyata) + '</b>.');
+    }
+    k.addEventListener('input', hitung); hitung();
+  });
+
   // Gelang warna resistor
   var WARNA = [
     ['hitam', '#1b1b1b', 0, 1, null], ['coklat', '#7a4a1d', 1, 10, 1], ['merah', '#d7261e', 2, 100, 2], ['oranye', '#f08a24', 3, 1e3, null],

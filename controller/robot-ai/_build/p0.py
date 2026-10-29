@@ -104,7 +104,7 @@ def isi():
   <div class="rule"><b>Roda terangkat</b><p>Semua tes motor dilakukan dengan robot di atas kotak, sampai Bagian 6.</p></div>
   <div class="rule"><b>GND selalu bersama</b><p>Papan dan modul yang saling mengirim sinyal harus tersambung GND-nya, walaupun dayanya dari sumber berbeda. Cek dengan tes bip.</p></div>
 </div>
-<p class="cap">Belum yakin dengan istilah tegangan, GND, PWM, atau cara memakai multimeter? Baca dulu <a href="../elektronika-dasar/">Elektronika Dasar untuk Merakit Robot</a>: contoh-contohnya diambil dari robot ini.</p>''')
+<p class="cap">Belum yakin dengan istilah tegangan, GND, PWM, atau cara memakai multimeter? Baca dulu <a href="../elektronika-dasar/">Elektronika Dasar untuk IoT dan Mikrokontroler</a>; dasarnya berlaku untuk robot ini dan proyek lain.</p>''')
 
     belum = table(['Barang', 'Jumlah', 'Untuk', 'Tanpa barang ini'], [
         ['BME280', '1 (opsional)', 'suhu, kelembapan, tekanan', 'pakai DHT11 dari kit cuaca'],

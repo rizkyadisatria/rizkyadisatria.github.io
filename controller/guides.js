@@ -13,11 +13,11 @@ window.SITE = {
 window.GUIDES = [
   {
     slug: "elektronika-dasar",
-    judul: "Elektronika Dasar untuk Merakit Robot",
-    ringkas: "Tegangan, arus, GND bersama, seri-paralel, sekering, baterai dan konverter, resistor, kapasitor, LED, PWM dan servo, multimeter, solder, dan cara mencari kesalahan. Tiap bab memakai kejadian nyata saat merakit robot, dengan kalkulator, pertanyaan, dan latihan.",
+    judul: "Elektronika Dasar untuk IoT dan Mikrokontroler",
+    ringkas: "Dasar yang berlaku untuk proyek ESP32, Arduino, dan IoT apa pun: tegangan dan arus, GND bersama, regulator, umur baterai, resistor dan kapasitor, LED, transistor dan relay, pin mikrokontroler, PWM dan servo, I2C/SPI/UART, multimeter, breadboard, dan cara mencari kesalahan. Dengan kalkulator, pertanyaan, dan latihan.",
     level: "Pemula",
-    tahap: "12 bab",
-    komponen: ["Multimeter", "GND", "Resistor", "Kapasitor", "LED", "PWM", "Servo"],
+    tahap: "16 bab",
+    komponen: ["Multimeter", "GND", "Regulator", "Baterai", "Transistor", "Relay", "I2C", "PWM"],
     gambar: "elektronika-dasar/img/sampul.svg",
     diperbarui: "2026-10-29"
   },

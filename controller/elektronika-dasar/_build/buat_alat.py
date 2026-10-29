@@ -22,7 +22,7 @@ def tanya(pasangan):
 
 
 def kejadian(isi):
-    return info('Kejadian di robotmu', isi)
+    return info('Contoh kasus', isi)
 
 
 def rumus(r, ket=''):
@@ -67,6 +67,14 @@ def kalk_warna():
             '<p class="cap">Pegang resistor dengan gelang toleransi di kanan (emas atau perak, atau di resistor 5 gelang biasanya coklat yang agak terpisah), lalu baca dari kiri.</p>'
             '<div class="baris sempit"><label>Jumlah gelang<select name="n"><option value="4">4 gelang</option><option value="5" selected>5 gelang</option></select></label></div>'
             + prev + f'<div class="baris">{sel}</div><output class="hasil" aria-live="polite"></output></div>')
+
+
+def kalk_baterai():
+    return ('<div class="kalk" data-kalk="baterai"><h3>Kalkulator umur baterai</h3>'
+            '<p class="cap">Untuk perangkat yang bangun sebentar (mengukur, kirim WiFi), lalu tidur. Angka awal: papan pengembangan ESP32 yang masih menarik 5 mA saat tidur.</p>'
+            '<div class="baris">' + _in('cap', 'Kapasitas baterai (mAh)', '', '2000') + _in('ia', 'Arus saat aktif (mA)', '', '120')
+            + _in('ta', 'Lama aktif tiap siklus (detik)', '', '5') + _in('is', 'Arus saat tidur (mA)', '', '5') + _in('per', 'Satu siklus tiap (menit)', '', '10') + '</div>'
+            '<output class="hasil" aria-live="polite"></output></div>')
 
 
 GAYA = '''<style>

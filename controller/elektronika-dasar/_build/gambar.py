@@ -110,9 +110,9 @@ def gnd_bersama():
     for k, ox in enumerate((0, 390)):
         ada = k == 1
         s += text(ox + 20, 32, 'DENGAN GND bersama' if ada else 'TANPA GND bersama', 14.5, weight=700, fill=HIJAU_OK if ada else MERAH_SALAH)
-        s += box(ox + 20, 56, 120, 94, 'ESP32', ['daya dari USB'], fill='#151a18')
-        s += box(ox + 230, 56, 120, 94, 'Servo', ['sinyal · + · −'], fill='#1f4e79', stroke='#8ec5ff')
-        s += box(ox + 230, 262, 120, 64, 'XL4015', ['6 V'], fill='#241a3a', stroke='#b08cff')
+        s += box(ox + 20, 56, 120, 94, 'Mikrokontroler', ['daya dari USB'], fill='#151a18')
+        s += box(ox + 230, 56, 120, 94, 'Modul', ['servo, relay, dll.'], fill='#1f4e79', stroke='#8ec5ff')
+        s += box(ox + 230, 262, 120, 64, 'Adaptor', ['5 V sendiri'], fill='#241a3a', stroke='#b08cff')
         s += line([(ox + 140, 86), (ox + 230, 86)], 'oranye', 4)
         s += text(ox + 185, 76, 'sinyal', 11.5, anchor='middle', fill='#ffd8a8')
         s += line([(ox + 268, 150), (ox + 268, 262)], '5v', 4) + line([(ox + 312, 150), (ox + 312, 262)], 'gnd', 4)
@@ -125,16 +125,16 @@ def gnd_bersama():
             s += f'<path d="M{ox + 300} 340 V{348} H{ox + 96} V{160}" stroke="{KUNING_ARUS}" stroke-width="2" stroke-dasharray="5 4" fill="none"/>'
             s += text(ox + 106, 336, 'jalur pulang sinyal', 11.5, fill=KUNING_ARUS)
             s += text(ox + 20, 392, 'Sinyal 3,3 V diukur terhadap GND yang sama,', 12, fill='#e8efe9')
-            s += text(ox + 20, 410, 'jadi servo membaca perintah dengan benar.', 12, fill='#e8efe9')
+            s += text(ox + 20, 410, 'jadi modul membaca perintah dengan benar.', 12, fill='#e8efe9')
         else:
             s += line([(ox + 80, 150), (ox + 80, 196)], 'gnd', 4)
             s += f'<circle cx="{ox + 80}" cy="210" r="11" fill="none" stroke="{MERAH_SALAH}" stroke-width="2.4"/>'
             s += text(ox + 80, 215, '?', 14, anchor='middle', weight=700, fill=MERAH_SALAH)
             s += text(ox + 98, 214, 'tidak tersambung', 11.5, fill=MERAH_SALAH)
-            s += text(ox + 20, 392, 'Sinyal tidak punya jalur pulang. Servo membaca', 12, fill='#e8efe9')
+            s += text(ox + 20, 392, 'Sinyal tidak punya jalur pulang. Modul membaca', 12, fill='#e8efe9')
             s += text(ox + 20, 410, 'tegangan yang melayang: gerak acak atau diam.', 12, fill='#e8efe9')
     s += '<line x1="380" y1="20" x2="380" y2="410" stroke="#fff" stroke-opacity=".25" stroke-dasharray="4 5"/>'
-    return svg(W, H, s, 'Perbandingan ESP32 dan servo tanpa GND bersama dan dengan GND bersama')
+    return svg(W, H, s, 'Perbandingan mikrokontroler dan modul bersumber daya sendiri, tanpa dan dengan GND bersama')
 
 
 def seri_paralel():
@@ -152,25 +152,25 @@ def seri_paralel():
     s += '<line x1="400" y1="20" x2="400" y2="330" stroke="#fff" stroke-opacity=".25" stroke-dasharray="4 5"/>'
     s += text(430, 34, 'PARALEL: arus dijumlah', 15, weight=700)
     s += line([(440, 90), (730, 90)], '5v', 5) + line([(440, 270), (730, 270)], 'gnd', 5)
-    s += text(440, 80, 'WAGO 6V', 12, font=MONO, fill=WIRE['5v']) + text(440, 294, 'WAGO −6', 12, font=MONO)
+    s += text(440, 80, 'rel 5 V', 12, font=MONO, fill=WIRE['5v']) + text(440, 294, 'GND', 12, font=MONO)
     for x in (490, 620):
         s += line([(x + 18, 90), (x + 18, 146)], '5v', 4) + line([(x + 62, 214), (x + 62, 270)], 'gnd', 4)
-        s += box(x, 146, 84, 68, 'servo', ['6 V'], fill='#1f4e79', stroke='#8ec5ff')
-    s += text(430, 318, '0,5 A + 0,5 A = 1 A dari sumber,', 12.5, fill='#e8efe9') + text(430, 338, 'tiap servo tetap mendapat 6 V', 12.5, fill='#e8efe9')
-    return svg(W, H, s, 'Dua sel baterai disusun seri dan dua servo disusun paralel')
+        s += box(x, 146, 84, 68, 'modul', ['5 V'], fill='#1f4e79', stroke='#8ec5ff')
+    s += text(430, 318, '20 mA + 80 mA = 100 mA dari sumber,', 12.5, fill='#e8efe9') + text(430, 338, 'tiap modul tetap mendapat 5 V', 12.5, fill='#e8efe9')
+    return svg(W, H, s, 'Dua sel baterai disusun seri dan dua modul disusun paralel')
 
 
 def pembagi():
     W, H = 760, 360
-    s = text(30, 30, 'Pembagi tegangan: 5 V dari echo HC-SR04 menjadi 3,3 V', 16, weight=600)
+    s = text(30, 30, 'Pembagi tegangan: sinyal 5 V menjadi 3,3 V untuk pin 3,3 V', 16, weight=600)
     x = 200
     s += line([(x, 76), (x, 84)], 'kuning', 4)
-    s += box(120, 48, 160, 30, 'Echo · 5 V', '', fill='#3a2a13', stroke='#ffc27a')
+    s += box(110, 48, 180, 30, 'Keluaran sensor · 5 V', '', fill='#3a2a13', stroke='#ffc27a')
     s += res_v(x, 84, 176, 'R1 = 1 kΩ')
     s += f'<circle cx="{x}" cy="196" r="6" fill="#fff" stroke="#111"/>'
     s += f'<line x1="{x}" y1="176" x2="{x}" y2="216" stroke="{KAWAT}" stroke-width="2.4"/>'
     s += line([(x, 196), (430, 196)], 'kuning', 4)
-    s += box(430, 166, 170, 60, 'Pin ESP32', ['maks sekitar 3,6 V'], fill='#151a18')
+    s += box(430, 166, 190, 60, 'Pin ESP32 / Pico', ['maks sekitar 3,6 V'], fill='#151a18')
     s += text(300, 186, '3,33 V', 14, anchor='middle', weight=700, fill='#ffd8a8', font=MONO)
     s += res_v(x, 216, 300, 'R2 = 2 kΩ')
     s += gnd_sym(x, 314) + text(x + 28, 322, 'GND', 12, font=MONO)
@@ -182,9 +182,9 @@ def pembagi():
 
 def pwm():
     W, H = 760, 390
-    s = text(30, 34, 'PWM: menyala-mati sangat cepat, motor merasakan rata-ratanya', 16, weight=600)
+    s = text(30, 34, 'PWM: menyala-mati sangat cepat, beban merasakan rata-ratanya', 16, weight=600)
     x0, x1, per = 190, 580, 97.5
-    for i, (duty, v) in enumerate(((.25, '1,5 V'), (.5, '3,0 V'), (.75, '4,5 V'))):
+    for i, (duty, v) in enumerate(((.25, '1,25 V'), (.5, '2,5 V'), (.75, '3,75 V'))):
         top = 70 + i * 100
         bot = top + 60
         d = f'M{x0} {bot}'
@@ -199,8 +199,8 @@ def pwm():
         s += text(30, top + 26, f'duty {int(duty * 100)}%', 13.5, weight=600)
         s += text(30, top + 46, f'{int(duty * 100)}% waktu menyala', 11.5, fill='#cfd8d4')
         s += text(x1 + 18, avg + 5, f'rata-rata ≈ {v}', 13, fill=KUNING_ARUS, font=MONO)
-        s += text(x0 - 8, top + 5, '6 V', 10.5, anchor='end', fill='#cfd8d4', font=MONO) + text(x0 - 8, bot + 4, '0', 10.5, anchor='end', fill='#cfd8d4', font=MONO)
-    s += text(30, 372, 'Contoh untuk rel motor 6 V. ESP32 mengatur duty, TB6612 menyalakan-mematikan arus motor sesuai duty itu.', 12.5, fill='#e8efe9')
+        s += text(x0 - 8, top + 5, '5 V', 10.5, anchor='end', fill='#cfd8d4', font=MONO) + text(x0 - 8, bot + 4, '0', 10.5, anchor='end', fill='#cfd8d4', font=MONO)
+    s += text(30, 372, 'Contoh untuk beban 5 V. Pin mengatur duty; beban besar (motor, LED strip) dinyalakan lewat transistor atau driver.', 12.5, fill='#e8efe9')
     return svg(W, H, s, 'Tiga gelombang PWM dengan duty 25, 50 dan 75 persen beserta tegangan rata-ratanya')
 
 
@@ -225,7 +225,7 @@ def servo_pulsa():
         s += f'<line x1="{cx}" y1="{cy}" x2="{ex:.1f}" y2="{ey:.1f}" stroke="#f4f6f5" stroke-width="6" stroke-linecap="round"/>'
         s += text(cx + 42, cy - 8, f'{deg}°', 14, weight=700, font=MONO)
     s += f'<path d="M{x0} 336 h{20 * k}" stroke="#f4f6f5" stroke-width="1.4"/>' + text(x0 + 10 * k, 330, '20 ms = 50 kali per detik', 11.5, anchor='middle', fill='#cfd8d4')
-    s += text(30, 354, 'Angka 0,5-2,5 ms itu perkiraan; tiap servo sedikit berbeda. Kode panduan memakai 0,6-2,4 ms.', 12, fill='#e8efe9')
+    s += text(30, 354, 'Angka 0,5-2,5 ms itu perkiraan; tiap servo sedikit berbeda. Banyak library memakai 0,5-2,4 ms.', 12, fill='#e8efe9')
     return svg(W, H, s, 'Lebar pulsa servo 0,5, 1,5 dan 2,5 milidetik dan sudut lengan 0, 90 dan 180 derajat')
 
 
@@ -268,7 +268,7 @@ def multimeter():
 
 def kapasitor():
     W, H = 760, 280
-    s = text(30, 34, 'Dua jenis kapasitor di robotmu', 16, weight=600)
+    s = text(30, 34, 'Dua jenis kapasitor yang paling sering dipakai', 16, weight=600)
     # elektrolit
     s += '<rect x="90" y="64" width="80" height="120" rx="10" fill="#1d2f4a" stroke="#0b0d0c" stroke-width="1.5"/>'
     s += '<rect x="90" y="64" width="20" height="120" rx="8" fill="#c9d1d6"/>'
@@ -284,7 +284,7 @@ def kapasitor():
     s += '<ellipse cx="470" cy="118" rx="40" ry="34" fill="#e08a2e" stroke="#111" stroke-width="1.5"/>' + text(470, 125, '104', 18, anchor='middle', fill='#1b1b1b', weight=700, font=MONO)
     s += f'<line x1="456" y1="150" x2="456" y2="236" stroke="{KAWAT}" stroke-width="3"/><line x1="484" y1="150" x2="484" y2="236" stroke="{KAWAT}" stroke-width="3"/>'
     s += text(530, 84, 'Keramik', 15, weight=700)
-    for i, t in enumerate(['tidak berkutub', 'nilai kecil (nF): redam noise cepat', '104 = 10 × 10⁴ pF = 100 nF', 'di kaki motor TT']):
+    for i, t in enumerate(['tidak berkutub', 'nilai kecil (nF): redam noise cepat', '104 = 10 × 10⁴ pF = 100 nF', 'di dekat kaki daya IC dan motor']):
         s += text(530, 108 + i * 22, t, 12.5, fill='#e8efe9')
     return svg(W, H, s, 'Kapasitor elektrolit 470 mikrofarad yang berkutub dan kapasitor keramik 104 yang tidak berkutub')
 
@@ -313,6 +313,125 @@ def solder():
 
 
 BG_GAP = '#2f5a4e'
+
+
+def saklar_v(x, y1, y2, tekan=False):
+    """Tombol tekan tegak di antara y1 dan y2."""
+    s = f'<circle cx="{x}" cy="{y1}" r="4" fill="#fff" stroke="#111"/><circle cx="{x}" cy="{y2}" r="4" fill="#fff" stroke="#111"/>'
+    if tekan:
+        s += f'<line x1="{x}" y1="{y1}" x2="{x}" y2="{y2}" stroke="#f4f6f5" stroke-width="3"/>'
+    else:
+        s += f'<line x1="{x}" y1="{y1}" x2="{x + 18}" y2="{y2 - 6}" stroke="#f4f6f5" stroke-width="3"/>'
+    return s
+
+
+def transistor_relay():
+    W, H = 760, 400
+    s = text(30, 30, 'Pin kecil menyalakan beban besar: transistor dan dioda flyback', 16, weight=600)
+    s += box(30, 160, 140, 60, 'Pin GPIO', ['3,3 V, beberapa mA'], fill='#151a18')
+    s += line([(170, 190), (220, 190)], 'oranye', 4)
+    s += res_h(220, 300, 190, 'R basis 1 kΩ')
+    s += line([(300, 190), (322, 190)], 'oranye', 4)
+    # transistor NPN
+    s += '<circle cx="345" cy="190" r="30" fill="none" stroke="#f4f6f5" stroke-width="2"/>'
+    s += '<line x1="328" y1="172" x2="328" y2="208" stroke="#f4f6f5" stroke-width="4"/><line x1="322" y1="190" x2="328" y2="190" stroke="#f4f6f5" stroke-width="2.4"/>'
+    s += '<line x1="328" y1="180" x2="352" y2="164" stroke="#f4f6f5" stroke-width="2.4"/><line x1="328" y1="200" x2="352" y2="216" stroke="#f4f6f5" stroke-width="2.4"/>'
+    s += panah(338, 207, 352, 216, '#f4f6f5', 2)
+    s += text(318, 246, 'NPN (BC547, 2N2222)', 11.5, anchor='end', fill='#cfd8d4')
+    s += line([(352, 164), (352, 140)], '#9ea4a7', 3) + line([(352, 216), (352, 330)], 'gnd', 4)
+    # kumparan relay dan sumber
+    s += line([(352, 54), (352, 80)], '5v', 4) + text(340, 62, '+5 V (sumber beban)', 12, fill=WIRE['5v'], weight=600, anchor='end')
+    s += '<rect x="330" y="80" width="44" height="60" rx="6" fill="#1f4e79" stroke="#8ec5ff" stroke-width="1.5"/>'
+    for k in range(4):
+        s += f'<path d="M336 {90 + k * 12} q16 -8 32 0" fill="none" stroke="#f4f6f5" stroke-width="1.6"/>'
+    s += text(320, 114, 'kumparan', 11.5, anchor='end') + text(320, 129, 'relay', 11.5, anchor='end')
+    # dioda flyback
+    s += line([(352, 70), (450, 70), (450, 84)], '#9ea4a7', 2.4) + line([(450, 136), (450, 150), (352, 150)], '#9ea4a7', 2.4)
+    s += '<polygon points="438,128 462,128 450,96" fill="#f4f6f5"/><line x1="436" y1="94" x2="464" y2="94" stroke="#f4f6f5" stroke-width="3"/>'
+    s += f'<line x1="450" y1="84" x2="450" y2="94" stroke="{KAWAT}" stroke-width="2.4"/><line x1="450" y1="128" x2="450" y2="136" stroke="{KAWAT}" stroke-width="2.4"/>'
+    s += text(472, 104, 'dioda 1N4007', 12, weight=600) + text(472, 120, 'garis (katoda) ke +', 11.5, fill='#cfd8d4')
+    # GND bersama
+    s += line([(100, 220), (100, 330), (352, 330)], 'gnd', 4) + gnd_sym(226, 346)
+    s += text(110, 322, 'GND bersama', 11.5, fill='#e8efe9')
+    # penjelasan
+    for k, tx in enumerate(['Pin hanya mengalirkan arus kecil ke basis:', '(3,3 − 0,7) / 1.000 ≈ 2,6 mA.', 'Transistor lalu menyambungkan kumparan',
+                            'ke GND. Arus beban (sekitar 70-90 mA',
+                            'untuk relay 5 V) datang dari +5 V, bukan pin.', 'Saat dimatikan, kumparan menyentak balik;', 'dioda menyerap sentakan itu.']):
+        s += text(472, 190 + k * 20, tx, 12, fill='#e8efe9')
+    return svg(W, H, s, 'Pin GPIO menyalakan kumparan relay lewat resistor basis dan transistor NPN, dengan dioda flyback di kumparan')
+
+
+def pullup():
+    W, H = 760, 320
+    s = text(30, 30, 'Tombol dengan resistor pull-up', 16, weight=600)
+    s += line([(120, 60), (300, 60)], '3v3', 4) + text(120, 52, '3,3 V', 12, font=MONO, fill=WIRE['3v3'])
+    s += res_v(200, 60, 150, 'pull-up 10 kΩ')
+    s += f'<circle cx="200" cy="170" r="5" fill="#fff" stroke="#111"/><line x1="200" y1="150" x2="200" y2="200" stroke="{KAWAT}" stroke-width="2.4"/>'
+    s += line([(200, 170), (330, 170)], 'kuning', 4) + box(330, 145, 150, 50, 'Pin input', '', fill='#151a18')
+    s += saklar_v(200, 205, 245) + text(228, 232, 'tombol', 12)
+    s += f'<line x1="200" y1="249" x2="200" y2="262" stroke="{KAWAT}" stroke-width="2.4"/>' + gnd_sym(200, 276) + text(228, 284, 'GND', 12, font=MONO)
+    rows = [('Tombol dilepas', 'pin HIGH: ke 3,3 V lewat resistor', HIJAU_OK),
+            ('Tombol ditekan', 'pin LOW: langsung ke GND (arus 0,33 mA)', HIJAU_OK),
+            ('Tanpa resistor', 'pin melayang, membaca HIGH/LOW acak', MERAH_SALAH)]
+    for k, (a, b, c) in enumerate(rows):
+        s += text(510, 116 + k * 50, a, 13, weight=700, fill=c) + text(510, 134 + k * 50, b, 11.5, fill='#e8efe9')
+    s += text(30, 308, 'INPUT_PULLUP memakai resistor yang sudah ada di dalam chip, jadi resistor 10 kΩ luar boleh tidak dipasang.', 12, fill='#ffd8a8')
+    return svg(W, H, s, 'Tombol di pin input dengan resistor pull-up ke 3,3 volt')
+
+
+def i2c_bus():
+    W, H = 760, 350
+    s = text(30, 30, 'I2C: dua kabel, banyak perangkat, dibedakan alamat', 16, weight=600)
+    s += box(30, 100, 140, 100, 'Mikrokontroler', ['SDA, SCL'], fill='#151a18')
+    s += line([(220, 60), (300, 60)], '3v3', 4) + text(304, 64, '3,3 V', 12, font=MONO, fill=WIRE['3v3'])
+    s += line([(170, 130), (730, 130)], 'biru', 4) + line([(170, 170), (730, 170)], 'kuning', 4)
+    s += text(736, 134, 'SDA', 12, font=MONO, weight=600) + text(736, 174, 'SCL', 12, font=MONO, weight=600)
+    s += res_v(230, 60, 130) + res_v(280, 60, 170)
+    s += text(256, 50, 'pull-up 4,7 kΩ', 11.5, anchor='middle', fill='#cfd8d4')
+    for k, (nm, ad) in enumerate((('OLED', '0x3C'), ('BME280', '0x76'), ('RTC DS3231', '0x68'))):
+        x = 350 + k * 130
+        s += line([(x + 30, 130), (x + 30, 236)], 'biru', 3) + line([(x + 70, 170), (x + 70, 236)], 'kuning', 3)
+        s += f'<circle cx="{x + 30}" cy="130" r="5" fill="#fff" stroke="#111"/><circle cx="{x + 70}" cy="170" r="5" fill="#fff" stroke="#111"/>'
+        s += box(x, 236, 110, 60, nm, [f'alamat {ad}'], fill='#1f4e79', stroke='#8ec5ff')
+    s += text(30, 318, 'VCC dan GND tiap modul tidak digambar. Banyak modul sudah membawa pull-up sendiri;', 11.5, fill='#e8efe9')
+    s += text(30, 336, 'terlalu banyak pull-up yang terpasang paralel membuat totalnya terlalu kecil.', 11.5, fill='#e8efe9')
+    return svg(W, H, s, 'Bus I2C dengan resistor pull-up dan tiga perangkat dengan alamat berbeda')
+
+
+def breadboard():
+    W, H = 760, 330
+    s = text(30, 28, 'Breadboard: lubang mana yang tersambung', 16, weight=600)
+    x0, kol = 60, 24
+    s += f'<rect x="40" y="44" width="{kol * 20 + 20}" height="270" rx="10" fill="#f4f4ef" stroke="#c9c9c1" stroke-width="2"/>'
+    s += f'<line x1="50" y1="58" x2="{x0 + kol * 20 - 10}" y2="58" stroke="{WIRE["5v"]}" stroke-width="1.6"/><line x1="50" y1="88" x2="{x0 + kol * 20 - 10}" y2="88" stroke="#3b82f6" stroke-width="1.6"/>'
+    s += f'<line x1="50" y1="270" x2="{x0 + kol * 20 - 10}" y2="270" stroke="{WIRE["5v"]}" stroke-width="1.6"/><line x1="50" y1="300" x2="{x0 + kol * 20 - 10}" y2="300" stroke="#3b82f6" stroke-width="1.6"/>'
+    rel = [66, 80, 278, 292]
+    baris = [104 + r * 14 for r in range(5)] + [186 + r * 14 for r in range(5)]
+    for c in range(kol):
+        x = x0 + c * 20
+        for y in rel:
+            if c % 6 != 5:
+                s += f'<rect x="{x - 3}" y="{y - 3}" width="6" height="6" rx="1" fill="#b9b9ae"/>'
+        for y in baris:
+            s += f'<rect x="{x - 3}" y="{y - 3}" width="6" height="6" rx="1" fill="#b9b9ae"/>'
+    s += f'<rect x="44" y="{168 - 4}" width="{kol * 20 + 12}" height="10" fill="#e4e4dc"/>'
+    # sorotan
+    s += f'<rect x="{x0 + 4 * 20 - 8}" y="96" width="16" height="72" rx="5" fill="{HIJAU_OK}" fill-opacity=".35" stroke="#2e9e4a" stroke-width="2"/>'
+    s += f'<rect x="{x0 + 4 * 20 - 8}" y="178" width="16" height="72" rx="5" fill="#ffc27a" fill-opacity=".35" stroke="#d98a2b" stroke-width="2"/>'
+    s += f'<rect x="54" y="72" width="{kol * 20 - 4}" height="16" rx="5" fill="#3b82f6" fill-opacity=".18" stroke="#3b82f6" stroke-width="1.5"/>'
+    for k, ch in enumerate('abcde'):
+        s += text(50, 108 + k * 14, ch, 9, fill='#777', font=MONO)
+    for k, ch in enumerate('fghij'):
+        s += text(50, 190 + k * 14, ch, 9, fill='#777', font=MONO)
+    tx = 548
+    for k, (a, b, c) in enumerate([('a-e satu kolom', 'lima lubang tersambung', HIJAU_OK),
+                                   ('f-j kolom yang sama', 'terpisah dari a-e oleh celah', '#ffc27a'),
+                                   ('Rel daya', 'tersambung sepanjang baris;', '#8ec5ff'),
+                                   ('', 'kadang putus di tengah papan', '#8ec5ff')]):
+        if a:
+            s += text(tx, 110 + k * 52, a, 13, weight=700, fill=c)
+        s += text(tx, 128 + k * 52 - (34 if not a else 0), b, 11.5, fill='#e8efe9')
+    return svg(W, H, s, 'Breadboard dengan sorotan lubang yang saling tersambung')
 
 
 # ---------------- sampul ----------------
