@@ -1,8 +1,9 @@
 # Isi halaman Elektronika Dasar untuk IoT dan mikrokontroler.
 # Tiap bab: penjelasan, gambar, contoh kasus nyata, cek pemahaman, latihan dengan kit pemula.
 import gambar as g
+import ilustrasi as il
 from buat_alat import (section, table, warn, ok, info, ul, fig, latihan, tanya, kejadian, rumus, kalk_ohm,
-                       kalk_led, kalk_pembagi, kalk_warna, kalk_baterai)
+                       kalk_led, kalk_pembagi, kalk_warna, kalk_baterai, kalk_hidup)
 
 BAB = [
     ('bab1', 'Tegangan, arus, daya'),
@@ -40,20 +41,24 @@ def pendahuluan():
 def bab1():
     isi = ('<p><b>Tegangan</b> (volt, V) adalah selisih "dorongan" listrik di antara <b>dua titik</b>. Satu titik sendirian tidak punya tegangan. '
            '"Pin 3,3 V" artinya pin itu 3,3 V lebih tinggi daripada GND.</p>'
-           '<p><b>Arus</b> (ampere, A) adalah banyaknya muatan listrik yang mengalir lewat kabel tiap detik. 1 mA = 0,001 A. '
+           + fig(il.tegangan(), 'Air mengalir karena beda tinggi. Listrik mengalir karena beda tegangan di antara dua titik.')
+           + '<p><b>Arus</b> (ampere, A) adalah banyaknya muatan listrik yang mengalir lewat kabel tiap detik. 1 mA = 0,001 A. '
            'Arus hanya mengalir kalau ada jalur tertutup: keluar dari sumber, lewat beban, lalu kembali ke sumber.</p>'
-           '<p><b>Hambatan</b> (ohm, Ω) adalah seberapa kuat sebuah benda menahan arus. 1 kΩ = 1.000 Ω.</p>'
+           + fig(il.arus(), 'Arus adalah berapa banyak yang lewat satu titik tiap detik, bukan seberapa cepat satu titik air bergerak.')
+           + '<p><b>Hambatan</b> (ohm, Ω) adalah seberapa kuat sebuah benda menahan arus. 1 kΩ = 1.000 Ω.</p>'
+           + fig(il.hambatan(), 'Tekanan sama, pipa lebih sempit: lebih sedikit yang lewat.')
            + table(['Besaran', 'Satuan', 'Diukur dengan', 'Contoh angka di proyek IoT'], [
                ['Tegangan', 'volt (V)', 'multimeter V⎓, di antara dua titik', 'USB 5 V, logika ESP32 3,3 V, satu sel Li-ion 3,0-4,2 V'],
                ['Arus', 'ampere (A), mA', 'multimeter A, disisipkan di jalur', 'LED 10 mA, sensor 1-5 mA, ESP32 saat WiFi kirim data ratusan mA'],
                ['Hambatan', 'ohm (Ω), kΩ', 'multimeter Ω, daya mati', 'resistor LED 220 Ω, pull-up 10 kΩ'],
                ['Daya', 'watt (W), mW', 'dihitung: V × I', 'papan ESP32 aktif sekitar 0,5 W']])
-           + '<p><b>Bayangkan seperti air di pipa:</b> tegangan seperti tekanan air, arus seperti banyaknya air yang mengalir, hambatan seperti pipa yang menyempit. '
-           'Pakai gambaran ini hanya untuk membayangkan. Listrik tidak "habis" di jalan: arus yang keluar dari kutub + sama besar dengan yang kembali ke kutub −.</p>'
+           + '<p><b>Batas perumpamaan air:</b> pakai hanya untuk membayangkan. Listrik tidak "habis" di jalan: arus yang keluar dari kutub + sama besar dengan yang kembali ke kutub −. '
+           'Kabel juga tidak "kosong" lalu terisi; elektronnya sudah ada di seluruh kabel dan bergerak bersama begitu ada tegangan.</p>'
            + '<h3>Hukum Ohm dan daya</h3>'
-           + rumus('V = I × R     P = V × I', 'I = V / R, R = V / I. Daya (P) yang hilang di resistor berubah jadi panas.')
+           + rumus('V = I × R  ·  P = V × I', 'I = V / R, R = V / I. Daya (P) yang hilang di resistor berubah jadi panas.')
            + '<p>Contoh: LED merah dan resistor 220 Ω di 6 V. LED "memakan" sekitar 2 V, jadi resistor menanggung 6 − 2 = 4 V. '
            'Arusnya I = 4 / 220 = 0,018 A = 18 mA, dan resistor memanaskan 4 × 0,018 = 0,07 W. Tanpa resistor, arusnya tidak dibatasi apa pun dan LED atau pin rusak.</p>'
+           + kalk_hidup()
            + fig(g.rangkaian(), 'Tegangan diukur di dua ujung resistor. Arusnya sama di setiap titik rangkaian yang tertutup.')
            + kalk_ohm()
            + kejadian('Multimeter di baterai dua sel Li-ion seri menunjukkan 7,8 V. Itu tegangan di antara probe merah (kutub +) dan probe hitam (kutub −), '
@@ -78,7 +83,8 @@ def bab2():
            '<h3>Apa itu GND</h3>'
            '<p><b>GND</b> (ground) adalah titik yang disepakati sebagai 0 V. Semua tegangan lain diukur dari sana. '
            'Di proyek mikrokontroler, GND adalah kutub − yang dipakai bersama. Ini bukan tanah dan bukan kabel bumi listrik rumah, hanya nama untuk titik acuan.</p>'
-           '<h3>Sinyal juga butuh jalur pulang</h3>'
+           + fig(il.gnd_lantai(), 'Tegangan seperti tinggi: angkanya hanya berarti kalau semua diukur dari lantai yang sama.')
+           + '<h3>Sinyal juga butuh jalur pulang</h3>'
            '<p>Saat mikrokontroler mengirim sinyal ke sebuah modul, sinyal itu adalah tegangan 3,3 V atau 5 V <b>terhadap GND mikrokontroler</b>. '
            'Modul membacanya terhadap GND-nya sendiri. Kalau dua GND itu tidak tersambung, modul tidak tahu "3,3 V terhadap apa". Sinyalnya tidak punya jalur pulang, '
            'dan tegangan yang dibaca modul <b>melayang</b> (floating): berubah-ubah sendiri, dipengaruhi apa saja di sekitarnya, termasuk tanganmu.</p>'
@@ -224,6 +230,7 @@ def bab7():
     isi = ('<p>Kapasitor menyimpan muatan sebentar lalu melepaskannya dengan cepat. Di proyek mikrokontroler ada dua tugas utama:</p>'
            + ul(['<b>Decoupling (100 nF)</b> di dekat kaki daya setiap IC atau modul: menyerap noise cepat dan memberi arus sesaat saat chip berganti keadaan. Kebanyakan modul sudah membawanya.',
                  '<b>Penyangga (10-1000 µF)</b> di titik masuk daya, terutama di dekat motor, servo, relay, LED strip, atau modul radio: melepaskan muatan saat beban tiba-tiba menarik arus, sehingga tegangan tidak turun.'])
+           + fig(il.kapasitor_tangki(), 'Kapasitor menutup kekurangan sesaat di dekat beban, sebelum sumber yang jauh sempat menyusul.')
            + fig(g.kapasitor(), 'Elektrolit berkutub dan bernilai besar; keramik tidak berkutub dan bernilai kecil.')
            + table(['Kode keramik', 'Hitungan', 'Nilai'], [
                ['104', '10 × 10⁴ pF', '100.000 pF = 100 nF = 0,1 µF'],
@@ -252,7 +259,9 @@ def bab7():
 
 def bab8():
     isi = ('<p><b>Dioda</b> hanya mengalirkan arus satu arah: dari anoda ke katoda (sisi bergaris). Saat mengalir, dioda "memakan" sekitar 0,6-0,7 V '
-           '(dioda silikon seperti 1N4007, 1N4148) atau sekitar 0,2-0,4 V (dioda Schottky). Tiga pemakaian yang sering:</p>'
+           '(dioda silikon seperti 1N4007, 1N4148) atau sekitar 0,2-0,4 V (dioda Schottky).</p>'
+           + fig(il.dioda_katup(), 'Maju: katup terbuka. Balik: katup tertekan ke penahannya dan tidak ada aliran.')
+           + '<p>Tiga pemakaian yang sering:</p>'
            + ul(['<b>Pelindung polaritas:</b> dioda seri di jalur masuk daya mencegah kerusakan saat baterai atau adaptor dipasang terbalik, dengan biaya turun tegangan sedikit.',
                  '<b>Dioda flyback:</b> dipasang melintang di kumparan relay atau motor (garis ke +) untuk menyerap sentakan tegangan saat kumparan dimatikan. Lihat Bab 9.',
                  '<b>Pemisah sumber:</b> dua sumber disatukan lewat dioda supaya arus tidak mengalir balik dari satu ke yang lain.'])
@@ -277,7 +286,8 @@ def bab8():
 def bab9():
     isi = ('<p>Pin mikrokontroler hanya memberi arus kecil (Bab 10). Untuk menyalakan sesuatu yang lebih besar (relay, buzzer keras, LED strip, motor, pompa), '
            'pin cukup memberi perintah, lalu komponen lain yang menyambungkan beban ke sumber dayanya sendiri.</p>'
-           + fig(g.transistor_relay(), 'Arus beban mengalir dari +5 V lewat kumparan dan transistor ke GND. Pin hanya mengendalikan basis.')
+           + fig(il.transistor_keran(), 'Aliran kecil membuka jalan untuk aliran besar.')
+           + fig(g.transistor_relay(), 'Rangkaian sebenarnya: arus beban mengalir dari +5 V lewat kumparan dan transistor ke GND. Pin hanya mengendalikan basis.')
            + table(['Komponen', 'Cocok untuk', 'Yang perlu diperhatikan'], [
                ['Transistor NPN (BC547, 2N2222)', 'beban sampai sekitar 100-500 mA: relay, buzzer, LED kecil', 'resistor basis 1 kΩ dari pin; emitor ke GND; beban di antara + dan kolektor'],
                ['MOSFET logic-level (AO3400, IRLZ44N)', 'beban besar: LED strip, motor, pompa', 'pilih yang menyala penuh pada tegangan pinmu (3,3 V); resistor gate sekitar 100-220 Ω, dan 10 kΩ gate ke GND'],

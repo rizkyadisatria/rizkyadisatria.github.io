@@ -77,6 +77,46 @@ def kalk_baterai():
             '<output class="hasil" aria-live="polite"></output></div>')
 
 
+def kalk_hidup():
+    """Simulasi hukum Ohm: slider tegangan dan hambatan, titik arus bergerak, resistor memerah sesuai daya."""
+    bg = '#2f5a4e'
+    kisi = ''.join(f'<line x1="{x}" y1="0" x2="{x}" y2="300" stroke="#fff" stroke-opacity=".06"/>' for x in range(0, 761, 20))
+    kisi += ''.join(f'<line x1="0" y1="{y}" x2="760" y2="{y}" stroke="#fff" stroke-opacity=".06"/>' for y in range(0, 301, 20))
+    s = (f'<svg class="hidup" viewBox="0 0 760 300" role="img" aria-label="Simulasi rangkaian baterai dan resistor dengan arus yang bergerak">'
+         f'<rect width="760" height="300" fill="{bg}"/>{kisi}'
+         '<path d="M120 60 H640 V240 H120 Z" fill="none" stroke="#0b0d0c" stroke-opacity=".45" stroke-width="8"/>'
+         '<path d="M120 60 H640 V240 H120 Z" fill="none" stroke="#c98a3c" stroke-width="5"/>'
+         '<g data-titik></g>'
+         # baterai di sisi kiri
+         f'<rect x="92" y="112" width="56" height="76" fill="{bg}"/>'
+         '<line x1="98" y1="124" x2="142" y2="124" stroke="#f4f6f5" stroke-width="3"/><line x1="109" y1="135" x2="131" y2="135" stroke="#f4f6f5" stroke-width="5"/>'
+         '<line x1="98" y1="160" x2="142" y2="160" stroke="#f4f6f5" stroke-width="3"/><line x1="109" y1="171" x2="131" y2="171" stroke="#f4f6f5" stroke-width="5"/>'
+         '<text x="152" y="128" font-family="Inter,system-ui,sans-serif" font-size="15" font-weight="700" fill="#e5392f">+</text>'
+         '<text x="152" y="178" font-family="Inter,system-ui,sans-serif" font-size="15" font-weight="700" fill="#f4f6f5">−</text>'
+         '<text x="30" y="146" font-family="JetBrains Mono,monospace" font-size="15" font-weight="600" fill="#ffd8a8" data-tv>5 V</text>'
+         '<text x="30" y="164" font-family="Inter,system-ui,sans-serif" font-size="11.5" fill="#cfd8d4">tegangan</text>'
+         # resistor di sisi kanan
+         f'<rect x="624" y="96" width="32" height="108" fill="{bg}"/>'
+         '<ellipse data-cahaya cx="640" cy="150" rx="40" ry="62" fill="#ff5a2a" opacity="0"/>'
+         '<rect data-res x="626" y="104" width="28" height="92" rx="12" fill="#7fb0dd" stroke="#3f6f9c" stroke-width="2"/>'
+         '<text x="670" y="146" font-family="JetBrains Mono,monospace" font-size="15" font-weight="600" fill="#ffd8a8" data-tr>220 Ω</text>'
+         '<text x="670" y="164" font-family="Inter,system-ui,sans-serif" font-size="11.5" fill="#cfd8d4">hambatan</text>'
+         # pembacaan arus di atas
+         '<rect x="300" y="34" width="160" height="52" rx="10" fill="#f2c230" stroke="#111" stroke-width="1.5"/>'
+         '<rect x="310" y="42" width="140" height="30" rx="4" fill="#1d2b22"/>'
+         '<text x="380" y="63" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="16" font-weight="600" fill="#b6f5c1" data-ti>22,7 mA</text>'
+         '<text x="380" y="104" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="11.5" fill="#cfd8d4">arus</text>'
+         '<text x="380" y="276" text-anchor="middle" font-family="Inter,system-ui,sans-serif" font-size="12" fill="#ffd166">titik kuning = arus (makin cepat, makin besar)</text>'
+         '</svg>')
+    return ('<div class="kalk" data-kalk="hidup"><h3>Coba sendiri: hukum Ohm bergerak</h3>'
+            '<p class="cap">Geser tegangan dan hambatan. Lihat arusnya berubah, dan resistor memerah kalau panasnya besar.</p>'
+            f'<div class="figure">{s}</div>'
+            '<div class="baris">'
+            '<label>Tegangan: <b data-lv>5 V</b><input type="range" name="v" min="0" max="12" step="0.5" value="5"></label>'
+            '<label>Hambatan: <b data-lr>220 Ω</b><input type="range" name="r" min="0" max="100" step="1" value="45"></label></div>'
+            '<output class="hasil" aria-live="polite"></output></div>')
+
+
 GAYA = '''<style>
 .rumus{display:grid;gap:4px;padding:14px 18px;border-radius:var(--radius);background:var(--surface-2);border:1px solid var(--line)}
 .rumus code{font:600 1.25rem/1.3 var(--mono);color:var(--ink);background:none;border:0;padding:0}
@@ -100,5 +140,12 @@ GAYA = '''<style>
 .kalk .hasil b{font-family:var(--mono)}
 .kalk .hasil.salah{background:var(--accent-soft)}
 .kalk svg.res{width:100%;max-width:320px;height:auto}
+.kalk input[type=range]{appearance:auto;-webkit-appearance:auto;height:28px;padding:0;border:0;background:none;accent-color:var(--accent);cursor:pointer}
+.kalk label b{color:var(--ink);font-family:var(--mono)}
+.alir{animation:alir var(--d) linear infinite}
+@keyframes alir{to{transform:translateX(var(--g))}}
+.tetes{animation:tetes .75s linear infinite}
+@keyframes tetes{from{transform:translateY(-10px);opacity:0}30%{opacity:1}to{transform:translateY(14px);opacity:0}}
+@media (prefers-reduced-motion:reduce){.alir,.tetes{animation:none}}
 </style>
 '''

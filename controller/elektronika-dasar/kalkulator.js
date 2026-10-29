@@ -13,7 +13,7 @@
   function fmt(n, d) { return n.toLocaleString('id-ID', { maximumFractionDigits: d === undefined ? 2 : d }); }
   function isian(n, d) { return n.toLocaleString('id-ID', { maximumFractionDigits: d, useGrouping: false }); }
   function ohm(r) { return r >= 1e6 ? fmt(r / 1e6) + ' MΩ' : r >= 1e3 ? fmt(r / 1e3) + ' kΩ' : fmt(r) + ' Ω'; }
-  function amp(a) { return a < 1 ? fmt(a * 1000, 1) + ' mA' : fmt(a) + ' A'; }
+  function amp(a) { return a < 1 ? fmt(a * 1000, a < 0.01 ? 2 : 1) + ' mA' : fmt(a) + ' A'; }
   function watt(p) { return p < 1 ? fmt(p * 1000, 1) + ' mW' : fmt(p) + ' W'; }
   function tulis(out, html, salah) { out.innerHTML = html; out.classList.toggle('salah', !!salah); }
   var E12 = [1.0, 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2];
@@ -87,6 +87,61 @@
         'Hitungan kasar ' + lama(jam) + '; perkiraan yang lebih jujur, dikali 0,7 untuk regulator, suhu, dan baterai yang tidak bisa dikosongkan penuh: <b>' + lama(nyata) + '</b>.');
     }
     k.addEventListener('input', hitung); hitung();
+  });
+
+  // Simulasi hukum Ohm bergerak
+  document.querySelectorAll('[data-kalk="hidup"]').forEach(function (k) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var sv = k.querySelector('[name="v"]'), sr = k.querySelector('[name="r"]'), out = k.querySelector('output');
+    var g = k.querySelector('[data-titik]'), res = k.querySelector('[data-res]'), cahaya = k.querySelector('[data-cahaya]');
+    var N = 30, L = 1400, titik = [];
+    for (var i = 0; i < N; i++) {
+      var c = document.createElementNS(NS, 'circle');
+      c.setAttribute('r', '5'); c.setAttribute('fill', '#ffd166'); g.appendChild(c); titik.push(c);
+    }
+    function posisi(s) {   // keliling persegi panjang searah jarum jam dari pojok kiri atas
+      s = ((s % L) + L) % L;
+      if (s < 520) return [120 + s, 60];
+      if (s < 700) return [640, 60 + (s - 520)];
+      if (s < 1220) return [640 - (s - 700), 240];
+      return [120, 240 - (s - 1220)];
+    }
+    var geser = 0, laju = 0, diam = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function terdekatE12(x) {   // nilai resistor standar terdekat, seperti yang dijual di toko
+      var dek = Math.pow(10, Math.floor(Math.log10(x))), m = x / dek, best = 1, d = 99;
+      E12.concat([10]).forEach(function (e) { var dd = Math.abs(Math.log(m / e)); if (dd < d) { d = dd; best = e; } });
+      return Math.round(best * dek);
+    }
+    function campur(a, b, t) { return Math.round(a + (b - a) * t); }
+    function hitung() {
+      var v = Number(sv.value), r = terdekatE12(10 * Math.pow(10, 3 * Number(sr.value) / 100));
+      var i = v / r, p = v * i;
+      k.querySelector('[data-lv]').textContent = fmt(v, 1) + ' V';
+      k.querySelector('[data-lr]').textContent = ohm(r);
+      k.querySelector('[data-tv]').textContent = fmt(v, 1) + ' V';
+      k.querySelector('[data-tr]').textContent = ohm(r);
+      k.querySelector('[data-ti]').textContent = amp(i);
+      laju = i <= 0 ? 0 : Math.max(6, Math.min(320, 40 + 75 * Math.log10(i / 0.001)));
+      var panas = Math.min(1, p / 1.5);
+      res.setAttribute('fill', 'rgb(' + campur(127, 255, panas) + ',' + campur(176, 90, panas) + ',' + campur(221, 42, panas) + ')');
+      cahaya.setAttribute('opacity', (panas * 0.55).toFixed(2));
+      var cat = v === 0 ? 'Tanpa tegangan tidak ada dorongan, jadi tidak ada arus.' :
+        p > 0.25 ? 'Lebih dari 0,25 W: resistor 1/4 W biasa akan terlalu panas dan bisa terbakar. Pakai resistor berdaya lebih besar atau hambatan lebih besar.' :
+        'Aman untuk resistor 1/4 W.';
+      tulis(out, 'I = V / R = ' + fmt(v, 1) + ' V / ' + ohm(r) + ' = <b>' + amp(i) + '</b>. Panas di resistor P = V × I = <b>' + watt(p) + '</b>. ' + cat, p > 0.25);
+      if (diam) gambar();
+    }
+    function gambar() {
+      for (var j = 0; j < N; j++) { var q = posisi(geser + j * L / N); titik[j].setAttribute('cx', q[0]); titik[j].setAttribute('cy', q[1]); }
+    }
+    var sebelum = null;
+    function jalan(t) {
+      if (sebelum !== null) geser += laju * Math.min(0.05, (t - sebelum) / 1000);
+      sebelum = t; gambar(); requestAnimationFrame(jalan);
+    }
+    sv.addEventListener('input', hitung); sr.addEventListener('input', hitung);
+    hitung(); gambar();
+    if (!diam) requestAnimationFrame(jalan);
   });
 
   // Gelang warna resistor
