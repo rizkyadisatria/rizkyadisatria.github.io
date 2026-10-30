@@ -169,19 +169,27 @@ def halaman():
         gagal=['Selalu -1: VCC belum dapat 5 V (cek a30), atau TRIG/ECHO tertukar.', 'Angka melompat-lompat: permukaan miring atau lembut (kain, sofa) memantulkan bunyi buruk. Itu sifat sensor ini.',
                'Selalu 0 atau angka kecil tetap: resistor 2 kΩ belum ke garis biru.'])
 
-    tahap += stage(S, 6, 'MPU6050 dan sensor cuaca', ['MPU6050 (GY-521)', 'BME280 atau DHT11 dari kit cuaca', 'Kabel F-F', 'Resistor 10 kΩ (untuk DHT11)'], [
-        'Solder pin header ke MPU6050 kalau belum. Tempel MPU6050 <b>rata</b> di chassis (nanti, di Bagian 6). Untuk sekarang taruh di meja, datar.',
+    cuaca = ('<details><summary>Opsional: sensor cuaca (BME280 atau DHT11)</summary><div>'
+             '<p>Lewati bagian ini kalau tidak memakai sensor cuaca. Robot tetap jalan tanpa sensor cuaca; nilai suhu dan kelembapan hanya kosong.</p>'
+             + ul([f'Punya BME280: {pin("VIN")} → pin V baris D21, {pin("GND")} → G baris D21, {pin("SDA")} → S baris D21, {pin("SCL")} → S baris D22. Satu bus I2C bisa dipakai banyak sensor selama alamatnya beda.',
+                   'Atau DHT11 dari kit stasiun cuaca di breadboard. Kaki DHT11 (sisi berlubang menghadapmu) ke <span class="pin">f10</span>–<span class="pin">f13</span>. Kabel <span class="pin">j10</span> → rel merah bawah, <span class="pin">j13</span> → rel biru bawah, resistor 10 kΩ dari <span class="pin">j11</span> ke rel merah bawah, kabel <span class="pin">h11</span> → S baris ' + pin('D5') + '.',
+                   'Uji dengan kode di bawah: selain MPU6050, ia membaca BME280 (alamat 0x76 atau 0x77) atau DHT11 di GPIO 5.',
+                   'BME280 tidak terbaca padahal alamat ada: modulmu mungkin BMP280 (tanpa kelembapan). "nan" untuk DHT11: cek urutan kaki dan resistor 10 kΩ.'])
+             + bb(6, 'Breadboard badan tahap 6 (opsional): DHT11 di f10 sampai f13') + kode_tes('tes_i2c') + '</div></details>')
+    tahap += stage(S, 6, 'MPU6050 (sensor kemiringan)', ['MPU6050 (GY-521)', '4 kabel F-F'], [
+        'Saklar OFF, USB dicabut. Solder pin header ke MPU6050 kalau belum. Tempel MPU6050 <b>rata</b> di chassis nanti (Bagian 6). Untuk sekarang taruh di meja, datar.',
         f'MPU6050 ke header I2C papan 30P (nomor 5 di foto Tahap 1) dengan 4 kabel F-F: {pin("VCC")}→VCC, {pin("GND")}→GND, {pin("SCL")}→D22, {pin("SDA")}→D21. Pin lain (XDA, XCL, AD0, INT) dibiarkan.',
-        f'Punya BME280: {pin("VIN")} → pin V baris D21, {pin("GND")} → G baris D21, {pin("SDA")} → S baris D21, {pin("SCL")} → S baris D22. Satu bus I2C bisa dipakai banyak sensor selama alamatnya beda.',
-        'Belum punya BME280: pakai DHT11 dari kit stasiun cuaca di breadboard. Kaki DHT11 (sisi berlubang menghadapmu) ke <span class="pin">f10</span>–<span class="pin">f13</span>. Kabel <span class="pin">j10</span> → rel merah bawah, <span class="pin">j13</span> → rel biru bawah, resistor 10 kΩ dari <span class="pin">j11</span> ke rel merah bawah, kabel <span class="pin">h11</span> → S baris ' + pin('D5') + '.',
-        'Upload kode tes, buka Serial Monitor.',
-        'Miringkan MPU6050 ke depan-belakang (pitch) dan ke kiri-kanan (roll).',
-    ], figs=photo(IMG + 'mpu6050.jpg', 'MPU6050 GY-521', 'MPU6050 (GY-521). Nama pin tercetak di sebelah lubang.', 380) + bb(6, 'Breadboard badan tahap 6: DHT11 di f10 sampai f13'),
-        code=kode_tes('tes_i2c'),
-        ok_='Pencarian menemukan <code>0x68</code> (MPU6050) dan, kalau ada, <code>0x76</code> atau <code>0x77</code> (BME280). Pitch dan roll mendekati 0 saat datar dan berubah saat dimiringkan. Suhu dan kelembapan masuk akal.',
+        'Colok USB, upload kode tes di bawah (tidak butuh library tambahan), buka Serial Monitor 115200.',
+        'Pastikan pencarian menemukan <code>0x68</code>. Dengan MPU6050 datar, pitch dan roll mendekati 0 dan aks z sekitar 1,00 g.',
+        'Miringkan ke depan-belakang (pitch) dan ke kiri-kanan (roll). Lewat 40° muncul tulisan MIRING: di kode badan, itu batas robot berhenti.',
+    ], figs=photo(IMG + 'mpu6050.jpg', 'MPU6050 GY-521', 'MPU6050 (GY-521). Nama pin tercetak di sebelah lubang.', 380),
+        code=kode_tes('tes_mpu'), after=cuaca,
+        ok_='Pencarian menemukan <code>0x68</code>. Saat datar pitch dan roll mendekati 0 dan aks z sekitar 1 g; saat dimiringkan angkanya ikut berubah. Gyro mendekati 0 saat diam dan melonjak saat diputar.',
         learn='MPU6050 mengukur percepatan, termasuk gravitasi. Dari arah gravitasi, kode menghitung seberapa miring robot. Badan memakai ini untuk berhenti kalau robot terbalik atau terangkat miring.',
-        gagal=['Tidak ada alamat ditemukan: SDA dan SCL tertukar, atau VCC belum tersambung.', 'BME280 tidak terbaca padahal alamat ada di 0x76/0x77: modulmu mungkin BMP280 (tanpa kelembapan). Tulisan di chip kecilnya membedakan.',
-               '"nan" untuk DHT11: cek urutan kaki dan resistor 10 kΩ.'])
+        gagal=['Tidak ada alamat ditemukan: SDA dan SCL tertukar, VCC atau GND belum tersambung, atau kabel F-F longgar.',
+               'Ditemukan 0x69, bukan 0x68: pin AD0 tersambung ke VCC. Biarkan AD0 tidak tersambung.',
+               'WHO_AM_I bukan 0x68 (misalnya 0x70 atau 0x98): modul tiruan. Selama pitch dan roll masuk akal, tetap bisa dipakai.',
+               'Angka diam di nilai yang sama atau semuanya 0: modul belum bangun atau rusak. Cabut-colok USB, cek solderan pin header.'])
 
     tahap += stage(S, 7, 'Pengukur baterai dan tombol STOP', ['Resistor 20 kΩ dan 10 kΩ', 'Resistor 10 kΩ untuk tombol', 'Push button', 'Kabel M-M dan M-F'], [
         'Saklar OFF. Resistor <b>20 kΩ</b> (merah-hitam-hitam-merah-coklat) di <span class="pin">b20</span>–<span class="pin">b24</span>. Resistor <b>10 kΩ</b> (coklat-hitam-hitam-merah-coklat) dari <span class="pin">c24</span> ke garis biru atas.',
