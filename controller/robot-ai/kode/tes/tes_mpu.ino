@@ -12,7 +12,8 @@ void tulisReg(uint8_t reg, uint8_t nilai) {
 
 void setup() {
   Serial.begin(115200);
-  delay(500);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println("\n=== TES MPU6050 ===");
   Wire.begin(21, 22);   // SDA, SCL
 
   Serial.println("Mencari perangkat I2C...");
@@ -39,7 +40,12 @@ void setup() {
 }
 
 void loop() {
-  if (!adaMPU) { delay(1000); return; }
+  if (!adaMPU) {   // terus beri kabar supaya Serial Monitor tidak pernah kosong, dan coba cari lagi
+    Wire.beginTransmission(MPU);
+    if (Wire.endTransmission() == 0) { Serial.println("MPU6050 sekarang ditemukan, mulai ulang..."); delay(200); ESP.restart(); }
+    Serial.println("MPU6050 belum ditemukan di 0x68. Cek SDA->D21, SCL->D22, VCC, GND. Tekan tombol EN untuk mengulang pencarian.");
+    delay(2000); return;
+  }
 
   Wire.beginTransmission(MPU); Wire.write(0x3B); Wire.endTransmission(false);
   if (Wire.requestFrom(MPU, (uint8_t)14) != 14) { Serial.println("gagal membaca, cek kabel"); delay(500); return; }
