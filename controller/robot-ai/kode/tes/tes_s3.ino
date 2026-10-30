@@ -1,7 +1,8 @@
 // TES ESP32-S3: cek PSRAM dan flash. PSRAM harus sekitar 8 MB, flash 16 MB.
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println("\n=== TES S3 ===");
 }
 
 void loop() {

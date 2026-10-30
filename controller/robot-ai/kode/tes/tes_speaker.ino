@@ -21,13 +21,18 @@ void nada(float hz, int ms, float keras = 0.25) {
   }
 }
 
+bool ampOk = false;
+
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println("\n=== TES SPEAKER ===");
   amp.setPins(AMP_BCLK, AMP_LRC, AMP_DIN);
-  if (!amp.begin(I2S_MODE_STD, RATE, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO)) Serial.println("I2S gagal");
+  ampOk = amp.begin(I2S_MODE_STD, RATE, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
 }
 
 void loop() {
+  if (!ampOk) { Serial.println("I2S gagal mulai. Cek pin BCLK, LRC, DIN."); delay(2000); return; }
   Serial.println("do re mi fa sol");
   float not_[] = {523, 587, 659, 698, 784};
   for (float f : not_) nada(f, 300);

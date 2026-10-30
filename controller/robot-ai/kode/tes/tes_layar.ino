@@ -44,6 +44,8 @@ LGFX lcd;
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println("\n=== TES LAYAR ===");
   lcd.init();
   lcd.setRotation(1);                       // mendatar, 320 x 240
   lcd.fillScreen(TFT_RED);   delay(400);

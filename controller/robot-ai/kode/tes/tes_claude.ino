@@ -36,6 +36,8 @@ String tanya(const String& q) {
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println("\n=== TES CLAUDE ===");
   WiFi.begin(WIFI_NAMA, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
   Serial.println("\nSiap. Ketik pertanyaan lalu Enter.");

@@ -10,7 +10,8 @@ bool adaBME = false, adaMPU = false;
 
 void setup() {
   Serial.begin(115200);
-  delay(500);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println("\n=== TES I2C ===");
   Wire.begin(21, 22);
   Serial.println("Mencari perangkat I2C...");
   for (byte a = 1; a < 127; a++) {
@@ -35,7 +36,7 @@ void loop() {
     float pitch = atan2(-ax, sqrt((float)ay * ay + (float)az * az)) * 57.3;
     float roll  = atan2(ay, az) * 57.3;
     Serial.printf("pitch %6.1f  roll %6.1f   ", pitch, roll);
-  }
+  } else Serial.print("MPU6050 TIDAK ditemukan (cek kabel)   ");
   if (adaBME) Serial.printf("suhu %.1f C  lembap %.0f %%  tekanan %.0f hPa\n", bme.readTemperature(), bme.readHumidity(), bme.readPressure() / 100);
   else Serial.printf("suhu %.1f C  lembap %.0f %%\n", dht.readTemperature(), dht.readHumidity());
   delay(1000);

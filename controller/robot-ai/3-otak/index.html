@@ -18,7 +18,8 @@
 <div class="two"><figure class="photo"><img src="../img/s3_ekspansi_anot.jpg" alt="Papan ekspansi ESP32-S3 dengan nomor bagian" loading="lazy"></figure><div><ul class="plain"><li><b>1</b> Blok <b>5V</b> (merah) dan GND (hitam). Di mode jalan, 5 V dari LM2596 #1 masuk ke sini. Saat USB tercolok, pin 5V papanmu hanya terbaca sekitar 1,5-2,9 V (sudah kamu ukur), jadi <b>jangan</b> memakainya sebagai sumber 5 V di meja.</li><li><b>2</b> Blok <b>3V3</b> dan GND: sumber 3,3 V untuk layar, mikrofon, dan speaker selama di meja.</li><li><b>3</b> dan <b>4</b>: tiga kolom untuk tiap GPIO. <b>Kuning = S (sinyal)</b>, merah = 3,3 V, hitam = GND. Nama GPIO tercetak di tepi: IO4, IO5, ... IO21.</li><li><b>5</b> Header kuning lurus di dekat soket: sambungan langsung ke pin S3 apa adanya.</li><li><b>6</b> Jack DC 6,5-9 V: <b>tidak dipakai</b>. <b>7</b> Simbol USB: port USB-C S3 menghadap ke sini saat dipasang.</li></ul></div></div><div class="tbl"><table><thead><tr><th>Bagian</th><th>Pin modul</th><th>GPIO S3</th></tr></thead><tbody><tr><td>Bus SPI bersama</td><td>SCK / MOSI / MISO</td><td><span class="pin">IO12</span> / <span class="pin">IO11</span> / <span class="pin">IO13</span> lewat breadboard</td></tr><tr><td>Layar TFT</td><td>CS, DC, RESET</td><td><span class="pin">IO10</span>, <span class="pin">IO9</span>, <span class="pin">IO8</span></td></tr><tr><td>Sentuhan</td><td>T_CS</td><td><span class="pin">IO14</span></td></tr><tr><td>SD card</td><td>SD_CS</td><td><span class="pin">IO21</span></td></tr><tr><td>Speaker MAX98357A</td><td>BCLK, LRC, DIN</td><td><span class="pin">IO4</span>, <span class="pin">IO5</span>, <span class="pin">IO7</span></td></tr><tr><td>Mikrofon INMP441</td><td>SCK, WS, SD</td><td><span class="pin">IO15</span>, <span class="pin">IO16</span>, <span class="pin">IO6</span></td></tr><tr><td>Ke badan</td><td>TX, RX</td><td><span class="pin">IO17</span> → D16 DevKit, <span class="pin">IO18</span> ← D17 DevKit</td></tr></tbody></table></div><p class="cap">Pin 35-37 (dipakai PSRAM), 19-20 (USB), 0, 3, 45, 46 (pin boot) sengaja tidak dipakai. Hampir semua pin yang dipakai ada di sisi kiri papan.</p></section><section id="rakit" aria-labelledby="h-rakit"><span class="eyebrow">Langkah</span><h2 id="h-rakit">Rakit otak</h2><p class="lead">Semua tahap di bagian ini memakai mode meja: S3 dapat daya dari USB, modul-modul dari blok 3V3.</p><div class="parts" style="gap:16px"><article class="stage" id="tahap1"><div class="stagehead"><div><span class="eyebrow">Tahap 1</span><h3>Siapkan S3 dan cek PSRAM</h3></div><span class="cap" data-count></span></div><div class="need"><span>ESP32-S3 N16R8</span><span>Papan ekspansi S3</span><span>Kabel USB-C data</span><span>Multimeter</span></div><figure class="photo"><img src="../img/esp32s3.jpg" alt="ESP32-S3 N16R8 dengan dua port USB-C" loading="lazy" style="max-width:360px"><figcaption class="cap">ESP32-S3 N16R8 milikmu. Dua port USB-C: satu lewat chip USB-serial (COM), satu USB bawaan chip.</figcaption></figure><ol class="steps"><li><input type="checkbox" id="3-otak-1-0"><label for="3-otak-1-0">Pasang S3 ke papan ekspansi: port USB-C menghadap simbol USB (nomor 7). Cocokkan pin 3V3 di S3 dengan baris 3V3 papan.</label></li><li><input type="checkbox" id="3-otak-1-1"><label for="3-otak-1-1">Colok kabel USB-C ke port S3 yang bertulisan <b>COM</b> atau <b>UART</b>. Kalau tulisannya tidak terbaca, coba salah satu, lalu yang lain di langkah 4 kalau tidak ada tulisan muncul.</label></li><li><input type="checkbox" id="3-otak-1-2"><label for="3-otak-1-2">Atur Arduino IDE seperti tabel di bawah, lalu pilih port yang muncul.</label></li><li><input type="checkbox" id="3-otak-1-3"><label for="3-otak-1-3">Upload kode tes. Serial Monitor 115200.</label></li><li><input type="checkbox" id="3-otak-1-4"><label for="3-otak-1-4">Ukur blok 3V3 (nomor 2) ke GND: harus sekitar 3,3 V.</label></li></ol><div class="codehead"><span>tes_s3.ino</span><a href="../kode/tes/tes_s3.ino" download>Unduh</a></div><div class="code"><button type="button" class="copy">Salin</button><pre><code>// TES ESP32-S3: cek PSRAM dan flash. PSRAM harus sekitar 8 MB, flash 16 MB.
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES S3 ===&quot;);
 }
 
 void loop() {
@@ -73,6 +74,8 @@ LGFX lcd;
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES LAYAR ===&quot;);
   lcd.init();
   lcd.setRotation(1);                       // mendatar, 320 x 240
   lcd.fillScreen(TFT_RED);   delay(400);
@@ -144,9 +147,12 @@ public:
 
 LGFX lcd;
 
+bool sdOk = false;
+
 void setup() {
   Serial.begin(115200);
-  delay(500);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES SD ===&quot;);
   lcd.init(); lcd.setRotation(1); lcd.fillScreen(TFT_BLACK);   // layar dulu, baru SD
   lcd.setTextColor(TFT_WHITE); lcd.setFont(&amp;fonts::Font2);
   SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI);
@@ -155,6 +161,7 @@ void setup() {
     lcd.drawString(&quot;SD GAGAL&quot;, 10, 10);
     return;
   }
+  sdOk = true;
   Serial.printf(&quot;SD terbaca, ukuran %llu MB\n&quot;, SD.cardSize() / 1048576);
   lcd.drawString(&quot;SD terbaca. Isi folder utama:&quot;, 10, 10);
   File root = SD.open(&quot;/&quot;);
@@ -165,7 +172,11 @@ void setup() {
   }
 }
 
-void loop() {}
+void loop() {   // ulangi hasilnya supaya tetap terlihat walau Serial Monitor dibuka terlambat
+  Serial.println(sdOk ? &quot;SD terbaca. Daftar file dicetak sekali di awal; tekan RST untuk melihatnya lagi.&quot;
+                      : &quot;SD GAGAL. Cek kabel SD_CS ke GPIO 21 dan format FAT32.&quot;);
+  delay(3000);
+}
 </code></pre></div><div class="ok"><b>Berhasil kalau</b><p>Serial Monitor menulis ukuran SD dan daftar file, dan layar menampilkan nama file.</p></div><details><summary>Kalau tidak berhasil</summary><div><ul class="plain"><li>SD GAGAL: format FAT32 (bukan exFAT), cek SD_CS ke IO21, coba kartu lain. Kartu di atas 32 GB biasanya exFAT.</li><li>Layar bekerja tapi SD gagal hanya saat layar dinyalakan: SDO(MISO) layar mungkin tersambung. Cabut.</li></ul></div></details></article><article class="stage" id="tahap4"><div class="stagehead"><div><span class="eyebrow">Tahap 4</span><h3>Speaker MAX98357A</h3></div><span class="cap" data-count></span></div><div class="need"><span>MAX98357A (pin header dan terminal sudah terpasang)</span><span>Speaker kotak</span><span>Gunting/tang kupas</span><span>Kabel F-M dan F-F</span></div><div class="photos"><figure class="photo"><img src="../img/speaker_kotak.jpg" alt="Speaker kotak dengan kabel merah hitam dan konektor putih" loading="lazy"><figcaption class="cap">Speaker kotak milikmu. Speaker bulat 8 Ω 3 W jadi cadangan.</figcaption></figure><figure class="photo"><img src="../img/max98357a.jpg" alt="MAX98357A dengan pin header kuning" loading="lazy"><figcaption class="cap">MAX98357A milikmu: 4-8 Ω, 3 W, Vin 2,5-5,5 V.</figcaption></figure></div><div class="figure"><svg viewBox="0 0 760 318" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sambungan MAX98357A"><rect width="760" height="318" fill="#2f5a4e"/><line x1="0" y1="0" x2="0" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="20" y1="0" x2="20" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="40" y1="0" x2="40" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="60" y1="0" x2="60" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="80" y1="0" x2="80" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="100" y1="0" x2="100" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="120" y1="0" x2="120" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="140" y1="0" x2="140" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="160" y1="0" x2="160" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="180" y1="0" x2="180" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="200" y1="0" x2="200" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="220" y1="0" x2="220" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="240" y1="0" x2="240" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="260" y1="0" x2="260" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="280" y1="0" x2="280" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="300" y1="0" x2="300" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="320" y1="0" x2="320" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="340" y1="0" x2="340" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="360" y1="0" x2="360" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="380" y1="0" x2="380" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="400" y1="0" x2="400" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="420" y1="0" x2="420" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="440" y1="0" x2="440" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="460" y1="0" x2="460" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="480" y1="0" x2="480" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="500" y1="0" x2="500" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="520" y1="0" x2="520" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="540" y1="0" x2="540" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="560" y1="0" x2="560" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="580" y1="0" x2="580" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="600" y1="0" x2="600" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="620" y1="0" x2="620" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="640" y1="0" x2="640" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="660" y1="0" x2="660" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="680" y1="0" x2="680" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="700" y1="0" x2="700" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="720" y1="0" x2="720" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="740" y1="0" x2="740" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="760" y1="0" x2="760" y2="318" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="0" x2="760" y2="0" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="20" x2="760" y2="20" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="40" x2="760" y2="40" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="60" x2="760" y2="60" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="80" x2="760" y2="80" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="100" x2="760" y2="100" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="120" x2="760" y2="120" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="140" x2="760" y2="140" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="160" x2="760" y2="160" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="180" x2="760" y2="180" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="200" x2="760" y2="200" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="220" x2="760" y2="220" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="240" x2="760" y2="240" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="260" x2="760" y2="260" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="280" x2="760" y2="280" stroke="#fff" stroke-opacity=".06"/><line x1="0" y1="300" x2="760" y2="300" stroke="#fff" stroke-opacity=".06"/><rect x="30" y="64" width="200" height="230" rx="10" fill="#5b2a86" stroke="#0008" stroke-width="1.5"/><text x="130.0" y="52" font-family="Inter,system-ui,sans-serif" font-size="15" fill="#f4f6f5" text-anchor="middle" font-weight="600">MAX98357A</text><rect x="214" y="81" width="14" height="14" rx="2" fill="#d9b44a" stroke="#6d5513"/><text x="206" y="93" font-family="JetBrains Mono,ui-monospace,monospace" font-size="13" fill="#fff" text-anchor="end" font-weight="400">LRC</text><rect x="214" y="111" width="14" height="14" rx="2" fill="#d9b44a" stroke="#6d5513"/><text x="206" y="123" font-family="JetBrains Mono,ui-monospace,monospace" font-size="13" fill="#fff" text-anchor="end" font-weight="400">BCLK</text><rect x="214" y="141" width="14" height="14" rx="2" fill="#d9b44a" stroke="#6d5513"/><text x="206" y="153" font-family="JetBrains Mono,ui-monospace,monospace" font-size="13" fill="#fff" text-anchor="end" font-weight="400">DIN</text><rect x="214" y="171" width="14" height="14" rx="2" fill="#d9b44a" stroke="#6d5513"/><text x="206" y="183" font-family="JetBrains Mono,ui-monospace,monospace" font-size="13" fill="#fff" text-anchor="end" font-weight="400">GAIN ✕</text><rect x="214" y="201" width="14" height="14" rx="2" fill="#d9b44a" stroke="#6d5513"/><text x="206" y="213" font-family="JetBrains Mono,ui-monospace,monospace" font-size="13" fill="#fff" text-anchor="end" font-weight="400">SD ✕</text><rect x="214" y="231" width="14" height="14" rx="2" fill="#d9b44a" stroke="#6d5513"/><text x="206" y="243" font-family="JetBrains Mono,ui-monospace,monospace" font-size="13" fill="#fff" text-anchor="end" font-weight="400">GND</text><rect x="214" y="261" width="14" height="14" rx="2" fill="#d9b44a" stroke="#6d5513"/><text x="206" y="273" font-family="JetBrains Mono,ui-monospace,monospace" font-size="13" fill="#fff" text-anchor="end" font-weight="400">Vin</text><rect x="480" y="64" width="250" height="230" rx="10" fill="#151a18" stroke="#0008" stroke-width="1.5"/><text x="605.0" y="52" font-family="Inter,system-ui,sans-serif" font-size="15" fill="#f4f6f5" text-anchor="middle" font-weight="600">Sambung ke</text><text x="494" y="93" font-family="JetBrains Mono,ui-monospace,monospace" font-size="11.5" fill="#c9d4cf" text-anchor="start" font-weight="400">papan S3 (pin S)</text><line x1="490" y1="99" x2="720" y2="99" stroke="#ffffff33"/><rect x="482" y="111" width="14" height="14" rx="2" fill="#d9b44a" stroke="#6d5513"/><text x="504" y="123" font-family="JetBrains Mono,ui-monospace,monospace" font-size="13" fill="#fff" text-anchor="start" font-weight="400">IO5</text><rect x="482" y="141" width="14" height="14" rx="2" fill="#d9b44a" stroke="#6d5513"/><text x="504" y="153" font-family="JetBrains Mono,ui-monospace,monospace" font-size="13" fill="#fff" text-anchor="start" font-weight="400">IO4</text><rect x="482" y="171" width="14" height="14" rx="2" fill="#d9b44a" stroke="#6d5513"/><text x="504" y="183" font-family="JetBrains Mono,ui-monospace,monospace" font-size="13" fill="#fff" text-anchor="start" font-weight="400">IO7</text><text x="494" y="213" font-family="JetBrains Mono,ui-monospace,monospace" font-size="11.5" fill="#c9d4cf" text-anchor="start" font-weight="400">breadboard</text><line x1="490" y1="219" x2="720" y2="219" stroke="#ffffff33"/><rect x="482" y="231" width="14" height="14" rx="2" fill="#d9b44a" stroke="#6d5513"/><text x="504" y="243" font-family="JetBrains Mono,ui-monospace,monospace" font-size="13" fill="#fff" text-anchor="start" font-weight="400">rel biru (GND)</text><rect x="482" y="261" width="14" height="14" rx="2" fill="#d9b44a" stroke="#6d5513"/><text x="504" y="273" font-family="JetBrains Mono,ui-monospace,monospace" font-size="13" fill="#fff" text-anchor="start" font-weight="400">rel merah (3V3)</text><path d="M221 88 C341.6 88 368.4 118 489 118" fill="none" stroke="#0b0d0c" stroke-opacity=".45" stroke-width="6.2" stroke-linecap="round"/><path d="M221 88 C341.6 88 368.4 118 489 118" fill="none" stroke="#f2c230" stroke-width="3.6" stroke-linecap="round"/><circle cx="221" cy="88" r="4" fill="#fff" stroke="#111" stroke-width="1.3"/><circle cx="489" cy="118" r="4" fill="#fff" stroke="#111" stroke-width="1.3"/><path d="M221 118 C341.6 118 368.4 148 489 148" fill="none" stroke="#0b0d0c" stroke-opacity=".45" stroke-width="6.2" stroke-linecap="round"/><path d="M221 118 C341.6 118 368.4 148 489 148" fill="none" stroke="#3fae4a" stroke-width="3.6" stroke-linecap="round"/><circle cx="221" cy="118" r="4" fill="#fff" stroke="#111" stroke-width="1.3"/><circle cx="489" cy="148" r="4" fill="#fff" stroke="#111" stroke-width="1.3"/><path d="M221 148 C341.6 148 368.4 178 489 178" fill="none" stroke="#0b0d0c" stroke-opacity=".45" stroke-width="6.2" stroke-linecap="round"/><path d="M221 148 C341.6 148 368.4 178 489 178" fill="none" stroke="#3b82f6" stroke-width="3.6" stroke-linecap="round"/><circle cx="221" cy="148" r="4" fill="#fff" stroke="#111" stroke-width="1.3"/><circle cx="489" cy="178" r="4" fill="#fff" stroke="#111" stroke-width="1.3"/><path d="M221 238 C341.6 238 368.4 238 489 238" fill="none" stroke="#f4f6f5" stroke-opacity=".55" stroke-width="6.2" stroke-linecap="round"/><path d="M221 238 C341.6 238 368.4 238 489 238" fill="none" stroke="#1b1b1b" stroke-width="3.6" stroke-linecap="round"/><circle cx="221" cy="238" r="4" fill="#fff" stroke="#111" stroke-width="1.3"/><circle cx="489" cy="238" r="4" fill="#fff" stroke="#111" stroke-width="1.3"/><path d="M221 268 C341.6 268 368.4 268 489 268" fill="none" stroke="#0b0d0c" stroke-opacity=".45" stroke-width="6.2" stroke-linecap="round"/><path d="M221 268 C341.6 268 368.4 268 489 268" fill="none" stroke="#f08a24" stroke-width="3.6" stroke-linecap="round"/><circle cx="221" cy="268" r="4" fill="#fff" stroke="#111" stroke-width="1.3"/><circle cx="489" cy="268" r="4" fill="#fff" stroke="#111" stroke-width="1.3"/></svg></div><p class="cap geser">Geser gambar ke samping untuk melihat semuanya.</p><ol class="steps"><li><input type="checkbox" id="3-otak-4-0"><label for="3-otak-4-0">MAX98357A-mu sudah berpin header dan berterminal sekrup, jadi tidak perlu menyolder. Nama pin tercetak di sisi depan (LRC, BCLK, DIN, GAIN, SD, GND, Vin).</label></li><li><input type="checkbox" id="3-otak-4-1"><label for="3-otak-4-1">Cek dulu ohm speaker kotakmu: lihat stiker di belakangnya, atau ukur dua kabelnya dengan multimeter di skala 200 Ω. Hasil sekitar 3-4 Ω berarti speaker 4 Ω, sekitar 6-8 Ω berarti 8 Ω. Keduanya aman untuk MAX98357A (4-8 Ω).</label></li><li><input type="checkbox" id="3-otak-4-2"><label for="3-otak-4-2">Konektor putih di ujung kabel speaker tidak cocok dengan terminal. Potong konektornya, kupas 5 mm tiap kabel, pilin seratnya, lalu jepit di terminal: <b>merah ke ⊕</b>, hitam ke ⊖. Kencangkan sekrup lalu tarik pelan untuk mengecek.</label></li><li><input type="checkbox" id="3-otak-4-3"><label for="3-otak-4-3"><span class="pin">Vin</span> → garis merah (3,3 V, untuk di meja), <span class="pin">GND</span> → garis biru.</label></li><li><input type="checkbox" id="3-otak-4-4"><label for="3-otak-4-4"><span class="pin">BCLK</span> → S <b>IO4</b>, <span class="pin">LRC</span> → S <b>IO5</b>, <span class="pin">DIN</span> → S <b>IO7</b>. <span class="pin">GAIN</span> dan <span class="pin">SD</span> dibiarkan kosong.</label></li><li><input type="checkbox" id="3-otak-4-5"><label for="3-otak-4-5">Upload kode tes (tanpa library tambahan).</label></li></ol><div class="codehead"><span>tes_speaker.ino</span><a href="../kode/tes/tes_speaker.ino" download>Unduh</a></div><div class="code"><button type="button" class="copy">Salin</button><pre><code>// TES SPEAKER: bunyi nada naik-turun lewat MAX98357A. Tanpa library tambahan.
 #include &lt;ESP_I2S.h&gt;
 #define AMP_BCLK 4
@@ -189,13 +200,18 @@ void nada(float hz, int ms, float keras = 0.25) {
   }
 }
 
+bool ampOk = false;
+
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES SPEAKER ===&quot;);
   amp.setPins(AMP_BCLK, AMP_LRC, AMP_DIN);
-  if (!amp.begin(I2S_MODE_STD, RATE, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO)) Serial.println(&quot;I2S gagal&quot;);
+  ampOk = amp.begin(I2S_MODE_STD, RATE, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO);
 }
 
 void loop() {
+  if (!ampOk) { Serial.println(&quot;I2S gagal mulai. Cek pin BCLK, LRC, DIN.&quot;); delay(2000); return; }
   Serial.println(&quot;do re mi fa sol&quot;);
   float not_[] = {523, 587, 659, 698, 784};
   for (float f : not_) nada(f, 300);
@@ -209,17 +225,21 @@ void loop() {
 
 I2SClass mic;
 
+bool micOk = false;
+
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES MIC ===&quot;);
   mic.setPins(MIC_SCK, MIC_WS, -1, MIC_SD);
-  if (!mic.begin(I2S_MODE_STD, 16000, I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_MONO, I2S_STD_SLOT_LEFT))
-    Serial.println(&quot;Mikrofon gagal mulai&quot;);
+  micOk = mic.begin(I2S_MODE_STD, 16000, I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_MONO, I2S_STD_SLOT_LEFT);
 }
 
 void loop() {
+  if (!micOk) { Serial.println(&quot;Mikrofon gagal mulai. Cek pin SCK, WS, SD.&quot;); delay(2000); return; }
   int32_t buf[512];
   size_t n = mic.readBytes((char*)buf, sizeof(buf)) / 4;
-  if (n == 0) return;
+  if (n == 0) { Serial.println(&quot;tidak ada data dari mikrofon&quot;); delay(500); return; }
   double jumlah = 0;
   for (size_t i = 0; i &lt; n; i++) { double v = buf[i] &gt;&gt; 14; jumlah += v * v; }
   int keras = sqrt(jumlah / n);
@@ -232,18 +252,25 @@ void loop() {
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES UART ===&quot;);
   Serial1.begin(115200, SERIAL_8N1, BADAN_RX, BADAN_TX);
-  delay(500);
-  Serial.println(&quot;Mengirim PING ke badan...&quot;);
-  Serial1.println(&quot;PING&quot;);
 }
 
 void loop() {
+  static bool dijawab = false;
+  static uint32_t tPing = 0;
+  if (!dijawab &amp;&amp; millis() - tPing &gt; 3000) {                 // ulangi PING sampai badan menjawab
+    tPing = millis();
+    Serial.println(&quot;Mengirim PING ke badan... (belum ada jawaban: cek TX/RX disilang dan GND bersama)&quot;);
+    Serial1.println(&quot;PING&quot;);
+  }
   while (Serial.available()) Serial1.write(Serial.read());   // dari laptop ke badan
   static String baris;
   while (Serial1.available()) {                              // dari badan ke laptop
     char c = Serial1.read();
     if (c == &#x27;\n&#x27;) {
+      dijawab = true;
       if (!baris.startsWith(&quot;D &quot;) || millis() % 2000 &lt; 260) Serial.println(&quot;badan: &quot; + baris);  // data D dicetak jarang
       baris = &quot;&quot;;
     } else if (c != &#x27;\r&#x27;) baris += c;

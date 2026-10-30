@@ -33,6 +33,8 @@ void motor(int pwm, int in1, int in2, int v) {
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES MOTOR ===&quot;);
   pinMode(AIN1, OUTPUT); pinMode(AIN2, OUTPUT); pinMode(BIN1, OUTPUT); pinMode(BIN2, OUTPUT);
   ledcAttach(PWMA, 20000, 8);
   ledcAttach(PWMB, 20000, 8);
@@ -57,6 +59,8 @@ void sudut(int pin, int derajat) {
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES SERVO ===&quot;);
   ledcAttach(PAN, 50, 14);
   ledcAttach(TILT, 50, 14);
   sudut(PAN, 90); sudut(TILT, 90);
@@ -93,6 +97,8 @@ int jarak(int trig, int echo) {
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES JARAK ===&quot;);
   pinMode(TRIG_D, OUTPUT); pinMode(ECHO_D, INPUT);
   pinMode(TRIG_B, OUTPUT); pinMode(ECHO_B, INPUT);
 }
@@ -186,7 +192,8 @@ bool adaBME = false, adaMPU = false;
 
 void setup() {
   Serial.begin(115200);
-  delay(500);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES I2C ===&quot;);
   Wire.begin(21, 22);
   Serial.println(&quot;Mencari perangkat I2C...&quot;);
   for (byte a = 1; a &lt; 127; a++) {
@@ -211,7 +218,7 @@ void loop() {
     float pitch = atan2(-ax, sqrt((float)ay * ay + (float)az * az)) * 57.3;
     float roll  = atan2(ay, az) * 57.3;
     Serial.printf(&quot;pitch %6.1f  roll %6.1f   &quot;, pitch, roll);
-  }
+  } else Serial.print(&quot;MPU6050 TIDAK ditemukan (cek kabel)   &quot;);
   if (adaBME) Serial.printf(&quot;suhu %.1f C  lembap %.0f %%  tekanan %.0f hPa\n&quot;, bme.readTemperature(), bme.readHumidity(), bme.readPressure() / 100);
   else Serial.printf(&quot;suhu %.1f C  lembap %.0f %%\n&quot;, dht.readTemperature(), dht.readHumidity());
   delay(1000);
@@ -222,6 +229,8 @@ float FAKTOR = 3.0;      // ubah setelah dibandingkan dengan multimeter (lihat p
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES BATERAI ===&quot;);
   pinMode(39, INPUT);
   analogSetPinAttenuation(34, ADC_11db);
 }

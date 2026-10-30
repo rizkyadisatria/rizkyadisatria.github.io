@@ -13,6 +13,8 @@ void motor(int pwm, int in1, int in2, int v) {
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println("\n=== TES MOTOR ===");
   pinMode(AIN1, OUTPUT); pinMode(AIN2, OUTPUT); pinMode(BIN1, OUTPUT); pinMode(BIN2, OUTPUT);
   ledcAttach(PWMA, 20000, 8);
   ledcAttach(PWMB, 20000, 8);

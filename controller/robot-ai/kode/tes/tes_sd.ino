@@ -44,9 +44,12 @@ public:
 
 LGFX lcd;
 
+bool sdOk = false;
+
 void setup() {
   Serial.begin(115200);
-  delay(500);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println("\n=== TES SD ===");
   lcd.init(); lcd.setRotation(1); lcd.fillScreen(TFT_BLACK);   // layar dulu, baru SD
   lcd.setTextColor(TFT_WHITE); lcd.setFont(&fonts::Font2);
   SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI);
@@ -55,6 +58,7 @@ void setup() {
     lcd.drawString("SD GAGAL", 10, 10);
     return;
   }
+  sdOk = true;
   Serial.printf("SD terbaca, ukuran %llu MB\n", SD.cardSize() / 1048576);
   lcd.drawString("SD terbaca. Isi folder utama:", 10, 10);
   File root = SD.open("/");
@@ -65,4 +69,8 @@ void setup() {
   }
 }
 
-void loop() {}
+void loop() {   // ulangi hasilnya supaya tetap terlihat walau Serial Monitor dibuka terlambat
+  Serial.println(sdOk ? "SD terbaca. Daftar file dicetak sekali di awal; tekan RST untuk melihatnya lagi."
+                      : "SD GAGAL. Cek kabel SD_CS ke GPIO 21 dan format FAT32.");
+  delay(3000);
+}

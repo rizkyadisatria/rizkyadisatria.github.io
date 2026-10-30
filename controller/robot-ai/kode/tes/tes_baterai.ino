@@ -4,6 +4,8 @@ float FAKTOR = 3.0;      // ubah setelah dibandingkan dengan multimeter (lihat p
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println("\n=== TES BATERAI ===");
   pinMode(39, INPUT);
   analogSetPinAttenuation(34, ADC_11db);
 }

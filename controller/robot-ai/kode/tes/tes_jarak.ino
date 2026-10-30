@@ -14,6 +14,8 @@ int jarak(int trig, int echo) {
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println("\n=== TES JARAK ===");
   pinMode(TRIG_D, OUTPUT); pinMode(ECHO_D, INPUT);
   pinMode(TRIG_B, OUTPUT); pinMode(ECHO_B, INPUT);
 }

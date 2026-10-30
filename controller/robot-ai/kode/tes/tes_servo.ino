@@ -10,6 +10,8 @@ void sudut(int pin, int derajat) {
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println("\n=== TES SERVO ===");
   ledcAttach(PAN, 50, 14);
   ledcAttach(TILT, 50, 14);
   sudut(PAN, 90); sudut(TILT, 90);

@@ -34,6 +34,8 @@ UniversalTelegramBot bot(TOKEN, client);
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES TELEGRAM ===&quot;);
   WiFi.begin(WIFI_NAMA, WIFI_PASSWORD);
   Serial.print(&quot;WiFi&quot;);
   while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print(&quot;.&quot;); }
@@ -89,6 +91,8 @@ String tanya(const String&amp; q) {
 
 void setup() {
   Serial.begin(115200);
+  delay(1500);   // beri waktu Serial Monitor tersambung
+  Serial.println(&quot;\n=== TES CLAUDE ===&quot;);
   WiFi.begin(WIFI_NAMA, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print(&quot;.&quot;); }
   Serial.println(&quot;\nSiap. Ketik pertanyaan lalu Enter.&quot;);
