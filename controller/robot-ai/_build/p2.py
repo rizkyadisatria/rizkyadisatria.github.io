@@ -7,6 +7,12 @@ S = '2-badan'
 IMG = '../img/'
 
 # ---------- isi breadboard kecil di badan ----------
+GND_UJI = ('<b>Kabel GND uji</b> (khusus tes di meja): kabel jumper <b>F-F 20 cm</b>, <b>hitam</b> bila ada. Potong salah satu ujungnya, kupas isinya 11 mm. '
+           'Ujung yang dipotong masuk ke lubang kosong WAGO (angkat tuas oranye, masukkan sampai mentok, tutup tuas, tarik pelan). '
+           'Ujung berkepala F dicolok ke pin <b>G</b> papan ekspansi. WAGO − dan WAGO −6 satu GND lewat XL4015, jadi boleh ke salah satunya. '
+           'Pasang <b>satu</b> kabel saja untuk semua tes Bagian 2. Kabel ini <b>tidak ikut dipasang di robot</b>: di Bagian 6 GND bersama sudah tersambung lewat kabel 5 V ke papan 30P dan kabel sinyal TB6612.')
+
+
 def _rel():
     s = bltag(70, '3V') + bwire((50, 70), RP('tp', 1), '3v3', 0, True, False)
     s += bltag(50, 'G') + bwire((50, 50), RP('tm', 1), 'gnd', 0, True, False)
@@ -136,7 +142,7 @@ def halaman():
                'Roda berdengung tapi tidak berputar: kecepatan 150 terlalu kecil untuk motormu, atau XL4015 kurang dari 6 V.',
                'DevKit restart saat motor mulai: noise motor. Pasang kapasitor 100 nF di motor dan cek GND bersama.'])
 
-    tahap += stage(S, 4, 'Kepala pan-tilt (servo MG90S)', ['Pan-tilt dengan 2 MG90S', 'Kabel M-F', 'Kabel 22 AWG hijau dan hitam', 'Kapasitor 470 µF', 'Heat shrink', 'WAGO 6V dan WAGO −6'], [
+    tahap += stage(S, 4, 'Kepala pan-tilt (servo MG90S)', ['Pan-tilt dengan 2 MG90S', 'Kabel M-F', 'Kabel 22 AWG hijau dan hitam', 'Kapasitor 470 µF', 'Heat shrink', 'WAGO 6V dan WAGO −6', 'Jumper F-F 20 cm untuk GND uji'], [
         'Saklar OFF. Kabel servo: <b>coklat = GND</b>, <b>merah = daya</b>, <b>oranye = sinyal</b>.',
         f'Servo bawah (pan, menoleh kiri-kanan): oranye ke pin S baris {pin("D23")}. Servo atas (tilt, mengangguk): oranye ke pin S baris {pin("D4")}. Pakai kabel M-F: ujung jantan masuk ke <b>lubang oranye</b> colokan servo (lubang paling ujung), ujung betina ke pin S.',
         f'Daya servo dari WAGO 6V/−6 ke kepala di lantai 3: potong hijau 22 AWG <b>{KB.pn("servo+")}</b> dan hitam <b>26 AWG</b> (kabel UL1007-mu) <b>{KB.pn("servo-")}</b>. Arus kedua servo paling besar sekitar 1,5 A, jadi 26 AWG cukup untuk GND-nya, dan hitam 22 AWG tidak kurang.',
@@ -144,7 +150,7 @@ def halaman():
         'Masukkan heat shrink dulu. Solder kedua merah servo ke satu ujung kabel hijau, kedua coklat ke satu ujung kabel hitam. Di sambungan yang sama, solder kapasitor 470 µF kedua: kaki panjang ke merah-hijau, sisi bergaris ke coklat-hitam. Tutup heat shrink.',
         'Ujung lain kabel hijau → WAGO 6V, hitam → WAGO −6. Kabel 26 AWG sedikit lebih kecil dari ukuran terkecil yang dijepit kuat oleh WAGO, jadi ujung hitamnya dikupas 22 mm lalu dilipat dua (11 mm berlapis dua) sebelum dimasukkan. Tarik pelan: tidak boleh lepas.',
         '<b>Jangan</b> memberi daya servo dari pin V atau 5V papan ekspansi. Saat bergerak, servo menarik arus besar dan bisa membuat DevKit restart.',
-        '<b>Cek GND bersama sebelum menyalakan.</b> Saklar OFF dan USB dicabut. Multimeter mode bip (continuity): satu probe di pin <b>G papan ekspansi</b> (GND DevKit), probe lain di lubang <b>WAGO −6</b>. <b>Harus bunyi.</b> Kalau tidak bunyi, pasang satu kabel dari pin G papan ekspansi ke WAGO −6. Tanpa GND bersama, sinyal servo tidak punya acuan: servo bergerak acak atau bergetar, tilt bisa diam sama sekali, dan menyentuh logam di jalur daya bisa membuat servo bergerak sendiri.',
+        '<b>Cek GND bersama sebelum menyalakan.</b> Saklar OFF dan USB dicabut. Multimeter mode bip (continuity): satu probe di pin <b>G papan ekspansi</b> (GND DevKit), probe lain di lubang <b>WAGO −6</b>. <b>Harus bunyi.</b> Kalau tidak bunyi, pasang kabel GND uji: ' + GND_UJI + ' Tanpa GND bersama, sinyal servo tidak punya acuan: servo bergerak acak atau bergetar, tilt bisa diam sama sekali, dan menyentuh logam di jalur daya bisa membuat servo bergerak sendiri.',
         'Lepas sekrup lengan servo dulu. Upload kode tes. Setelah servo diam di 90°, pasang lengan sehingga kepala lurus ke depan dan tegak, baru kencangkan sekrup.',
     ], figs=photo(IMG + 'pantilt.jpg', 'Pan-tilt dengan dua servo MG90S yang sudah dirakit', 'Pan-tilt rakitanmu. Servo bawah = pan, servo atas = tilt.', 420) + fig(diag.servo_kapasitor(), 'Sambungan daya kepala: dua kabel merah servo jadi satu ke hijau, dua coklat jadi satu ke hitam, kapasitor 470 µF melintang di antara dua sambungan (kaki panjang + ke sisi merah). Kabel oranye tidak dipotong dan colokan servo tetap satu blok 3 lubang.'),
         code=kode_tes('tes_servo'),
@@ -191,11 +197,11 @@ def halaman():
                'WHO_AM_I bukan 0x68 (misalnya 0x70 atau 0x98): modul tiruan. Selama pitch dan roll masuk akal, tetap bisa dipakai.',
                'Angka diam di nilai yang sama atau semuanya 0: modul belum bangun atau rusak. Cabut-colok USB, cek solderan pin header.'])
 
-    tahap += stage(S, 7, 'Pengukur baterai dan tombol STOP', ['Resistor 20 kΩ dan 10 kΩ', 'Resistor 10 kΩ untuk tombol', 'Push button', 'Kabel M-M dan M-F'], [
+    tahap += stage(S, 7, 'Pengukur baterai dan tombol STOP', ['Resistor 20 kΩ dan 10 kΩ', 'Resistor 10 kΩ untuk tombol', 'Push button', 'Kabel M-M dan M-F', 'Kabel GND uji (dari Tahap 4)'], [
         'Saklar OFF. Rel atas breadboard dari Tahap 5 harus masih terpasang: pin <b>3V</b> → garis merah atas, pin <b>G</b> → garis biru atas, dan rel atas tersambung ke rel bawah. Ukur merah atas ke biru atas dengan USB terpasang: harus sekitar 3,3 V. Resistor <b>20 kΩ</b> (merah-hitam-hitam-merah-coklat) di <span class="pin">b20</span>–<span class="pin">b24</span>. Resistor <b>10 kΩ</b> (coklat-hitam-hitam-merah-coklat) dari <span class="pin">c24</span> ke garis biru atas.',
         f'Kabel <span class="pin">a24</span> → S baris {pin("D34")}.',
         f'Potong kabel 26 AWG merah <b>{KB.pn("bat")}</b>, beri heat shrink <b>biru</b> 2 mm di kedua ujung sebagai tanda kabel ukur baterai: satu ujung dijepit di terminal <b>IN+ LM2596 #1</b> bersama kabel merahnya (rel plus baterai setelah saklar), ujung lain ke <span class="pin">a20</span>. <b>Bukan</b> dari P+ sebelum sekring.',
-        'GND bersama: pembagi ini mengukur tegangan terhadap GND DevKit, jadi GND baterai harus disambung ke GND DevKit. Saklar OFF, sambung <b>WAGO −</b> ke pin <b>G</b> papan ekspansi dengan satu kabel (ujung kabel dikupas 11 mm untuk masuk ke WAGO, bukan pin jumper biasa). Cek mode bunyi: WAGO − ke pin G harus berbunyi.',
+        'GND bersama: pembagi ini mengukur tegangan terhadap GND DevKit, jadi GND baterai harus disambung ke GND DevKit. Saklar OFF. Kalau kabel GND uji dari Tahap 4 masih terpasang, tidak perlu menambah. Kalau belum ada: ' + GND_UJI + ' Cek mode bunyi: WAGO − ke pin G harus berbunyi.',
         'Tombol 6 mm menyeberangi parit tengah: kaki di <span class="pin">e27</span>, <span class="pin">e29</span>, <span class="pin">f27</span>, <span class="pin">f29</span>. Yang dipakai dua kaki <b>diagonal</b>: e27 dan f29.',
         'Resistor 10 kΩ dari <span class="pin">a27</span> ke garis merah atas (3,3 V). Kabel <span class="pin">c27</span> → S baris ' + pin('D39') + ' (di papan tertulis VN). Kabel <span class="pin">j29</span> → garis biru bawah.',
         'Colok USB, saklar baterai ON, upload kode tes. Ukur juga tegangan baterai dengan multimeter.',
