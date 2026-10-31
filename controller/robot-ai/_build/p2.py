@@ -192,7 +192,7 @@ def halaman():
                'Angka diam di nilai yang sama atau semuanya 0: modul belum bangun atau rusak. Cabut-colok USB, cek solderan pin header.'])
 
     tahap += stage(S, 7, 'Pengukur baterai dan tombol STOP', ['Resistor 20 kΩ dan 10 kΩ', 'Resistor 10 kΩ untuk tombol', 'Push button', 'Kabel M-M dan M-F'], [
-        'Saklar OFF. Resistor <b>20 kΩ</b> (merah-hitam-hitam-merah-coklat) di <span class="pin">b20</span>–<span class="pin">b24</span>. Resistor <b>10 kΩ</b> (coklat-hitam-hitam-merah-coklat) dari <span class="pin">c24</span> ke garis biru atas.',
+        'Saklar OFF. Rel atas breadboard dari Tahap 5 harus masih terpasang: pin <b>3V</b> → garis merah atas, pin <b>G</b> → garis biru atas, dan rel atas tersambung ke rel bawah. Ukur merah atas ke biru atas dengan USB terpasang: harus sekitar 3,3 V. Resistor <b>20 kΩ</b> (merah-hitam-hitam-merah-coklat) di <span class="pin">b20</span>–<span class="pin">b24</span>. Resistor <b>10 kΩ</b> (coklat-hitam-hitam-merah-coklat) dari <span class="pin">c24</span> ke garis biru atas.',
         f'Kabel <span class="pin">a24</span> → S baris {pin("D34")}.',
         f'Potong kabel 26 AWG merah <b>{KB.pn("bat")}</b>, beri heat shrink <b>biru</b> 2 mm di kedua ujung sebagai tanda kabel ukur baterai: satu ujung dijepit di terminal <b>IN+ LM2596 #1</b> bersama kabel merahnya (rel plus baterai setelah saklar), ujung lain ke <span class="pin">a20</span>. <b>Bukan</b> dari P+ sebelum sekring.',
         'Tombol 6 mm menyeberangi parit tengah: kaki di <span class="pin">e27</span>, <span class="pin">e29</span>, <span class="pin">f27</span>, <span class="pin">f29</span>. Yang dipakai dua kaki <b>diagonal</b>: e27 dan f29.',
@@ -203,7 +203,7 @@ def halaman():
         code=kode_tes('tes_baterai'),
         ok_='Tegangan baterai di Serial Monitor sama dengan multimeter (selisih di bawah 0,1 V setelah kalibrasi), dan tulisan berubah ke DITEKAN saat tombol ditekan.',
         learn='GPIO 39 hanya bisa input dan tidak punya resistor pull-up di dalam chip, jadi kita pasang 10 kΩ ke 3,3 V. Tanpa ditekan pin membaca HIGH; ditekan, pin tersambung ke GND dan membaca LOW. Untuk robot jadi, tombol 6 mm diganti tombol 12 mm di sayap tengah kiri lantai 3, disambung dua kabel ke kolom 27 dan 29 (panjangnya di Bagian 6).',
-        gagal=['Baterai terbaca 0: kabel BAT+ belum masuk a20, atau saklar OFF.', 'Tombol selalu DITEKAN: kaki tombol yang dipakai bukan diagonal. Putar tombol 90 derajat.'])
+        gagal=['Baterai terbaca 0: kabel BAT+ belum masuk a20, atau saklar OFF.', 'Angka baterai melonjak ke sekitar 3100 mV atau 140 mV sendiri, dan tombol berganti DITEKAN/lepas tanpa disentuh: rel atas breadboard tidak mendapat 3,3 V (kabel pin 3V dan G dari Tahap 5 belum dipasang), sehingga pull-up tombol tidak bekerja dan input melayang.', 'Tombol selalu DITEKAN: kaki tombol yang dipakai bukan diagonal. Putar tombol 90 derajat.'])
 
     tahap += stage(S, 8, 'Upload kode badan dan uji keselamatan', ['Semua rangkaian Tahap 3-7', 'Robot terangkat'], [
         'Buka <a href="../kode/robot_badan/robot_badan.ino" download>robot_badan.ino</a>. Isi <code>BATERAI_FAKTOR</code> dari Tahap 7. Kalau di Tahap 3 satu sisi terbalik dan kamu tidak menukar kabel, ubah <code>MOTOR_KIRI_TERBALIK</code> atau <code>MOTOR_KANAN_TERBALIK</code> ke <code>true</code>.',
