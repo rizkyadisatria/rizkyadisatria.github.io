@@ -95,6 +95,7 @@ def halaman():
                'Bot menyapa tapi "badan belum terhubung": DevKit tidak mendapat 5 V (cek kabel ke blok daya 30P) atau kabel UART lepas saat dirakit.'])
 
     t += stage(S, 7, 'Uji pertama di lantai', ['Ruang kosong 2x2 m', 'Baterai penuh', 'HP dengan Telegram'], [
+        'Kalau uji keselamatan Bagian 2 Tahap 8 kamu tunda, jalankan dulu sekarang dengan robot terangkat (roda tidak menyentuh apa pun): tolak maju saat ada halangan, tombol STOP mengunci, dan roda berhenti sendiri setelah 3 detik. Baru lanjut ke lantai.',
         'Taruh robot di lantai, jauh dari tangga dan barang mudah pecah. Tangan dekat tombol STOP.',
         'Kirim <code>/status</code>. Cek jarak depan dan belakang masuk akal.',
         'Kirim <code>/maju 500</code>. Robot maju setengah detik. Kalau berbelok sendiri, satu sisi lebih lemah; itu wajar untuk motor TT murah.',

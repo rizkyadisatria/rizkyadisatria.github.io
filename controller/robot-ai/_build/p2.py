@@ -210,6 +210,7 @@ def halaman():
         'Buka <a href="../kode/robot_badan/robot_badan.ino" download>robot_badan.ino</a>. Isi <code>BATERAI_FAKTOR</code> dari Tahap 7. Kalau di Tahap 3 satu sisi terbalik dan kamu tidak menukar kabel, ubah <code>MOTOR_KIRI_TERBALIK</code> atau <code>MOTOR_KANAN_TERBALIK</code> ke <code>true</code>.',
         'Upload ke DevKit (board ESP32 Dev Module). Buka Serial Monitor 115200, pilih akhir baris <b>Newline</b> di pojok kanan bawah.',
         'Pastikan robot terangkat dan saklar baterai ON. Ketik <code>M 150 150 1000</code> lalu Enter: semua roda maju 1 detik lalu berhenti sendiri.',
+        '<b>Boleh ditunda:</b> upload kode di atas wajib sebelum Bagian 3. Uji keselamatan di bawah (halangan, tombol STOP, batas waktu) boleh kamu jalankan nanti di Bagian 6 Tahap 7 dengan robot terangkat, kalau rangkaian meja sudah dibongkar. Jangan jalankan robot di lantai sebelum ketiganya terbukti jalan.',
         'Ketik <code>M 150 -150 500</code>: robot (kalau di lantai) akan berputar ke kanan. Ketik <code>P 45 90</code>: kepala menoleh.',
         'Uji halangan: taruh tanganmu 10 cm di depan sensor depan, ketik <code>M 150 150 1000</code>. Harus muncul <code>E DITOLAK</code> dan roda diam. Mundur (<code>M -150 -150 1000</code>) tetap boleh.',
         'Uji tombol STOP: tekan sekali, muncul <code>E STOP_DIKUNCI</code> dan LED biru DevKit berkedip cepat. Semua perintah gerak ditolak. Tekan lagi untuk melepas.',
