@@ -14,6 +14,8 @@ def esc(s):
     return html.escape(s, quote=True)
 
 
+from paten import PATEN  # noqa: E402
+
 PARTS = [
     ('1-daya', 'Daya', 'Baterai, BMS, sekring, saklar, dan tiga konverter tegangan. Diukur dengan multimeter sebelum ada board yang disambung.'),
     ('2-badan', 'Badan', 'Chassis, 4 motor lewat TB6612, kepala pan-tilt, sensor jarak, kemiringan, cuaca, tombol STOP, dan kode badan.'),
@@ -67,6 +69,11 @@ def info(judul, isi): return f'<div class="info"><b>{judul}</b><p>{isi}</p></div
 def ul(items): return '<ul class="plain">' + ''.join(f'<li>{x}</li>' for x in items) + '</ul>'
 
 
+def paten_box(boleh, jangan):
+    return ('<div class="paten"><b>Setelah lulus: boleh dipatenkan atau belum?</b>'
+            f'<p><span class="py">Boleh dipatenkan</span> {boleh}</p><p><span class="pn">Jangan dulu</span> {jangan}</p></div>')
+
+
 def stage(slug, n, judul, need, steps, figs='', pre='', code='', after='', ok_=None, learn=None, gagal=None):
     lis = ''.join(f'<li><input type="checkbox" id="{slug}-{n}-{i}"><label for="{slug}-{n}-{i}">{s}</label></li>' for i, s in enumerate(steps))
     needs = ''.join(f'<span>{esc(x)}</span>' for x in need)
@@ -75,6 +82,7 @@ def stage(slug, n, judul, need, steps, figs='', pre='', code='', after='', ok_=N
     out += pre + figs + f'<ol class="steps">{lis}</ol>' + code + after
     if learn: out += f'<p class="cap"><b>Kenapa begitu?</b> {learn}</p>'
     if ok_: out += ok('Berhasil kalau', ok_)
+    if (slug, n) in PATEN: out += paten_box(*PATEN[(slug, n)])
     if gagal: out += '<details><summary>Kalau tidak berhasil</summary><div>' + ul(gagal) + '</div></details>'
     return out + '</article>'
 

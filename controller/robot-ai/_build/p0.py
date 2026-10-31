@@ -103,6 +103,7 @@ def isi():
   <div class="rule"><b>Satu perubahan, satu tes</b><p>Tambah satu modul, tes, baru lanjut. Kalau gagal, kamu tahu penyebabnya ada di modul terakhir.</p></div>
   <div class="rule"><b>Roda terangkat</b><p>Semua tes motor dilakukan dengan robot di atas kotak, sampai Bagian 6.</p></div>
   <div class="rule"><b>Serial Monitor kosong?</b><p>Pastikan kecepatannya 115200 baud, lalu tekan tombol EN/RST di papan. Setiap kode tes mencetak judul "=== TES ... ===" di awal.</p></div>
+  <div class="rule"><b>Dipatenkan setelah lulus</b><p>Tiap tahap berakhir dengan kotak "boleh dipatenkan atau belum". Patenkan hanya yang tesnya lulus, tidak perlu dijangkau tes lain, dan posisinya sudah pasti. Baut, cable tie, dan bor ke plat menunggu susun kering di Bagian 6 Tahap 1.</p></div>
   <div class="rule"><b>GND selalu bersama</b><p>Papan dan modul yang saling mengirim sinyal harus tersambung GND-nya, walaupun dayanya dari sumber berbeda. Cek dengan tes bip.</p></div>
 </div>
 <p class="cap">Belum yakin dengan istilah tegangan, GND, PWM, atau cara memakai multimeter? Baca dulu <a href="../elektronika-dasar/">Elektronika Dasar untuk IoT dan Mikrokontroler</a>; dasarnya berlaku untuk robot ini dan proyek lain.</p>''')
