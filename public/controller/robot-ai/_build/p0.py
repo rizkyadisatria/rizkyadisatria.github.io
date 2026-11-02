@@ -1,5 +1,6 @@
 from build import *
 import kabel as KB
+from barang_en import EN as BARANG_EN, BELI_EN, JUMLAH_EN
 
 IMG = 'img/'
 
@@ -63,13 +64,35 @@ KIT = [
     ('led', 'LED', 'Uji rel daya di Bagian 1.', 2),
     ('dioda', 'Dioda 1N4001/1N4007', 'Tidak dipakai; bukan Schottky.', 3),
 ]
-BADGE = {1: ('dipakai', ''), 2: ('dipakai sebentar', 'opt'), 0: ('foto katalog, belum ada fotomu', 'opt'), 3: ('tidak dipakai di robot', 'opt')}
+BADGE = {1: ('dipakai', '', 'in use'), 2: ('dipakai sebentar', 'opt', 'used briefly')}
+
+# Barang yang tidak dipakai di robot (status 3) dan baris katalog tanpa foto (status 0) sengaja tidak ditampilkan.
+KIT_ROBOT = [k for k in KIT if k[3] in (1, 2)]
+
+# Barang tambahan opsional yang belum dimiliki: (id, nama, jumlah, untuk, tanpa barang ini)
+BELI = [
+    ('bme280', 'BME280', '1 (opsional)', 'suhu, kelembapan, tekanan', 'pakai DHT11 dari kit cuaca'),
+    ('papan256', 'Papan persegi 256 x 152 mm, tebal 3-4 mm', '1 (opsional)', 'pengganti plat ketiga bila lantai 3 terlalu rapat (speaker, TFT)', 'tetap pakai plat ketiga yang sempit'),
+    ('bracket-hcsr04', 'Dudukan (bracket) HC-SR04', '2 (opsional)', 'memegang HC-SR04 tegak di tepi depan dan belakang, dibaut ke plat', 'HC-SR04 diikat cable ties; lebih mudah miring dan salah baca'),
+]
+
+
+def punya(id_, default, solo=False):
+    """Kotak centang "sudah punya". Status disimpan di browser (kunci halaman ini), bukan ditulis di HTML.
+    solo: teksnya disembunyikan secara visual (tetap terbaca pembaca layar), untuk kolom tabel yang sudah berjudul."""
+    return (f'<label class="own{" own-solo" if solo else ""}"><input type="checkbox" class="have" id="have-{id_}" data-default="{default}">'
+            f'<span data-en="I have it">sudah punya</span></label>')
 
 
 def kartu(g, n, f, s):
-    im = f'<img src="{IMG}{g}.jpg" alt="Foto {esc(n)} milikmu" loading="lazy">' if g else '<div class="noimg">belum ada foto<br>barang asli</div>'
-    b, c = BADGE[s]
-    return f'<article class="card" tabindex="0">{im}<div class="body"><span class="name">{esc(n)}</span><p class="what">{f}</p><span class="badge {c}">{b}</span></div></article>'
+    en_n, en_f = BARANG_EN.get(g, (n, f))
+    b, c, b_en = BADGE[s]
+    opsional = ' data-opsional="1"' if s == 2 else ''
+    im = (f'<img src="{IMG}{g}.jpg" alt="Foto {esc(n)} milikmu" data-en-alt="Photo of your {esc(en_n)}" loading="lazy">')
+    return (f'<article class="card" data-nama="{esc(n)}" data-nama-en="{esc(en_n)}"{opsional} tabindex="0">{im}'
+            f'<div class="body"><span class="name" data-en="{esc(en_n)}">{esc(n)}</span>'
+            f'<p class="what" data-en="{esc(en_f)}">{f}</p>'
+            f'<span class="badge {c}" data-en="{b_en}">{b}</span>{punya(g, 1)}</div></article>')
 
 
 def isi():
@@ -108,17 +131,33 @@ def isi():
 </div>
 <p class="cap">Belum yakin dengan istilah tegangan, GND, PWM, atau cara memakai multimeter? Baca dulu <a href="../elektronika-dasar/">Elektronika Dasar untuk IoT dan Mikrokontroler</a>; dasarnya berlaku untuk robot ini dan proyek lain.</p>''')
 
-    belum = table(['Barang', 'Jumlah', 'Untuk', 'Tanpa barang ini'], [
-        ['BME280', '1 (opsional)', 'suhu, kelembapan, tekanan', 'pakai DHT11 dari kit cuaca'],
-        ['Papan persegi 256 x 152 mm, tebal 3-4 mm', '1 (opsional)', 'pengganti plat ketiga bila lantai 3 terlalu rapat (speaker, TFT)', 'tetap pakai plat ketiga yang sempit'],
-        ['Dudukan (bracket) HC-SR04', '2 (opsional)', 'memegang HC-SR04 tegak di tepi depan dan belakang, dibaut ke plat', 'HC-SR04 diikat cable ties; lebih mudah miring dan salah baca'],
-    ])
-    kartu_html = ''.join(kartu(*k) for k in KIT)
+    baris_beli = ''
+    for id_, nama, jumlah, untuk, tanpa in BELI:
+        en_n, en_u, en_t = BELI_EN[id_]
+        baris_beli += (f'<tr data-nama="{esc(nama)}" data-nama-en="{esc(en_n)}" data-opsional="1">'
+                       f'<td>{punya(id_, 0, True)}</td><td data-en="{esc(en_n)}">{esc(nama)}</td>'
+                       f'<td data-en="{esc(JUMLAH_EN[jumlah])}">{esc(jumlah)}</td>'
+                       f'<td data-en="{esc(en_u)}">{esc(untuk)}</td><td data-en="{esc(en_t)}">{esc(tanpa)}</td></tr>')
+    tambahan = ('<div class="tbl"><table><thead><tr>'
+                '<th data-en="Have it">Sudah punya</th><th data-en="Item">Barang</th><th data-en="Qty">Jumlah</th>'
+                '<th data-en="For">Untuk</th><th data-en="Without it">Tanpa barang ini</th>'
+                f'</tr></thead><tbody>{baris_beli}</tbody></table></div>')
+    kartu_html = ''.join(kartu(*k) for k in KIT_ROBOT)
     o += section('barang', 'Barang', 'Yang sudah kamu punya, dan yang masih kurang', f'''
-<div class="panel"><h3>Masih perlu dibeli</h3>{belum}<p class="cap">Sudah datang dan dicoret dari daftar ini: spacer kuningan (12 buah untuk 6 kaki lantai 3), plat lantai 3, kit spacer nilon, heat shrink, TB6612FNG, layar TFT, MAX98357A, ESP32-CAM + MB, LM2596 kedua, holder kedua, kapasitor 100 nF, cable ties, dan kartu SD. Kabel USB-C dan micro-USB sudah ada sejak awal. Kabel 22 AWG merah, hijau, hitam masing-masing 1 m sudah datang, begitu juga tambahan merah + hitam 22 AWG 2 m, kabel 26 AWG oranye 1 m, dan empat WAGO 221-415; kabel 26 AWG lama hanya untuk sinyal.</p></div>
-<div class="toolbar"><button id="quizbtn" aria-pressed="false" type="button">Mode tebak nama</button><span class="cap" id="quizhint"></span></div>
+<div class="panel" id="beli"><h3 data-en="Still to buy">Masih perlu dibeli</h3>
+<p class="cap" id="barang-ringkas" aria-live="polite"></p>
+<ul class="plain" id="beli-list"></ul>
+<noscript><p class="cap">Aktifkan JavaScript untuk mencentang barang yang sudah kamu punya.</p></noscript>
+<p class="cap" data-en="Tick what you already have in the cards and the table below. This list updates on its own and is saved in your browser; nothing is written here by hand.">Centang barang yang sudah kamu punya di kartu dan tabel di bawah. Daftar ini mengikuti centangmu dan tersimpan di browser; tidak ada yang ditulis manual di sini.</p></div>
+<div class="panel"><h3 data-en="Optional extras">Tambahan opsional</h3>{tambahan}</div>
+<div class="toolbar"><div class="chips" role="group" aria-label="Saring barang" data-en-aria-label="Filter items">
+<button type="button" class="chip" data-filter="semua" aria-pressed="true" data-en="All">Semua</button>
+<button type="button" class="chip" data-filter="belum" aria-pressed="false" data-en="Not yet">Belum punya</button>
+<button type="button" class="chip" data-filter="sudah" aria-pressed="false" data-en="Have it">Sudah punya</button></div>
+<button id="quizbtn" aria-pressed="false" type="button" data-en="Guess-the-name mode">Mode tebak nama</button></div>
+<p class="cap" id="quizhint"></p>
 <div class="grid" id="kit">{kartu_html}</div>
-<p class="cap">Foto dari barang milikmu sendiri. Mode tebak nama menyamarkan nama tiap barang; ketuk kartunya untuk mengecek.</p>''')
+<p class="cap" data-en="Photos of your own items. Items from your kit that the robot does not use are left out on purpose. Guess-the-name mode blurs each name; tap the card to check.">Foto dari barang milikmu sendiri. Barang kit yang tidak dipakai robot sengaja tidak ditampilkan. Mode tebak nama menyamarkan nama tiap barang; ketuk kartunya untuk mengecek.</p>''')
 
     pins_badan = table(['Fungsi', 'DevKit V1'], [
         ['Motor kiri: PWMA, AIN1, AIN2', 'D25, D26, D27'], ['Motor kanan: PWMB, BIN1, BIN2', 'D13, D32, D33'], ['STBY, VCC TB6612', '3V'],

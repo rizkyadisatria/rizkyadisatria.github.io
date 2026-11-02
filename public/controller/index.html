@@ -89,33 +89,33 @@ footer a{color:var(--muted)}footer a:hover{color:var(--ink)}
 .bg-kontur canvas{display:block;width:100%;height:100%}
 </style>
 </head>
-<body>
+<body data-terjemahan="penuh">
 <div class="bg-kontur" aria-hidden="true"><canvas id="kontur-canvas"></canvas></div>
 <div class="wrap">
   <header class="hero">
-    <span class="pill"><i></i>ESP32 · Arduino · untuk pemula</span>
+    <span class="pill"><i></i><span data-en="ESP32 · Arduino · for beginners">ESP32 · Arduino · untuk pemula</span></span>
     <h1>Panduan Elektronika</h1>
-    <p class="lead">Panduan rakit dan kode untuk kit ESP32, ditulis untuk yang baru mulai. Setiap tahap kecil dan punya kode tes sendiri, jadi kamu tahu bagian itu berhasil sebelum lanjut ke yang berikutnya.</p>
-    <ul class="how" aria-label="Cara kerja panduan">
-      <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></span><b>Kenali dulu komponennya</b><span>Foto dan nama setiap komponen, lengkap dengan mode tebak nama untuk menghafal.</span></li>
-      <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h6"/></svg></span><b>Rakit sedikit demi sedikit</b><span>Posisi kabel ditunjukkan di gambar breadboard dengan alamat lubang yang jelas.</span></li>
-      <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><b>Progres tersimpan</b><span>Centang langkah yang sudah selesai. Tersimpan di browser, jadi bisa dilanjut besok.</span></li>
+    <p class="lead" data-en="Build and code guides for the ESP32 kit, written for people just starting out. Every stage is small and has its own test code, so you know that part works before moving on to the next.">Panduan rakit dan kode untuk kit ESP32, ditulis untuk yang baru mulai. Setiap tahap kecil dan punya kode tes sendiri, jadi kamu tahu bagian itu berhasil sebelum lanjut ke yang berikutnya.</p>
+    <ul class="how" aria-label="Cara kerja panduan" data-en-aria-label="How the guides work">
+      <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></svg></span><b data-en="Know the components first">Kenali dulu komponennya</b><span data-en="A photo and name for every component, with a guess-the-name mode to help you memorise them.">Foto dan nama setiap komponen, lengkap dengan mode tebak nama untuk menghafal.</span></li>
+      <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h10M4 17h6"/></svg></span><b data-en="Build a little at a time">Rakit sedikit demi sedikit</b><span data-en="Wire positions are shown on the breadboard drawing with clear hole addresses.">Posisi kabel ditunjukkan di gambar breadboard dengan alamat lubang yang jelas.</span></li>
+      <li><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><b data-en="Progress is saved">Progres tersimpan</b><span data-en="Tick the steps you have finished. It is saved in your browser, so you can carry on tomorrow.">Centang langkah yang sudah selesai. Tersimpan di browser, jadi bisa dilanjut besok.</span></li>
     </ul>
   </header>
 
   <section class="list" aria-labelledby="h-panduan">
     <div class="listhead">
-      <div><span class="eyebrow">Daftar</span><h2 id="h-panduan">Semua panduan</h2></div>
-      <input class="search" id="cari" type="search" placeholder="Cari panduan atau komponen" aria-label="Cari panduan" hidden>
+      <div><span class="eyebrow" data-en="List">Daftar</span><h2 id="h-panduan">Semua panduan</h2></div>
+      <input class="search" id="cari" type="search" placeholder="Cari panduan atau komponen" aria-label="Cari panduan" data-en-placeholder="Search guides or components" data-en-aria-label="Search guides" hidden>
     </div>
     <div class="cards" id="cards">
       <noscript><a class="card" href="stasiun-cuaca/"><div class="cbody"><h3>Stasiun Cuaca Kamar + Bot Telegram</h3><p>Aktifkan JavaScript untuk melihat daftar lengkap. Panduan ini bisa dibuka langsung dari tautan ini.</p></div></a></noscript>
     </div>
-    <p class="empty" id="kosong" hidden>Tidak ada panduan yang cocok.</p>
+    <p class="empty" id="kosong" hidden data-en="No guide matches.">Tidak ada panduan yang cocok.</p>
   </section>
 
   <footer>
-    <span>Dibuat untuk belajar. Cek ulang setiap sambungan kabel sebelum mencolok USB.</span>
+    <span data-en="Made for learning. Re-check every wire before plugging in USB.">Dibuat untuk belajar. Cek ulang setiap sambungan kabel sebelum mencolok USB.</span>
     <span id="repo"></span>
   </footer>
 </div>
@@ -126,17 +126,20 @@ footer a{color:var(--muted)}footer a:hover{color:var(--ink)}
   const G=(window.GUIDES||[]).slice().sort((a,b)=>String(b.diperbarui||'').localeCompare(String(a.diperbarui||'')));
   const box=document.getElementById('cards'),cari=document.getElementById('cari'),kosong=document.getElementById('kosong');
   const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const tgl=s=>{const d=new Date(s+'T00:00:00');return isNaN(d)?'':d.toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'})};
+  const L=()=>window.panduanBahasa&&window.panduanBahasa.bahasa()==='en'?'en':'id';
+  const T=(id,en)=>L()==='en'?en:id;
+  const tgl=s=>{const d=new Date(s+'T00:00:00');return isNaN(d)?'':d.toLocaleDateString(L()==='en'?'en-GB':'id-ID',{day:'numeric',month:'long',year:'numeric'})};
+  const F=(g,k)=>(L()==='en'&&g.en&&g.en[k]!=null)?g.en[k]:g[k];
   function kartu(g){
-    const cover=g.gambar?`<div class="cover"><img src="${esc(g.gambar)}" alt="" loading="lazy"></div>`:`<div class="cover none">tanpa gambar</div>`;
-    const meta=[`<span class="lv">${esc(g.level||'')}</span>`,g.tahap?`<span>${esc(g.tahap)}</span>`:''].filter(Boolean).join('')+(g.komponen||[]).map(k=>`<span>${esc(k)}</span>`).join('');
-    return `<a class="card" href="${esc(g.slug)}/">${cover}<div class="cbody"><h3>${esc(g.judul)}</h3><span class="status st-muat" data-progres="${esc(g.slug)}">Menghitung progres…</span><div class="pbar" aria-hidden="true"><i data-pbar="${esc(g.slug)}"></i></div><p>${esc(g.ringkas)}</p><div class="meta">${meta}</div>${g.diperbarui?`<p class="muted" style="font-size:.8rem">Diperbarui ${esc(tgl(g.diperbarui))}</p>`:''}<span class="go">Buka panduan</span></div></a>`;
+    const cover=g.gambar?`<div class="cover"><img src="${esc(g.gambar)}" alt="" loading="lazy"></div>`:`<div class="cover none">${T('tanpa gambar','no image')}</div>`;
+    const meta=[`<span class="lv">${esc(F(g,'level')||'')}</span>`,g.tahap?`<span>${esc(F(g,'tahap'))}</span>`:''].filter(Boolean).join('')+(g.komponen||[]).map(k=>`<span>${esc(k)}</span>`).join('');
+    return `<a class="card" href="${esc(g.slug)}/">${cover}<div class="cbody"><h3>${esc(F(g,'judul'))}</h3><span class="status st-muat" data-progres="${esc(g.slug)}">${T('Menghitung progres…','Counting progress…')}</span><div class="pbar" aria-hidden="true"><i data-pbar="${esc(g.slug)}"></i></div><p>${esc(F(g,'ringkas'))}</p><div class="meta">${meta}</div>${g.diperbarui?`<p class="muted" style="font-size:.8rem">${T('Diperbarui','Updated')} ${esc(tgl(g.diperbarui))}</p>`:''}<span class="go">${T('Buka panduan','Open guide')}</span></div></a>`;
   }
-  const soon=`<div class="card soon" aria-hidden="true"><div class="cbody"><span class="eyebrow">Segera</span><h3>Panduan berikutnya</h3><p>Panduan baru akan muncul di sini.</p></div></div>`;
+  const soon=()=>`<div class="card soon" aria-hidden="true"><div class="cbody"><span class="eyebrow">${T('Segera','Soon')}</span><h3>${T('Panduan berikutnya','Next guide')}</h3><p>${T('Panduan baru akan muncul di sini.','New guides will appear here.')}</p></div></div>`;
   function render(q){
     q=(q||'').trim().toLowerCase();
-    const list=q?G.filter(g=>[g.judul,g.ringkas,g.level,(g.komponen||[]).join(' ')].join(' ').toLowerCase().includes(q)):G;
-    box.innerHTML=list.map(kartu).join('')+(q?'':soon);
+    const list=q?G.filter(g=>[g.judul,g.ringkas,g.level,(g.komponen||[]).join(' '),g.en&&g.en.judul,g.en&&g.en.ringkas].join(' ').toLowerCase().includes(q)):G;
+    box.innerHTML=list.map(kartu).join('')+(q?'':soon());
     kosong.hidden=list.length>0;
   }
   // label status otomatis: dihitung dari daftar langkah tiap panduan dan centang yang tersimpan di browser ini
@@ -155,8 +158,8 @@ footer a{color:var(--muted)}footer a:hover{color:var(--ink)}
       if(!r)return;
       const pct=r.n?Math.round(r.s/r.n*100):0;
       el.className='status '+(r.s===0?'st-belum':r.s>=r.n?'st-selesai':'st-jalan');
-      el.textContent=r.s===0?`Belum mulai · ${r.n} langkah`:r.s>=r.n?`Selesai · ${r.n} langkah`:`Sedang dikerjakan · ${r.s}/${r.n} langkah (${pct}%)`;
-      el.title='Dihitung otomatis dari langkah yang kamu centang di browser ini';
+      el.textContent=r.s===0?T(`Belum mulai · ${r.n} langkah`,`Not started · ${r.n} steps`):r.s>=r.n?T(`Selesai · ${r.n} langkah`,`Done · ${r.n} steps`):T(`Sedang dikerjakan · ${r.s}/${r.n} langkah (${pct}%)`,`In progress · ${r.s}/${r.n} steps (${pct}%)`);
+      el.title=T('Dihitung otomatis dari langkah yang kamu centang di browser ini','Counted automatically from the steps you ticked in this browser');
       if(bar){bar.style.width=pct+'%';bar.parentNode.hidden=r.s===0;bar.parentNode.classList.toggle('ok',r.s>=r.n)}
     });
   }
@@ -175,7 +178,9 @@ footer a{color:var(--muted)}footer a:hover{color:var(--ink)}
   render('');
   muatProgres();
   const repo=(window.SITE&&window.SITE.repo)||'';
-  if(repo)document.getElementById('repo').innerHTML=`<a href="${esc(repo)}">Sumber di GitHub</a>`;
+  const tulisRepo=()=>{if(repo)document.getElementById('repo').innerHTML=`<a href="${esc(repo)}">${T('Sumber di GitHub','Source on GitHub')}</a>`};
+  if(repo)tulisRepo();
+  document.addEventListener('panduan:bahasa',()=>{render(cari.value);tulisRepo();tampilProgres()});
 })();
 </script>
 <script>
