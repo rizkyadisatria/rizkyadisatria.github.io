@@ -54,6 +54,19 @@ Halaman di `public/controller/` dibuat oleh skrip Python di `public/controller/*
 (bukan komponen Svelte). Cara menjalankan skripnya tidak berubah; lokasinya saja yang pindah ke bawah `public/`.
 Halaman ini tidak mendapat CSP ketat karena memakai script inline.
 
+### Bahasa, cadangan progres, dan daftar barang di `/controller`
+
+- **Bahasa ID/EN:** tombol di bilah atas, pilihannya disimpan di kunci `lang` yang sama dengan portofolio. Teks diterjemahkan lewat
+  atribut `data-en` (dan `data-en-alt`, `data-en-aria-label`, …) serta kamus antarmuka di `assets/bahasa.js`. Halaman depan panduan
+  dan daftar barang robot sudah dua bahasa; isi langkah demi langkah masih Indonesia dan halaman itu memberi catatan saat EN aktif.
+  Panduan baru: beri objek `en` di `guides.js`.
+- **Cadangan progres:** tombol "Cadangan" mengekspor/mengimpor progres ke file JSON (`assets/cadangan.js`, diuji di
+  `tests/cadangan.test.ts`). Impor memvalidasi bentuk file dan hanya menerima kunci panduan yang dikenal. Panduan baru:
+  tambahkan pola kuncinya di `KUNCI_PROGRES` (dan di `pindah/pindah.js`).
+- **Daftar barang robot:** status "sudah punya" adalah kotak centang yang tersimpan di browser; daftar "masih perlu dibeli" dihitung dari
+  centang itu. Barang yang tidak dipakai robot tidak ditampilkan. Sumbernya `robot-ai/_build/p0.py` dan `barang_en.py`; jalankan
+  `python3 robot-ai/_build/build.py` lalu `git checkout robot-ai/kode/robot-ai-kode.zip` (zip hanya berubah stempel waktu).
+
 ## GitHub Pages
 
 Situs utama ada di Vercel (`rizkyadisatria.vercel.app`). `index.html` dan `404.html` di akar repo hanya meneruskan

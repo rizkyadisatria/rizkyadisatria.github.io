@@ -134,3 +134,37 @@ describe('pemindahan progres dari alamat lama', () => {
     expect(existsSync(join(DIST, 'controller/pindah/pindah.js'))).toBe(true)
   })
 })
+
+describe('daftar barang robot (/controller/robot-ai/)', () => {
+  const html = () => read('controller/robot-ai/index.html')
+  const TIDAK_DIPAKAI = ['ov2640', 'lcd1602', 'relay', 'sg90', 'ldr', 'pot', 'dioda']
+
+  test('gambar barang yang tidak dipakai robot tidak ditampilkan', () => {
+    for (const g of TIDAK_DIPAKAI) expect(html(), g).not.toContain(`img/${g}.jpg`)
+  })
+  test('status "sudah punya" berupa kotak centang dengan id unik, bukan teks yang ditulis manual', () => {
+    const ids = [...html().matchAll(/class="have" id="(have-[^"]+)"/g)].map((m) => m[1]!)
+    expect(ids.length).toBeGreaterThan(40)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(html()).not.toContain('dicoret dari daftar')
+    expect(html()).toContain('id="beli-list"')
+  })
+  test('kotak centang barang tidak ikut terhitung sebagai langkah progres', () => {
+    expect(html()).not.toMatch(/<ol class="steps">(?:(?!<\/ol>).)*class="have"/s)
+    const langkah = JSON.parse(read('controller/robot-ai/langkah.json'))
+    expect(langkah.total).toBe(240)
+  })
+})
+
+describe('bahasa dan cadangan di panduan', () => {
+  test('tema.js memuat bahasa.js dan cadangan.js, yang ikut terbit', () => {
+    expect(read('controller/assets/tema.js')).toContain("muat('bahasa.js'")
+    expect(existsSync(join(DIST, 'controller/assets/bahasa.js'))).toBe(true)
+    expect(existsSync(join(DIST, 'controller/assets/cadangan.js'))).toBe(true)
+  })
+  test('halaman depan panduan punya terjemahan Inggris untuk tiap panduan', () => {
+    const guides = read('controller/guides.js')
+    const jumlahSlug = [...guides.matchAll(/^\s*slug:/gm)].length
+    expect([...guides.matchAll(/^\s*en: \{/gm)].length).toBe(jumlahSlug)
+  })
+})
