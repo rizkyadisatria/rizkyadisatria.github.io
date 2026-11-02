@@ -1,0 +1,107 @@
+# Bagian 3: Otak
+98971931f334	The robot's brain
+41bf13b72d3e	The brain holds the touchscreen, the sound and the internet connection. Each module is tested on its own first, then the brain is connected to the body.
+5b9b00cb264a	Brain pins (ESP32-S3)
+86576f24695f	<b>1</b> <b>5V</b> block (red) and GND (black). In run mode, 5 V from LM2596 #1 goes in here. While USB is plugged in, your board's 5V pin reads only about 1.5-2.9 V (you measured it), so <b>do not</b> use it as a 5 V source on the table.
+fcc2c2691329	<b>2</b> <b>3V3</b> block and GND: the 3.3 V source for the display, microphone and speaker while on the table.
+d059d84dce1f	<b>3</b> and <b>4</b>: three columns for each GPIO. <b>Yellow = S (signal)</b>, red = 3.3 V, black = GND. The GPIO name is printed on the edge: IO4, IO5, ... IO21.
+834e1314ae6d	<b>5</b> Straight yellow header near the socket: a direct connection to the S3 pins as they are.
+7ebdf1f24b10	<b>6</b> DC jack 6.5-9 V: <b>not used</b>. <b>7</b> USB symbol: the S3's USB-C port faces this way when installed.
+e5ed6b7c7dbd	Module pins
+89f4d653cd50	Shared SPI bus
+fa9184a0c6bc	SCK / MOSI / MISO
+066d41a27064	<span class="pin">IO12</span> / <span class="pin">IO11</span> / <span class="pin">IO13</span> through the breadboard
+b54f1ade2223	TFT display
+0d2b8589392b	MAX98357A speaker
+4134a0c53dda	BCLK, LRC, DIN
+50f863390a30	INMP441 microphone
+88529910f734	<span class="pin">IO17</span> → D16 DevKit, <span class="pin">IO18</span> ← D17 DevKit
+c6b0c39e57b9	Pins 35-37 (used by PSRAM), 19-20 (USB), 0, 3, 45, 46 (boot pins) are deliberately left unused. Almost all the pins in use are on the left side of the board.
+fc7edc26e663	Build the brain
+e4740ec0b625	Every stage in this part uses table mode: the S3 gets power from USB, and the modules from the 3V3 block.
+430bbef29d92	Set up the S3 and check PSRAM
+cf51634d66c2	Your ESP32-S3 N16R8. Two USB-C ports: one goes through a USB-serial chip (COM), the other is the chip's built-in USB.
+6cd426b60a4d	Tools menu
+f5c4a85913d5	ESP32S3 Dev Module
+f2f5ac23d234	Flash Size
+64ea59d1290a	<b>OPI PSRAM</b>
+ba8b0a10f468	Partition Scheme
+af9f09c2a8bd	Huge APP (3MB No OTA/1MB SPIFFS)
+ea8d69af766e	USB CDC On Boot
+cd40e1f77a7a	<b>Enabled</b> if the cable is in the chip's built-in USB port (the upload log says <code>USB mode: USB-Serial/JTAG</code>); Disabled if it is in the UART/COM port (the log says <code>USB mode: UART</code>)
+448fdcb274d2	Choosing the wrong PSRAM is the most common reason the brain code fails later.
+3b72a00c7fd4	You see <code>Flash: 16 MB</code> and <code>PSRAM: 8388608 byte</code> (about 8 million).
+0ca845548bfd	<span class="py">OK to lock in</span> The Arduino Tools settings (OPI PSRAM, Huge APP) and the S3 staying plugged into its expansion board: the two go up to level 3 as one unit.
+6784fb1247d6	<span class="pn">Not yet</span> The S3 board is not bolted down yet. On the robot it uses 10 mm nylon standoffs, with the USB-C port facing sideways (Part 6 Stage 4).
+5f09a09889b3	PSRAM 0: the PSRAM menu is not set to OPI PSRAM.
+6412e72668dd	Upload fails with "Connecting...": hold the BOOT button on the S3, press RST once, release BOOT, then upload again.
+b431cecf4e08	Upload succeeds but the Serial Monitor is empty: look at the upload log in the Output tab. If it says <code>USB mode: USB-Serial/JTAG</code>, you are using the chip's built-in USB port: set <b>USB CDC On Boot to Enabled</b>, upload again, and reopen the Serial Monitor. If it says <code>USB mode: UART</code>, leave it Disabled. The other port does not show up on the computer: try another data cable, or install the UART chip's driver.
+5e58954cde56	TFT display and touch
+0505b293a7ba	The front of your display: 14 pins on the left, 4 SD holes on the right.
+e6c472440cb3	The back: pin names from T_IRQ (top) to VCC (bottom), full-size SD slot.
+1583a757be32	Pins marked ✕ (SDO(MISO) and T_IRQ) are left without wires.
+c2d0885c1e5c	<b>Why this way?</b> The display, touch and SD share the same three wires (SCK, MOSI, MISO). The ESP32 chooses which one to talk to by pulling that device's CS pin low. That is why every device has its own CS wire.
+05ee924f23a4	The display shows "Layar berhasil!", and after calibration, a yellow dot follows your finger.
+bb6d8f179b52	<span class="py">OK to lock in</span> The wiring layout on breadboard 2 (SPI bus in columns 2, 5, 8 and the display pins). This breadboard goes up to level 3 together with its wires.
+8cc4e3688ae1	<span class="pn">Not yet</span> The display is not bolted down yet. On the robot it lies facing up on 20 mm standoffs, and the wires going to its pins are under the display, so they must already be plugged in before the display is bolted down.
+16ffc0cefcbf	Display is only white: RESET, DC or CS is not connected, or SCK/MOSI are swapped.
+fa528dd0b685	Inverted colors (black becomes white): in the code, change <code>c.invert = false</code> to <code>true</code>. Red and blue swapped: change <code>c.rgb_order</code>.
+119ccbe8fd61	Picture shifted or streaked: the SPI wires are too long. Use 10-20 cm wires, or lower <code>freq_write</code> to 20000000.
+aa7ad3946cd9	Touch does not respond: check T_CS to IO14 and T_DO to column 8.
+bd442d7aadb1	The SD card on the back of the display
+36c37a919771	The Serial Monitor prints the SD size and the file list, and the display shows the file names.
+a6fd5a44491f	<span class="py">OK to lock in</span> The four soldered SD header pins, the FAT32 format and the songs on the card.
+673949e7f5d7	<span class="pn">Not yet</span> Nothing is mounted to the plate at this stage.
+db9b3ed49141	SD GAGAL: format as FAT32 (not exFAT), check SD_CS to IO21, try another card. Cards above 32 GB are usually exFAT.
+cdba847d520a	The display works but the SD fails only when the display is on: the display's SDO(MISO) may be connected. Unplug it.
+8a75c8860229	Your boxed speaker. The round 8 Ω 3 W speaker is the spare.
+86d5b079a03b	Your MAX98357A: 4-8 Ω, 3 W, Vin 2.5-5.5 V.
+09981ce8767e	<b>Why this way?</b> The MAX98357A receives digital sound (I2S) and amplifies it straight to the speaker. GAIN pin left open = 9 dB gain, SD pin left open = on. On the finished robot, Vin is moved to 5 V to make it louder.
+ddc0ee301335	You hear do-re-mi-fa-sol and then a one-second pause, repeating.
+6cde8a2872f3	<span class="py">OK to lock in</span> The speaker wires clamped in the ⊕ and ⊖ terminals.
+0129c814e39a	<span class="pn">Not yet</span> The MAX98357A Vin is still on the 3.3 V rail. On the robot it is moved to the S3 board's 5V pin (Part 6 Stage 6). The speaker is not strapped to the plate yet (Part 6 Stage 4).
+be6c0f0f7d57	Silent: check that BCLK/LRC/DIN are not swapped and the speaker wires are clamped firmly in the terminal (not the insulation).
+bbed1c53b2c6	Crackling: the GND wire is not firm enough, or the data wires are too long.
+13249b08b1f1	Your INMP441: SCK, WS, L/R on one side, SD, VDD, GND on the other.
+f8794520a0f3	<b>Why this way?</b> L/R to GND makes the microphone send sound on the left channel. The code reads only the left channel. The microphone and speaker use two separate I2S channels, so each can be set on its own.
+7c294b008f46	The line in the Serial Plotter is low when quiet (tens to hundreds) and jumps to the thousands when you clap or speak.
+7ee5bd24e4ba	<span class="py">OK to lock in</span> The soldered INMP441 header pins, with the sound hole left uncovered.
+52f63912f5de	<span class="pn">Not yet</span> VDD stays on 3.3 V. Do not move it to 5 V in run mode like the speaker's Vin: the INMP441 must not get 5 V.
+aca3dfe1386d	Always 0: SD and WS are swapped, or L/R is not on GND.
+684d43110e8d	Large numbers even when quiet: the GND wire came loose.
+a603028eafcd	Connect the brain to the body (UART)
+daeb0f6b1074	One board's TX always goes to the other board's RX (crossed).
+9a9f2bee93b4	You see <code>badan: PONG</code> and data lines <code>badan: D ...</code>. The M command moves the wheels.
+9d3f454e0c2b	<span class="py">OK to lock in</span> The UART pairs: IO17 to D16, IO18 to D17, G to G. On the robot it is exactly the same, only with longer wires.
+c747768653a3	<span class="pn">Not yet</span> The 20 cm jumper wires on the table are not final: on the robot the UART wires are longer and joined with F-F and M-F (Part 6 Stage 4).
+bd62c83c5728	No reply: TX-RX are not crossed, GND is not connected, or the body does not yet have robot_badan.ino.
+c80b5d3297ae	Strange characters: both boards must be at 115200 (already in the code).
+b5576fafc165	Brain wiring list
+bdb68b156181	red rail of breadboard 2
+61de53d7b54e	blue rail
+f23fbee5dccb	TFT VCC, LED
+20123d6a61a2	red rail
+da5f145e1576	TFT GND
+a29914375f7b	TFT SCK, T_CLK, SD_SCK
+1ff10ff2e0b2	TFT SDI(MOSI), T_DIN, SD_MOSI
+cae3d16c462f	TFT SDO(MISO), T_IRQ
+2421ed91ab82	not connected
+02becc49bdbe	MAX98357A Vin / GND
+3593157f06c6	red rail (run mode: 5V block) / blue rail
+3b211a300507	MAX98357A BCLK, LRC, DIN
+ae74b8b3a26c	INMP441 VDD / GND, L/R
+ba11c2452bfe	red rail / blue rail
+40247414e795	INMP441 SCK, WS, SD
+4de51bbd705b	S3 expansion board
+98a5f38fcadb	USB-C data cable
+2fb222543a2d	2.4&quot; SPI TFT 240x320
+f1b59819a78a	Breadboard 2 (400 holes)
+76053429b9e3	LovyanGFX library
+0239af24ded3	Full-size SD card (your SanDisk 32 GB)
+4dcac0beb6a6	4-pin header + solder
+ec7e78e01964	MAX98357A (pin headers and terminal already attached)
+41f9664fd3dd	Boxed speaker
+203926f61027	Wire cutter/stripper
+3c13a415d053	F-M and F-F wires
+095cd9e19da0	Pin header + solder
+902490b0f3c7	The body already has robot_badan.ino

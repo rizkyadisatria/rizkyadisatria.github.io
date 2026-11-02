@@ -174,4 +174,6 @@ if __name__ == '__main__':
     sys.path.insert(0, ROOT + '../_alat')
     import langkah
     n = langkah.tulis_langkah('robot-ai', [ROOT + 'index.html'] + [ROOT + p[0] + '/index.html' for p in PARTS])
+    import terjemah
+    terjemah.tandai_semua(['robot-ai'])   # beri data-t pada blok teks untuk katalog terjemahan (_alat/terjemah.py)
     print('selesai,', n, 'langkah')

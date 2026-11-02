@@ -1,0 +1,82 @@
+# Stasiun cuaca: bagian halaman
+f56a7df570ec	Weather Station Build Guide
+77838dd75cdc	First get to know every component in your kit, understand how a breadboard works, then build a little at a time. Every stage has a small test code, so you know that part works before moving on.
+38031c25efab	Three rules before you start
+f4c22c320f0b	Attach or move wires only while the ESP32 is off. Plug the USB back in after everything is checked.
+1861081476a6	The red line on the breadboard is for voltage (+), the blue line for GND (−). Never connect the two directly.
+3912d5ce3d7a	Compare every wire with the picture and the text in the step. Almost every beginner failure is one wire shifted by one hole.
+ec16d138a517	Get to know your components
+f4015f333dfc	All these photos are of your own kit. After reading, turn on <b>guess-the-name mode</b>: each component's name is hidden, try to say it, then tap the card to check.
+b2caa60fcf4d	Basics you need to know
+55403e4c2656	How a breadboard works
+0a276f9841fe	Inside the breadboard are metal strips that connect certain holes. Every hole has an address: a <b>row letter</b> (a–j) and a <b>column number</b> (1–30), both printed on your breadboard. So <span class="hole">e3</span> means row e, column 3.
+f4850fe98532	<b>Green:</b> the five holes in one column (a–e) are connected to each other. A component with a leg in <span class="hole">a5</span> is connected to a wire in <span class="hole">d5</span>.
+cc0bb543332b	<b>Orange:</b> f–j in the same column are also connected, but <b>separated</b> from a–e by the gap in the middle.
+861fd3085beb	<b>Red:</b> the power rail is connected along its whole line. Any hole along the red line is the same.
+e8633a81bd2f	Different columns are <b>not</b> connected. <span class="hole">a5</span> and <span class="hole">a6</span> are not linked.
+b4c19e6be4e1	The orientation of the breadboard does not matter. What matters is matching the letters and numbers printed on your breadboard.
+17f8f1103299	Three kinds of jumper wire
+aeeda35b13ef	<b>Male</b> = the end is a metal pin (it can go into a breadboard hole). <b>Female</b> = the end is a hole (it fits over a pin).
+ebd5db50574b	<b>Male–male (M-M):</b> breadboard hole to breadboard hole.
+f8ee2d892e90	<b>Male–female (M-F):</b> expansion board pin to breadboard. The most used in this project.
+8b6574011143	<b>Female–female (F-F):</b> pin to pin, for example the LCD straight to the expansion board.
+2ccb260840da	Wire color makes no electrical difference. But make a habit of red for +, black or brown for GND, so it is easy to check.
+9312b1cd2d36	Reading the expansion board
+902d47a8f6b3	Your ESP32 is plugged into the black expansion board. Every GPIO pin has one row of <b>3 pins</b>:
+b99af48ff90c	<b>S</b> (signal) = the GPIO pin itself, for example <span class="pin">D4</span>. The signal wire goes here.
+c286b6415c6e	<b>V</b> = the voltage for the component.
+a90ace016713	The labels on the expansion board use the format D + GPIO number: GPIO 25 = <span class="pin">D25</span>. A full explanation of your board is below.
+0e546cc17c80	Getting to know your expansion board
+722b5dc73418	This is your own board without the ESP32: the <b>ESP32 ESP32S 30P Expansion board</b>. The numbers in the photo are explained below it.
+fa2f6f8969a2	<b class="r">The voltage selector jumper</b> is labeled <span class="pin">3.3V</span> <span class="pin">V</span> <span class="pin">5V</span>. Its black cap connects the middle pin (V) to one of the sides, and that is the voltage of all the V pins on the board. <b>In your photo, the cap appears to be in the V–5V position.</b> For this project move it to the <b>3.3V–V</b> position: pull the cap straight up (use a fingernail or tweezers), then push it onto the two pins on the 3.3V side.
+9a74d0961f21	<b>The right-hand pin rows.</b> Each row has 3 pins. The order is printed underneath: <b>G</b> innermost, <b>V</b> in the middle, <b>S</b> outermost (near the edge of the board). The pin names (D25, D26, D34, ...) are printed beside the S pin. The block labeled GND above them holds extra GND pins.
+4f81b0466ee5	<b>The left-hand pin rows</b> for D15, D2, D4, D16, D17, D5, D18, D19, D21, RX, TX, D22, D23. The G/V/S order letters under this column cannot be read in your photo. They are usually mirrored (S at the outer edge), but check the letters underneath yourself before attaching wires on this side.
+c8eb8fc87c83	<b>The GND, VCC, D21, D22 header</b> for I2C modules, for example the I2C version of the LCD. Not used yet.
+4982d11ad349	<b>Two long female sockets</b>, where the ESP32 plugs in.
+90c9d55a5ec8	<b>The 6.5–16V DC jack</b> for an adapter. Not used yet; USB power is enough.
+52620ca961ae	<b>The expansion board's micro-USB and USB-C ports</b>, most likely for power only. To upload code, plug the cable into the port on the ESP32 module itself.
+a83486a92b25	The sensors (DHT11, LDR) are given voltage from the red rail, then send a signal to the ESP32 pin at the same voltage. The ESP32 pins are designed for a maximum of 3.3V. Continuously giving them 5V can damage them. If you have a multimeter, after moving the jumper measure the voltage between the V and G pins: the result must be about 3.3V.
+c3231ff6a05b	Unplug the USB first. Face the ESP32's micro-USB port toward the DC jack and the expansion board's USB port (top), with the ESP32's metal can facing down. Match the <span class="pin">D15</span> label on the ESP32 with the D15 row of the expansion board. Make sure all 30 pins go into the sockets with none left outside, then press down evenly and slowly with both thumbs.
+6cbfbbe9ed2b	Reading resistor values
+24ef0f5b775d	The resistors in the kit can have 4 or 5 color bands. Read from the end where the bands are grouped; the last band, set slightly apart, is the tolerance. If your 10 kΩ resistor is <b>brown, black, orange, gold</b>, it has 4 bands and its value is exactly the same as the one below.
+8060c6097f24	The colors on small resistors are sometimes hard to tell apart. A multimeter in Ω mode gives a definite answer. Resistors have no polarity, so they can be fitted either way round.
+df4eb9552989	Build in stages
+e9241888dc7e	In every picture, the newly added parts appear bright and the parts from the previous stage appear faded. White dot = a leg or wire end going into a hole. Wires may cross over the breadboard; what matters is that the ends are in the right holes. On a phone, swipe the picture sideways to see the whole breadboard.
+42909edb8726	Full list
+9524a0c0a2d7	For rechecking a finished circuit (Stages 1–5). "Top" = the rail on the row a side, "bottom" = the rail on the row j side.
+5138955c53fb	Components on the breadboard
+78886321eece	Leg in hole
+5bcd7dc2b0bf	Red LED
+39b8819b507b	Long leg in f16
+c615b2cdc522	Leg under the ⊕ mark in f24
+779f4953ff7a	Either way round
+1aeeeaa582de	10 kΩ resistor (LDR)
+6a328145d58f	<span class="hole">a12</span> + top <span class="bl">blue</span> line
+6d872bbf1062	The perforated side faces you
+ef00fade2034	10 kΩ resistor (DHT11)
+d3c5520796de	<span class="hole">a4</span> + top <span class="r">red</span> line
+068643368d56	The expansion board's <span class="pin">V</span> pin (jumper on 3.3V)
+7041e53c8ba8	Top <span class="r">red</span> line
+7a4ffef3ae44	The expansion board's <span class="pin">G</span> pin
+147c5716225b	Top <span class="bl">blue</span> line
+095f87ea0297	Bottom <span class="bl">blue</span> line
+adb14328a3fe	A total of 6 male-female wires and 6 male-male wires. Count your wires before you start.
+d7123c527e57	If something does not work
+86f303dc5109	<b>The port does not show up in the Arduino IDE:</b> your USB cable may be charge-only, try another cable. If it still does not show up, install the CP210x or CH340 driver (see the text on the small chip near the ESP32's USB port).
+3a7af0f00046	<b>Upload stops at "Connecting.....":</b> press and hold the <b>BOOT</b> button on the ESP32 until the upload percentage appears, then release.
+7141f61ed77f	<b>The Serial Monitor shows strange letters:</b> change the baud at the bottom right of the Serial Monitor to 115200.
+995c51b0eba8	<b>The LED does not light:</b> almost certainly reversed. Unplug the USB, turn the LED around, try again. An LED is not damaged by being reversed.
+61eb25e00388	<b>The ESP32 suddenly switches off or restarts when plugged in:</b> unplug the USB immediately. Usually a wire connects the red rail straight to the blue one (a short circuit).
+2e10b219186b	<b>A part that used to work stops working:</b> wires on the breadboard are often knocked while fitting a new component. Check that stage again with its test code.
+0a0b18fc51d7	<b>The Serial Monitor repeats "load:0xffffffff,len:-1" (keeps restarting):</b> under Tools set Flash Mode to DIO, Flash Frequency to 40MHz, Erase All Flash Before Sketch Upload to Enabled, Upload Speed to 115200, then upload again.
+e2d5f1541e90	<b>Upload fails halfway after the V/G wires were attached:</b> a wire from the V or G pin may be touching (shorting) or drawing excess current. Unplug all wires from the expansion board, upload first, then reattach the wires one at a time.
+8ac103949d0c	<b>The Telegram bot does not reply:</b> make sure the WiFi is 2.4 GHz, the token is correct, the chat ID is correct, and you have pressed Start in the bot.
+7892e41d2e5b	<b>Still stuck?</b> Photograph your circuit from above in bright light, send it to me, and say which stage.
+ef5b8e315d4b	Full code
+e33536c10735	<a href="stasiun_cuaca.ino" download>Download stasiun_cuaca.ino</a>. Fill in the WiFi name, password, bot token and chat ID at the top of the file before uploading. Do not upload a file that already contains the token to a public place.
+45d5af972eed	This code has been checked to compile successfully with Arduino ESP32 core 3.3.12, with <code>USE_LCD</code> set to both 0 and 1. The LiquidCrystal library is built into the Arduino IDE; if you get the error "LiquidCrystal.h: No such file", install <b>LiquidCrystal by Arduino</b> from the Library Manager.
+9527e7f61726	After the weather station
+7dab9aa09bac	The sensors, LED and Telegram bot you learn here are used again in the <a href="../robot-ai/">4WD AI Robot</a>: the DHT11 can become the robot's weather sensor directly, and how to read the Serial Monitor and connect wires on the breadboard is exactly the same.
+792c1fdfff0a	Unplug the USB when attaching wires
+6c3d327790b2	Red = +, blue = −
+cc64489d4343	Check twice, plug in once

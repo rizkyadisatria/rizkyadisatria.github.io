@@ -58,14 +58,29 @@ Halaman ini tidak mendapat CSP ketat karena memakai script inline.
 
 - **Bahasa ID/EN:** tombol di bilah atas, pilihannya disimpan di kunci `lang` yang sama dengan portofolio. Teks diterjemahkan lewat
   atribut `data-en` (dan `data-en-alt`, `data-en-aria-label`, …) serta kamus antarmuka di `assets/bahasa.js`. Halaman depan panduan
-  dan daftar barang robot sudah dua bahasa; isi langkah demi langkah masih Indonesia dan halaman itu memberi catatan saat EN aktif.
-  Panduan baru: beri objek `en` di `guides.js`.
+  dan daftar barang robot sudah dua bahasa, begitu juga isi langkah demi langkah ketiga panduan (lihat "Terjemahan isi panduan"
+  di bawah). Panduan baru: beri objek `en` di `guides.js`.
 - **Cadangan progres:** tombol "Cadangan" mengekspor/mengimpor progres ke file JSON (`assets/cadangan.js`, diuji di
   `tests/cadangan.test.ts`). Impor memvalidasi bentuk file dan hanya menerima kunci panduan yang dikenal. Panduan baru:
   tambahkan pola kuncinya di `KUNCI_PROGRES` (dan di `pindah/pindah.js`).
 - **Daftar barang robot:** status "sudah punya" adalah kotak centang yang tersimpan di browser; daftar "masih perlu dibeli" dihitung dari
   centang itu. Barang yang tidak dipakai robot tidak ditampilkan. Sumbernya `robot-ai/_build/p0.py` dan `barang_en.py`; jalankan
   `python3 robot-ai/_build/build.py` lalu `git checkout robot-ai/kode/robot-ai-kode.zip` (zip hanya berubah stempel waktu).
+
+### Terjemahan isi panduan (ID → EN)
+
+Isi panduan ditulis dalam bahasa Indonesia oleh generator; terjemahan Inggrisnya disimpan terpisah sebagai katalog, jadi
+generator tidak perlu diubah tiap kali menerjemahkan.
+
+- `python3 public/controller/_alat/terjemah.py tandai` memberi atribut `data-t="<hash isi>"` pada tiap blok teks (generator robot-ai dan
+  elektronika-dasar sudah memanggilnya otomatis; stasiun-cuaca diedit langsung). Kuncinya berasal dari isi blok, jadi teks yang
+  sama di banyak tempat cukup diterjemahkan sekali.
+- Terjemahan ada di `_alat/terjemahan/<panduan>-*.tsv`, satu baris `kunci<TAB>HTML Inggris`. Tulis `=` bila teksnya sama di kedua bahasa
+  (nama komponen, kode, istilah). Tahap yang dibuat JavaScript di stasiun-cuaca memakai kunci `js:...` (diambil oleh `_alat/jsblok.cjs`).
+- `python3 _alat/terjemah.py belum <panduan>` menulis daftar blok yang belum diterjemahkan, `status` menampilkan persentasenya, dan
+  `bangun` memeriksa tiap terjemahan (tag HTML harus sama dengan aslinya) lalu menulis `<panduan>/en.json`, yang dimuat `bahasa.js` saat EN aktif.
+- Hasil kalkulator elektronika (`kalkulator.js`) dua bahasa lewat `window.panduanBahasa.t()` dan dihitung ulang saat bahasa berganti.
+- `tests/dist.test.ts` memastikan setiap blok bertanda punya terjemahan, jadi halaman yang bertambah tanpa terjemahan akan gagal di tes.
 
 ## GitHub Pages
 

@@ -168,3 +168,25 @@ describe('bahasa dan cadangan di panduan', () => {
     expect([...guides.matchAll(/^\s*en: \{/gm)].length).toBe(jumlahSlug)
   })
 })
+
+describe('terjemahan isi panduan (/controller)', () => {
+  const PANDUAN: Record<string, string[]> = {
+    'robot-ai': ['', '1-daya/', '2-badan/', '3-otak/', '4-mata/', '5-ai/', '6-rakit/'],
+    'elektronika-dasar': [''],
+    'stasiun-cuaca': [''],
+  }
+  for (const [slug, bagian] of Object.entries(PANDUAN)) {
+    test(`${slug}: en.json terbit dan setiap blok bertanda punya terjemahan`, () => {
+      const en = JSON.parse(read(`controller/${slug}/en.json`)) as Record<string, string>
+      expect(Object.keys(en).length).toBeGreaterThan(100)
+      const kunci = new Set<string>()
+      for (const b of bagian) {
+        const html = read(`controller/${slug}/${b}index.html`)
+        expect(html).toContain('data-katalog="')
+        for (const m of html.matchAll(/data-t="([0-9a-f]{12})"/g)) kunci.add(m[1]!)
+      }
+      const hilang = [...kunci].filter((k) => !(k in en))
+      expect(hilang).toEqual([])
+    })
+  }
+})

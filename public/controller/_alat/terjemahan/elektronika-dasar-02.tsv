@@ -1,0 +1,120 @@
+# Elektronika dasar (bagian 2)
+ffc13baf0c8b	<b>Sensors and modules</b> that stay powered. Power the sensor from a GPIO pin or through a transistor so it can be switched off during sleep, if its current is small.
+4998313ffa4a	<b>A voltage divider</b> for reading the battery: 20 kΩ + 10 kΩ on 8.4 V draws 0.28 mA continuously. Use larger resistors or switch it off during sleep.
+851e827ad3ad	The ESP32 datasheet says about 10 µA in deep sleep, but one measurement of an ESP32-DevKitC V4 board found about 3.8 mA in deep sleep: nearly 400 times more. The cause was the power LED, the AMS1117 regulator and the USB chip on that board, not the ESP32. For battery projects, choose a board designed to save power, or measure the current yourself.
+4d60dcb0fd9e	Two boards are both active for 5 seconds every 10 minutes. Board A sleeps at 0.01 mA, board B sleeps at 5 mA. Which matters most for the difference in battery life?
+df214ba109b5	The sleep current. The board sleeps almost 99% of the time, so 5 mA while asleep matters far more than 120 mA for 5 seconds.
+29042534c3be	A 1000 mAh battery and an average current of 2 mA. Roughly how long?
+1659c0e26914	1000 / 2 = 500 hours, times 0.7 ≈ 350 hours, about two weeks.
+92196bbe662c	Calculating and measuring consumption
+8d1c24ccec70	Resistors and voltage dividers
+2247f9954cdf	The simplest component, and the basis of nearly every analog sensor reading.
+7c3bc178f431	A resistor limits current (for example for an LED) or divides voltage. Its value is written with color bands: the first two or three bands are digits, then the multiplier, then the tolerance (how far the real value may be off). The small resistors in a kit are usually 1/4 W: enough for signals and LEDs, not for large currents.
+fb05d8932b88	Resistor color band reader
+4a5d43a81b93	Hold the resistor with the tolerance band on the right (gold or silver, or on a 5-band resistor usually a brown one set slightly apart), then read from the left.
+f25de082e1b1	Voltage divider
+4b1079e8a99f	Two resistors in series divide the voltage according to their ratio. The midpoint gives a smaller voltage. The most common uses: lowering a 5 V signal to a 3.3 V pin (for example the echo of an HC-SR04 distance sensor), and reading a battery voltage higher than 3.3 V with an ADC.
+0866b9198977	A 1 kΩ and 2 kΩ divider lowers 5 V to 3.33 V.
+75d23f8a5bb9	Voltage divider calculator
+58620cd9658c	Potentiometers and resistive sensors
+c66b58870f43	A potentiometer is a voltage divider you can turn: the middle leg gives the voltage between the two outer legs. Many sensors work the same way: an LDR (resistance changes with light) and a thermistor (changes with temperature) are placed in series with a fixed resistor, and the midpoint is read by the ADC.
+174896d81c38	The HC-SR04 distance sensor module works at 5 V and outputs a 5 V echo signal. On an Arduino Uno (5 V) that is fine directly. On an ESP32 or Pico (3.3 V), the echo goes through a 1 kΩ and 2 kΩ divider first, because 3.3 V pins are not designed for 5 V.
+867b75ead8de	A 4-band resistor red-red-brown-gold. What is its value?
+cf8c62064da8	You want to read a battery up to 8.4 V with an ADC that maxes out around 3.1 V. Which divider suits?
+cdd6f0dc40e7	For example 20 kΩ (top) and 10 kΩ (bottom): 8.4 × 10 / 30 = 2.8 V. The code then multiplies the result by 3.
+e053d41b6c81	An LDR and a 10 kΩ resistor are set up as a divider. If the room gets brighter, the LDR resistance drops. What happens to the midpoint voltage if the LDR is in the top position (R1)?
+cdb73a4a6e51	It rises. R1 gets smaller, so R2's share of the total gets larger.
+97fd3f7ed92e	Resistors and dividers
+1e219aea0b99	Capacitors and noise
+4f6e7214201d	Why almost every IC has a small capacitor next to it.
+e09d4cf025b6	A capacitor stores charge briefly and releases it quickly. In microcontroller projects it has two main jobs:
+b7c6aecb15f1	<b>Decoupling (100 nF)</b> near the power pins of every IC or module: absorbs fast noise and gives momentary current when the chip changes state. Most modules already carry one.
+f2a5eb967da6	<b>Buffering (10-1000 µF)</b> at the power entry point, especially near motors, servos, relays, LED strips or radio modules: releases charge when the load suddenly draws current, so the voltage does not dip.
+e16e15284864	A capacitor covers the momentary shortfall near the load, before the distant source can catch up.
+3402ed7563df	Electrolytics are polarized and large in value; ceramics are non-polarized and small in value.
+b51f38ea1314	Ceramic codes
+a9c6257104f3	The long leg (+) goes to the positive side, the striped side (−) to GND. Use a capacitor whose rated voltage is clearly above the working voltage, for example 10 V or 16 V for a 5 V rail. A reversed capacitor can get hot, leak, swell or burst.
+910fc6e97830	Noise: where it comes from and how to dampen it
+c1f667047f98	<b>Noise sources:</b> motors (sparking at the brushes), relays and solenoids when switched off, switching converters, and long wires that pick up interference from their surroundings.
+3b53aa7b5ab2	<b>Separate the power paths</b> of big loads from the chip's power path, then join the GNDs at a single point.
+2c9824532aeb	<b>Keep signal wires as short as possible</b>, and away from motor wires. A long sensor wire can be twisted together with its GND wire.
+d16620d9aeb0	<b>A small capacitor (100 nF) across a DC motor's terminals</b> dampens the sparking from its brushes.
+9bdb605ddd98	<b>In code:</b> average several ADC readings, and ignore changes too fast to make sense.
+147e1b324e85	A servo moves randomly, so the 470 µF capacitor on its power line is removed to test. Nothing changes. That makes sense: a capacitor dampens spikes, but it cannot replace a broken GND, a loose connection, or a servo hitting its travel limit. A capacitor is not a cure for every strange symptom.
+94921dd9dfd1	A ceramic capacitor marked 103. What is its value?
+b9ee11704bdb	A radio module often resets when it sends data. Where should the buffer capacitor be placed?
+b62daf0793f0	As close as possible to that module's power pins (VCC to GND), with the correct polarity.
+51556ffb6431	Can a 6.3 V electrolytic capacitor be used on a 5 V rail?
+2060cd411afc	It can work, but it is marginal. 10 V or 16 V is safer, because the voltage can briefly rise and a capacitor near its limit fails sooner.
+2f753c38594d	Identifying capacitors
+748ab1d46e72	Diodes and LEDs
+1fa420d489be	Components that pass current in only one direction.
+0804caec19ab	A <b>diode</b> passes current in only one direction: from anode to cathode (the striped side). When conducting, the diode "uses" about 0.6-0.7 V (silicon diodes such as 1N4007, 1N4148) or about 0.2-0.4 V (Schottky diodes).
+f2414c197a79	Forward: the valve opens. Reverse: the valve is pressed against its seat and nothing flows.
+7fe413b706bf	Three common uses:
+3423173d4ad3	<b>Polarity protection:</b> a series diode in the power input prevents damage when a battery or adapter is connected backwards, at the cost of a small voltage drop.
+95fe3769c05a	<b>Flyback diode:</b> placed across a relay or motor coil (stripe to +) to absorb the voltage kick when the coil is switched off. See Chapter 9.
+477c6254a5ee	<b>Source isolation:</b> two sources joined through diodes so current cannot flow back from one into the other.
+2d3c380361d7	An <b>LED</b> is a diode that lights up. The long leg = anode (+). An LED always needs a resistor to limit the current:
+fa0e39e4c3a8	LED color
+34de588ae13d	Approximate Vf
+25ca8ccdd4fa	Yellow, ordinary green
+e2aaa2d01523	Blue, white, bright green
+658733b89b81	LED resistor calculator
+5ede719b2293	A white LED connected from a 3.3 V pin with a 220 Ω resistor glows very dimly. Its Vf is about 3.1 V, so the resistor carries only 0.2 V: the current is about 1 mA. For white or blue LEDs, a 3.3 V source leaves almost no room. Use a smaller resistor (for example 47-68 Ω) or a 5 V source through a transistor.
+878cd506a04b	A blue LED (Vf 3.0 V) on 5 V at 10 mA. What resistor?
+779d71280386	(5 − 3) / 0.010 = 200 Ω. Use the nearest standard value above it: 220 Ω.
+9d536dc4a0dc	An LED is connected backwards with a resistor on 3.3 V. What happens?
+0e05f246a231	It does not light, because the diode blocks reverse current. At a voltage this low the LED is not damaged.
+07745de7f677	A 1N4007 diode is placed in series as polarity protection on a 5 V line. What voltage reaches the board?
+1a455613743a	About 5 − 0.7 = 4.3 V. For a board that needs exactly 5 V, use a Schottky diode or a MOSFET as the protection.
+91c2a7123d96	LEDs and diodes
+1ac9d88c7eb3	Transistors, MOSFETs and relays
+8c4dfc2dfe73	How a small pin controls a big load without burning up.
+2555da5d110e	A microcontroller pin can supply only a small current (Chapter 10). To switch on something bigger (a relay, a loud buzzer, an LED strip, a motor, a pump), the pin just gives the command, and another component connects the load to its own power source.
+820320f1b59b	A small flow opens the way for a large flow.
+e8956d77f9d3	The actual circuit: the load current flows from +5 V through the coil and transistor to GND. The pin only controls the base.
+bc94fd3a115a	Good for
+fb924e96ff98	Things to watch
+8e31e7447942	NPN transistor (BC547, 2N2222)
+e1772972193c	loads up to about 100-500 mA: relays, buzzers, small LEDs
+9af1c8a817dd	1 kΩ base resistor from the pin; emitter to GND; load between + and the collector
+44c5574a7cf1	Logic-level MOSFET (AO3400, IRLZ44N)
+2aa337e46082	big loads: LED strips, motors, pumps
+7dad4516cf5f	choose one that turns fully on at your pin's voltage (3.3 V); gate resistor about 100-220 Ω, and 10 kΩ from gate to GND
+38924c052717	Relay module
+71de6f15f41e	switches another, electrically separate load on and off
+e834b55ddb8b	many modules are active LOW; a 5 V module is not necessarily triggered reliably by a 3.3 V signal
+66147a811699	Motor driver (L298N, TB6612, DRV8833)
+a5c0bd0bed40	DC motor in both directions
+cdb61010ba42	direction and speed from pins; motor power from its own source
+d8a05ea28b39	When the current in a relay, solenoid or motor coil is suddenly cut, the coil kicks out a high reverse voltage. Without a diode (for example 1N4007, stripe to +), that kick can damage the transistor or reset the microcontroller. A good relay module already has one fitted.
+9b3d9852d839	The IRF520 MOSFET module that is popular in online shops is often used with an ESP32, and the result is a load that only glows dimly or a MOSFET that gets hot. The IRF520 datasheet gives a gate threshold voltage of 2-4 V, and its low on-resistance is only reached with 10 V on the gate. With 3.3 V it can barely turn on, and even with 5 V it does not turn fully on. Choose a MOSFET labeled <i>logic-level</i> whose datasheet gives the on-resistance at 2.5-4.5 V.
+d1b7c97cdef8	A 5 V relay draws 80 mA. Can its coil be connected straight to an ESP32 pin?
+5702f6340417	No. The current is far above what the pin can supply, and the coil's kick can damage the pin. Use a transistor and a flyback diode, or a relay module.
+98c60a615d0e	A relay module turns on when the pin is LOW and off when the pin is HIGH. Why?
+cdd42ba50f67	The module is active LOW. In the code, invert the logic: LOW = on, HIGH = off.
+282d8f61dd0e	Why is there a 10 kΩ resistor from the MOSFET gate to GND?
+e3dacc3946df	So the gate does not float while the pin is not yet configured (for example during boot), which keeps the load from switching on by itself.
+763ace971924	Switching a load through a transistor
+1398c0207c95	Microcontroller pins
+a077f389ca84	What may and may not be connected to a pin, and why a pin can read random numbers.
+213404ad719e	3.3 V and 5 V logic
+4940f6f75ca4	A digital signal has only two states: <b>HIGH</b> and <b>LOW</b>, always relative to GND. The HIGH voltage depends on the board.
+93c2393941c9	Pin limits (datasheet)
+343c2cfa4318	Arduino Uno (ATmega328P)
+df32cdcb1ac8	absolute maximum 40 mA per pin; 200 mA total on VCC
+288bcc519d55	inputs up to about 3.6 V; about 40 mA at maximum drive
+5e0cfabddd2a	12 bit (0-4095), about 0-3.1 V
+fd22e38cc649	ESP8266, Raspberry Pi Pico
+eb483114bf11	inputs are not designed for 5 V
+632a0b802f15	ESP8266 has one ADC pin; Pico 12 bit
+7e24a06f3317	The absolute maximum numbers are the limit before damage, not working numbers. Stay well below them: a single 10 mA LED is no problem, motors and relays must go through a transistor (Chapter 9). A 5 V signal into a 3.3 V board must be lowered with a voltage divider or a <b>level shifter</b>. Conversely, a 3.3 V signal into a 5 V module is often read as HIGH, but not always.
+b99171a7af93	Floating inputs and pull-ups
+f4678487abef	An input pin that is not connected to anything reads HIGH and LOW at random, exactly like the module without a shared GND in Chapter 2. For a button, use a <b>pull-up</b> resistor (to 3.3 V) or a <b>pull-down</b> (to GND), so the pin always has a clear state.
+7b1c6e7ef615	The pull-up holds the pin HIGH; the button pulls it LOW when pressed.
+b8d0d66db45b	<code>pinMode(pin, INPUT_PULLUP)</code> turns on the pull-up inside the chip (about 45 kΩ on the ESP32), so the external resistor can be left out.
+8566ef057a70	<b>Bouncing:</b> a button's contacts bounce for a few milliseconds when pressed, so one press can be read several times. Ignore changes within 20-50 ms after the first change (debounce in the code).
+184026bd7bc0	ADC: reading voltage
+bf2b34aa8173	The ADC turns voltage into a number. The formula is roughly <code>voltage = number / max_number × reference_voltage</code>. The ESP32 ADC is less accurate near 0 V and near its upper limit, so for measurements that need to be exact, calibrate against a multimeter or use an external ADC (for example the ADS1115). A voltage above its limit must first be lowered with a divider (Chapter 6).
+4495ab30513e	Special pins

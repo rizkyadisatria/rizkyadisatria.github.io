@@ -1,0 +1,54 @@
+# Elektronika dasar: latihan
+2d00333ebb72	Turn the multimeter dial to <b>V⎓</b> (the 20 V range if your multimeter is manual). Black probe in <b>COM</b>, red in <b>VΩmA</b>.
+d4a63fd23597	Measure one battery: red to +, black to −. A new AA is about 1.5-1.6 V; a Li-ion cell 3.0-4.2 V.
+441bdc1a51c2	Swap the red and black probes. The number becomes negative with the same magnitude. Safe on DC; it only means the probes are reversed.
+3e33c8ea3057	Measure your microcontroller board's 3V3 and 5V/VIN pins to GND while connected to USB.
+469738072c35	Measure a 1 kΩ resistor in <b>Ω</b> mode, not installed in a circuit. It reads about 0.95-1.05 kΩ (5% tolerance) or 0.99-1.01 kΩ (1% tolerance).
+9921594b3fa7	All power off (USB unplugged, battery removed). Turn the multimeter dial to beep mode (the sound-wave or diode icon).
+07d1f2857358	Touch the two probe tips together: it must beep. That shows beep mode works.
+ec8faa67c08c	Beep-test the microcontroller GND pin to the − terminal of a module or other power source in your circuit. It must beep.
+02706c329c61	Beep-test a jumper wire from end to end. A jumper broken inside is often invisible from the outside.
+713cc1e82837	Beep-test the board's 3V3 pin to GND. It must not keep beeping. A brief beep and then silence is normal: the capacitors on the board are being charged by the multimeter's battery.
+e37a39847c12	Measure two batteries one by one, then the total of both in series in a holder. The total is roughly the sum of the two.
+df6ec411aebe	Put two 1 kΩ resistors in series on a breadboard, measure end to end: about 2 kΩ.
+6cb204201003	Put them in parallel (both legs in the same column), measure: about 500 Ω.
+296b0fd2f69f	Measure the board's 5V pin while connected to USB, then compare with another USB cable (shorter or thicker).
+5c8e742745ea	If you have a buck converter, measure its output with no load and set its trimpot to 5.0 V.
+6b893f102850	Feel the regulator on your board after it has run a few minutes with WiFi active (careful, it may be warm). Warm is normal; too hot to touch means the load is too large.
+81afa6686ff1	Find your board's active current and sleep current in its documentation, then enter them in the calculator above.
+e243a1aea5cb	Change the cycle interval from 10 minutes to 60 minutes and see how much the battery life changes.
+c27e521569d9	If you dare to measure current: disconnect the + wire from the battery to the board, put the multimeter in mA mode between them (red probe in the mA socket). Note the current while active and while asleep. Put the probe back in the VΩ socket when done.
+ba2ee8876a30	Read the color bands of two resistors in the kit, match them with the color reader above, then measure with Ω mode.
+7f879037ea11	Build a 1 kΩ + 2 kΩ divider on a breadboard from 5 V to GND. Measure the midpoint to GND: about 3.3 V.
+a614cfa8adce	Replace R2 with an LDR (if there is one in the kit). Measure the midpoint with the LDR covered by a hand and when lit with a flashlight.
+fad3e9567591	Find the striped side (−) and the long leg (+) on an electrolytic capacitor in the kit, and read its µF value and voltage.
+1eebfa3fe5eb	Read the three-digit code on a small ceramic capacitor in the kit and work out its value.
+323acfc9b034	Find the capacitors on your microcontroller board: the small boxes near the chip and regulator are decoupling capacitors.
+c80df88e88bd	Build an LED and a 220 Ω resistor from a GPIO pin to GND (long leg toward the pin side), then switch it on with <code>digitalWrite(pin, HIGH)</code>.
+e7f1478c942c	Flip the LED around. It does not light, and is not damaged.
+61fd4cdb81c7	Measure the LED with the multimeter's diode mode: one direction reads a number (a red LED about 1.6-2.0, sometimes glowing dimly), the opposite direction "OL" or "1".
+01369a6ca468	Work out the resistor for a red LED on 5 V at 10 mA with the calculator (answer: 300 Ω, use 330 Ω).
+c86fada74f75	If your kit has a relay module: connect VCC, GND and IN to the board, then switch IN on and off from code. Listen for the click and note: active HIGH or LOW?
+a32c75a606bf	Find the diode on your relay module (usually a small black one with a silver stripe, near the relay). That is the flyback diode.
+562c0cb65298	If you have an NPN transistor: build an LED + 220 Ω resistor from 5 V to the collector, emitter to GND, base through 1 kΩ to a GPIO pin. The LED lights when the pin is HIGH.
+7a3bb077ca9f	Put a button from a GPIO pin to GND, use <code>INPUT_PULLUP</code>, and print <code>digitalRead</code> to the Serial Monitor. Released: 1, pressed: 0.
+bd6a12d55ebb	Remove <code>INPUT_PULLUP</code> (use plain <code>INPUT</code>) and disconnect the button. Bring your finger near the wire: the number changes randomly.
+b7a49c925139	Count how many times one button press is read without debounce, then add a 30 ms delay in the code and compare.
+52296a8ed505	Read the middle leg of a potentiometer or the LDR divider with <code>analogRead</code>, then compare with the voltage measured by the multimeter.
+b692e6c0182f	Dim an LED with PWM (<code>analogWrite</code> on Arduino, <code>ledcWrite</code> or <code>analogWrite</code> on ESP32 core 3.x) from 0 to the maximum value.
+12c2eabef71c	Measure that PWM pin with the multimeter on V⎓ at 50% duty. The number is about half the pin voltage, because an ordinary multimeter shows the average.
+ad888d9fea16	If you have an SG90 servo: give it 5 V from a separate source with a shared GND, then raise its angle slowly. Note the largest angle that does not vibrate.
+3d4a161ac58a	Pick one module in your kit. From the writing on the board and its sales page, note: operating voltage, logic level, current, interface, and address (if I2C).
+4d30d1796c79	If you have an I2C module, run the I2C scanner program and note the address found.
+2825048284a5	Swap SDA and SCL on purpose, run the scanner again, then put them back. Remember this symptom.
+0623881f0e36	Look at your dial: auto-range (only V, Ω symbols) or manual (with 2, 20, 200)?
+905e4e87da5d	Find the mA and 10A sockets, and read the fuse rating printed near them (if any).
+c7c35d28ca99	Measure three things with the right range: a battery, the board's 3V3 pin, the board's 5V pin. Return the dial to OFF when done.
+11b1f624aee5	With the beep test, prove it yourself: five holes in one column are connected, and the same column across the gap is not.
+508b79119e5f	Check whether your breadboard's power rail is connected along the whole board or broken in the middle.
+731de4b7cce7	Gently tug all the jumpers in your current circuit. Replace any that are loose.
+995791b5407f	Pick one problem you have had in any project. Write down: the symptom, what was measured, the cause and the fix.
+bb655beff568	Set up a notebook or a phone note just for electronics projects, and make a habit of writing before changing something.
+d09c9cc71900	Set up a place to charge batteries that does not burn easily and that you can watch.
+4ce4cc37300b	Inspect the Li-ion batteries you have: not swollen, not dented, the wrapping not torn.
+406f90d4c4d4	Make sure every Li-ion battery project has protection, and high-current projects have a fuse near the battery.

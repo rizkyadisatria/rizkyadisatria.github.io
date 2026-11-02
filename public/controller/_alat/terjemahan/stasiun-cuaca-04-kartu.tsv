@@ -1,0 +1,58 @@
+js:cn0	=
+js:cn1	Expansion board
+js:cn2	=
+js:cn3	Jumper wires
+js:cn4	USB cable
+js:cn5	=
+js:cn6	=
+js:cn7	=
+js:cn8	=
+js:cn9	=
+js:cn10	Potentiometer
+js:cn11	=
+js:cn12	=
+js:cn13	=
+js:cn14	=
+js:cn15	=
+js:cn16	Servo horn
+js:cn17	Relay module
+js:cw0	The brain of the project: runs the code, has WiFi and Bluetooth.
+js:ch0	A module with a metal can printed ESP-32, BOOT and EN buttons, and a micro-USB port. In this photo it is plugged into the expansion board.
+js:cw1	Where the ESP32 plugs in. Makes wiring easier and supplies power.
+js:ch1	A black board printed ESP32 ESP32S 30P Expansion board. Every GPIO has a G/V/S pin row, plus a 3.3V/5V selector jumper.
+js:cw2	A board with holes for building circuits without soldering.
+js:ch2	White board with 400 holes. The red and blue lines at the edge are the power rails.
+js:cw3	Connects components to each other.
+js:ch3	Three kinds: male-male, male-female, female-female. They can be torn off one by one from the bundle.
+js:cw4	Supplies power and uploads code from the laptop to the ESP32.
+js:ch4	Check that the small end fits the ESP32's micro-USB port. (The small item in the middle of the photo is the LDR.)
+js:cw5	Limits current or divides voltage.
+js:ch5	A small blue cylinder with colour bands. The colours show the value. Not polarised.
+js:cw6	A small light used as an indicator.
+js:ch6	Polarised: long leg = + (anode), short leg and the flat side of the body = − (cathode). Always use a resistor.
+js:cw7	Makes a beep for warnings.
+js:ch7	A black cylinder with a hole on top. The + leg is usually longer, or there is a + mark on the body.
+js:cw8	Light sensor: its resistance drops when it is bright.
+js:ch8	A small disc with a winding line pattern and two long legs. Not polarised.
+js:cw9	Air temperature and humidity sensor.
+js:ch9	A blue box with holes and 4 legs: VCC, DATA, (empty), GND.
+js:cw10	A resistor whose value is set by turning it. Here it is for the LCD contrast.
+js:ch10	A metal body with a rotating shaft and 3 legs. A marking like B10K means 10 kΩ.
+js:cw11	A 2-row display, 16 characters each.
+js:ch11	16 pin holes numbered 1 to 16 along the bottom edge. A pin header must be soldered on first.
+js:cw12	A row of pins to solder onto the LCD.
+js:ch12	A black strip with gold pins. It can be snapped to the number you need (16 for the LCD).
+js:cw13	A push button for input.
+js:ch13	Some are big (12 mm) and some small (6 mm). 4 legs, connected in pairs inside.
+js:cw14	A distance sensor using sound waves, roughly 2–400 cm.
+js:ch14	A blue board with two cylindrical "eyes". Pins: VCC, Trig, Echo, GND.
+js:cw15	A motor that can be turned to a set angle, 0–180°.
+js:ch15	A blue box with 3 wires: brown = GND, red = 5V, orange/yellow = signal.
+js:cw16	Attached to the servo shaft to move something.
+js:ch16	A white plastic piece with holes, plus a small screw.
+js:cw17	A switch controlled by the ESP32 to turn other devices on.
+js:ch17	A blue box printed SRD-05VDC. Pins IN, GND, VCC; screw terminals COM, NO, NC. Do not use it with 220V mains yet.
+js:cb0	For the next project
+js:cb1	Used in this project
+js:cb2	Optional (LCD stage)
+js:lcdcap	Pins 1 and 16 are marked with numbers on the edge of the LCD board.

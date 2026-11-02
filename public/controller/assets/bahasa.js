@@ -33,11 +33,15 @@
     'Dibuat untuk belajar. Kode sudah dikompilasi, robot lengkapnya belum diuji di perangkat nyata.':
       'Made for learning. The code compiles, but the complete robot has not been tested on real hardware yet.',
     'Dibuat untuk belajar. Cek ulang setiap sambungan kabel sebelum mencolok USB.': 'Made for learning. Re-check every wire before plugging in USB.',
-    'Sumber di GitHub': 'Source on GitHub'
+    'Sumber di GitHub': 'Source on GitHub',
+    'Sambung ke': 'Connect to',
+    '4 gelang': '4 bands',
+    '5 gelang': '5 bands'
   };
 
   var POLA = [
     [/^Tahap (\d+)$/, 'Stage $1'],
+    [/^ke ([A-Z0-9_ ,+\-]+)$/, 'to $1'],
     [/^(\d+) \/ (\d+) langkah$/, '$1 / $2 steps'],
     [/^(\d+)\/(\d+) langkah$/, '$1/$2 steps'],
     [/^(\d+) komponen$/, '$1 items'],
@@ -107,21 +111,44 @@
     document.title = judulAsli.split(' · ').map(function (s) { var en = terjemah(s.trim()); return en === null ? s : en; }).join(' · ');
   }
 
-  var CATATAN = {
-    id: '',
-    en: 'English: the interface, the home page and the parts list are translated. The step-by-step instructions are still in Indonesian.'
-  };
-  function catatan() {
+  function teksCatatan(st) {
+    if (st && st.total && st.ada) return 'English: ' + st.ada + ' of ' + st.total + ' text blocks on this page are translated; the rest is still in Indonesian.';
+    return 'English: the interface, the home page and the parts list are translated. The step-by-step instructions on this page are still in Indonesian.';
+  }
+  function catatan(st) {
     var ada = document.querySelector('.bahasa-note');
-    var perlu = bhs === 'en' && document.body.getAttribute('data-terjemahan') !== 'penuh';
-    if (!perlu) { if (ada) ada.remove(); return; }
-    if (ada) return;
+    var penuh = document.body.getAttribute('data-terjemahan') === 'penuh' || (st && st.total > 0 && st.ada >= st.total);
+    if (bhs !== 'en' || penuh) { if (ada) ada.remove(); return; }
+    if (ada) { ada.textContent = teksCatatan(st); return; }
     var p = document.createElement('p');
     p.className = 'bahasa-note'; p.setAttribute('role', 'note'); p.lang = 'en';
-    p.textContent = CATATAN.en;
+    p.textContent = teksCatatan(st);
     var wrap = document.querySelector('.wrap') || document.body;
     var tujuan = wrap.querySelector('header') || wrap.firstChild;
     wrap.insertBefore(p, tujuan);
+  }
+
+  // katalog terjemahan isi (en.json per panduan): blok ber-data-t diganti HTML Inggrisnya, yang belum ada tetap Indonesia
+  var katalog = null, katalogMuat = null;
+  function muatKatalog(lanjut) {
+    if (katalog) return lanjut();
+    var a = document.body.getAttribute('data-katalog');
+    if (!a || !window.fetch) { katalog = {}; return lanjut(); }
+    if (!katalogMuat) {
+      katalogMuat = fetch(new URL(a, location.href).href).then(function (r) { return r.ok ? r.json() : {}; })
+        .catch(function () { return {}; }).then(function (j) { katalog = (j && typeof j === 'object') ? j : {}; });
+    }
+    katalogMuat.then(lanjut);
+  }
+  function terapkanBlok() {
+    var els = document.querySelectorAll('[data-t]'), ada = 0;
+    [].forEach.call(els, function (el) {
+      if (el.__id === undefined) el.__id = el.innerHTML;
+      var en = bhs === 'en' && katalog && katalog[el.getAttribute('data-t')];
+      if (en) { ada++; if (el.innerHTML !== en) el.innerHTML = en; }
+      else if (el.innerHTML !== el.__id) el.innerHTML = el.__id;
+    });
+    return { total: els.length, ada: ada };
   }
 
   var pengamat = null;
@@ -147,13 +174,28 @@
   function terapkan(umum) {
     if (pengamat) pengamat.disconnect();
     document.documentElement.setAttribute('lang', bhs);
+    if (bhs !== 'en') terapkanBlok();
     pulihkanTeks();
     if (bhs === 'en') terapkanTeks(document.body);
     terapkanAtribut(document.body);
     terapkanJudul();
-    catatan();
     label();
-    amati();
+    if (bhs === 'en') {
+      catatan(null);
+      amati();
+      muatKatalog(function () {
+        if (bhs !== 'en') return;
+        if (pengamat) pengamat.disconnect();
+        var st = terapkanBlok();
+        terapkanTeks(document.body); terapkanAtribut(document.body);
+        catatan(st);
+        amati();
+        document.dispatchEvent(new CustomEvent('panduan:terjemah', { detail: st }));
+      });
+    } else {
+      terapkanBlok(); catatan(null);
+      amati();
+    }
     if (umum) document.dispatchEvent(new CustomEvent('panduan:bahasa', { detail: bhs }));
   }
 

@@ -1,0 +1,139 @@
+33c986e1bbd0	Guide · Beginner · 16 chapters
+e0bee15f9f04	0 / 0 steps
+ef32fe476de2	Start here
+b35f065d5a74	What you need
+9bfa7c0e2109	Chapter 1
+b139d1f78c63	Quantity
+24726ff1ab88	Unit
+7110aac9234b	Voltage
+9826ad6a94c9	=
+9ec0ac4f38e2	Current
+8acce17cc5c9	=
+3072bbb72780	Resistance
+d809a8da0909	=
+f23cd3b44108	Power
+948f2266a374	=
+f776b8ba8476	calculated: V × I
+810168668193	I = V / R, R = V / I. Power (P) lost in a resistor turns into heat.
+98cfa8f48fcb	Voltage (V)
+97b047cd245f	Current (mA)
+d73e8ccb5900	Resistance (Ω)
+a85d6bdd484c	Worked example
+cf6b15672e69	Chapter 1 exercises
+61fc0d40efd1	Chapter 2
+8188b376b8dc	Rules to remember
+2cb7aa10853b	Chapter 2 exercises
+6f54a278ef66	Chapter 3
+cdf8b7eb891c	Resistor
+c6b4f05be50e	Formula
+bbbaaf5209c1	Example
+14bd12f4db27	Series
+5367b9f7d756	=
+c2decf8ecdf0	Parallel
+820771893a5b	=
+22544e353ff4	Chapter 3 exercises
+3a7f05782d59	Chapter 4
+ff648afc53ef	Source
+9f09aefd0dd4	Note
+706b9416a284	DC adapter
+51f7223e15eb	3.7 V nominal (3.0-4.2 V)
+b0503ec98430	=
+ea6828501641	3.2 V nominal
+86ad663dac50	CR2032 coin cell
+fabb2b5c779a	Type
+692350312ed3	Li-ion 3.7 V to 5 V
+22af38806aca	example: 12 V to 5 V at 0.5 A = 7 × 0.5 = 3.5 W, enough to overheat a small regulator
+ba24c6fb6bd6	Measure first, then connect
+1c93d0a5018f	Chapter 4 exercises
+c2423e00280d	Chapter 5
+be8defb327ac	life (hours) ≈ capacity (mAh) / average I (mA), then multiplied by about 0.7 as a reserve
+96b5e9e570ac	Battery capacity (mAh)
+a1aa7f9666de	Active current (mA)
+7c9f32cf01de	Active time per cycle (seconds)
+4b7077dda5d1	Sleep current (mA)
+374498ad66e2	One cycle every (minutes)
+440cca3e98f1	Chapter 5 exercises
+33cdfb04da2c	Chapter 6
+c281403269ea	R2 is the resistor connected to GND
+7e4f3de14e43	Input voltage (V)
+4ca1c493c17b	R1, to the source (Ω)
+ed2d8a656183	R2, to GND (Ω)
+46bc324d58ad	22 × 10 = 220 Ω, tolerance ±5%.
+1455d273c224	Chapter 6 exercises
+55f83d6beed8	Chapter 7
+50f9ed9527f5	Calculation
+74c54fa91da8	Value
+d2f6f4cd85d5	Electrolytic capacitor
+7017070c2170	Chapter 7 exercises
+98429990e274	Chapter 8
+dcb55647d863	Vf = voltage "eaten" by the LED; I = LED current, usually 5-15 mA is already bright
+c04679007f0d	Red
+6502b3e2eabf	Source voltage (V)
+79c6934054ae	LED current (mA)
+376c702e1619	Chapter 8 exercises
+26bfe994729e	Chapter 9
+0750e291bd60	Component
+ffe09f9655cd	Always fit a flyback diode across the coil
+3afc1fdd74f8	Chapter 9 exercises
+eb6e28e07168	Chapter 10
+8b5960c5e8f7	Board
+ea936bf44914	Logic
+c219348d3186	=
+faa706b419ad	10-bit (0-1023), 0-5 V
+1b9bbc5dbfcd	=
+f18f27b91af5	Chapter 10 exercises
+75bd24cb0327	Chapter 11
+72ed3eaa2830	=
+d08c1f2d32e2	=
+f40daa8ef115	Chapter 11 exercises
+71afeebc4fa2	Chapter 12
+f87b7e196c76	Interface
+184fd2f574c3	Wire
+98af730574e4	=
+576bfa959901	=
+50c3c8255985	=
+580393f5a94f	=
+830bf70f56c5	Analog
+476e832cb2d2	Chapter 12 exercises
+2ba6ddc61fb5	Chapter 13
+a7b93d2128e8	Mode
+fbfcadcfce5f	For
+26fc1eeafb31	Condition
+8cc3fd4c3875	=
+77cb6f608808	=
+8f720ccb83fd	=
+024d69acfb14	Diode
+b39c215db1b0	current
+aec4b171a48b	Never measure voltage in current mode
+5d45b8ad8701	Chapter 13 exercises
+b25c1ce53f94	Chapter 14
+96d5da63456f	Connector
+886cb65e1b82	=
+2663192ffc43	=
+ca446b74a484	If touching it changes the circuit
+016f71894728	Chapter 14 exercises
+18f4c06f3fe6	Chapter 15
+1dda80e6b2ee	then record the result
+b702b4d447f9	Symptom
+3de4a8034ba3	Check
+fb6b9b99c287	Chapter 15 exercises
+22429b109ec6	Chapter 16
+b0e53f6f7d84	Safety
+8bef0e47fa2c	Chapter 16 exercises
+f29035129098	Reference
+b0b9af6354f7	Term
+09119a536fa9	Meaning
+904e27107863	=
+2e86fcab2f5d	=
+12033717d596	=
+43c910f739b6	Polarity
+fbe058f3fde5	Short circuit
+ba25d0847d81	=
+314e9decddd9	=
+99a0d2b3ff3d	=
+a8969c60dc16	=
+861736ed3327	=
+6cae11a2559c	=
+0b8ff91a5d7b	← Back
+ff38594671fe	Try the first project →
+c67e5edb9d7e	Made for learning to build with low voltage. Component figures are typical values; your component's datasheet is more accurate.

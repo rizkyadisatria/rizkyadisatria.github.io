@@ -1,0 +1,50 @@
+# Langkah Bagian 1: Daya
+6447197beeb5	Inspect both cells physically: the wrapping plastic is not torn, dented or swollen. Never use a damaged cell.
+b0eaf5f1161a	Multimeter to V⎓ 20. Measure cell 1: red probe to the <span class="pin">+</span> end (the one that sticks out), black to the <span class="pin">−</span> end (flat). Write it down.
+d3a272dab2a5	Measure cell 2 the same way. Write it down.
+d1b7c99f7d71	If the two numbers differ by more than 0.1 V, first charge both cells fully in the iMFG charger (see <a href="#isi">how to charge</a>), then measure again.
+c7270cae8b49	All wire lengths in this part were calculated from the final position of the items in the robot (the layout and the wire table in <a href="../6-rakit/">Part 6</a>), so cut straight to the length written. The numbers already include 3 cm for stripping and slack. Strip 5 mm for ends that are soldered, 11 mm for ends that go into a WAGO.
+81df3293bb5d	Before soldering, test first: multimeter in continuity mode. Touch the probes to the <b>8.4V</b> pad and the <b>⊕</b> pad: it must beep. Touch the <b>0V</b> pad and <b>⊖</b>: it must <b>not</b> beep. A different result? Stop and photograph both sides of the BMS.
+5f910d6c0c4f	The <b>8.4V</b> and <b>0V</b> pads are not soldered yet: they get the holders' own wires in Stage 3.
+f0b785e8b381	Cut a red 26 AWG wire <b>10 cm (no. 4)</b>. Slide <b>yellow</b> 2 mm heat shrink on at both ends as the mark of the 4.2V wire, so it is not confused with the red 22 AWG wires. Solder to the <b>4.2V</b> pad (later to the midpoint).
+71284ec71eec	Cut black 22 AWG <b>16 cm (no. 8)</b>. Solder to the <b>⊖</b> pad (− output). Label it "P−". The other end goes into WAGO − in Stage 4.
+a3c7e9ef50f6	Leave the <b>⊕</b> pad (+ output) for now: its wire comes from the fuse holder in Stage 4.
+5cfe2b4e755f	Wide pads need heat for longer. Apply flux, hold the iron until the solder melts evenly, but no more than about 4 seconds per pad so the MOSFET beside it does not overheat.
+22319019d14c	<b>First lay things out as they will sit on level 2</b>, so the cut wires fit. Left and right in this guide are seen from behind the robot, facing forward. Holder 1 is at the very back, the <b>spring (−) end on the left</b>. Holder 2 in front of it is <b>flipped</b>: the spring (−) end on the right. The BMS is in front of holder 2, with the 8.4V and 0V pads on the left side (see level 2 in the Part 6 layout drawing).
+0ad5cefdf698	The holders' own wires are used as they are, not removed from the holders. The <b>black wire of holder 1</b> is cut to <b>10 cm (no. 3)</b> from the holder body (to the 0V pad), the <b>red wire of holder 2</b> to <b>7 cm (no. 2)</b> (to the 8.4V pad). Strip 5 mm. If the supplied wire is too short, extend it with 22 AWG of the same color.
+6545907416a7	<b>The midpoint</b> (wire 1): the <b>red wire of holder 1</b> and the <b>black wire of holder 2</b> are on the right side. Cut both so that when their ends meet, the total length is about <b>6 cm</b> (roughly 3 cm from each holder). Strip 5 mm, slide on 4 mm heat shrink, then twist and solder those two ends together with the 4.2V wire (marked yellow). Slide the heat shrink over the joint and heat it. The holders' own wires are thinner than 22 AWG, but since it is only about 6 cm, the heat and voltage lost are very small (about 0.02 V at 3 A).
+f502a3cb3240	The holders are still empty. Solder to the BMS in this order: <b>1.</b> the black wire of holder 1 (−, left) to the <b>0V</b> pad, <b>2.</b> the midpoint already connected to 4.2V, <b>3.</b> the red wire of holder 2 (+, left) to the <b>8.4V</b> pad. The holders' own wires are thinner than 22 AWG, but the total length of all the thin parts is only about 23 cm, so the voltage lost is about 0.1 V at 3 A: still safe.
+bc6943aed837	Put cell 1 in holder 1, then cell 2 in holder 2. Watch the + mark on the holder (the cell's protruding end to the + side, the spring side to −).
+059f442c7a11	Measure: the 0V wire to the midpoint = the voltage of cell 1. The 0V wire to the 8.4V wire = the sum of both cells.
+71f5a121ccdf	Measure the output: the ⊕ pad (P+) to the P− wire. It must equal the sum of both cells, about 7.4-8.4 V.
+0fc92276ba5f	Your fuse is <b>7.5 A</b> (the number is printed on its body). That suits: the robot's current is usually 1-3 A and can briefly reach about 5-6 A if all four motors stall at once, so 7.5 A does not blow in normal use, but blows at once on a short circuit (tens of amps).
+e8c47c1b6ff1	<b>Take both cells out of the holders</b> before soldering at the BMS.
+601324b91263	Your fuse holder's wire is very thick (about 12-14 AWG; check the writing on the insulation, or measure the copper: 12 AWG is about 2 mm, 14 AWG about 1.6 mm). Thick is safe, but too stiff and too big for the BMS pad and the switch legs. So cut the loop in the middle, then cut each end again so that <b>3 cm</b> remains from the holder body. Strip 8 mm.
+c2411265f62e	Cut red 22 AWG <b>6 cm (no. 5)</b> and <b>4 cm (no. 6)</b>. Slide on <b>6 mm</b> heat shrink first, wind the 22 AWG end around the thick copper, solder until the solder soaks into both, then close the heat shrink. End 1 gets the 6 cm wire, end 2 gets the 4 cm.
+fdae02c31bf8	Solder the 22 AWG wire from end 1 to the BMS <b>⊕ (P+)</b> pad. Label it "P+".
+f1fa9c1b1257	Solder the 22 AWG wire from end 2 to one leg of the rocker switch. If the switch has 3 legs, use the middle leg and one end leg (test with continuity: beeps when ON, silent when OFF).
+778fc5686af0	Cut red 22 AWG <b>16 cm (no. 7)</b>, solder to the switch's other leg. This is the <b>battery plus rail</b>. The soldered switch legs are covered with heat shrink.
+322efbea4927	WAGO: stick red tape on one WAGO (<b>WAGO +</b>) and black on another (<b>WAGO −</b>). How to insert a wire: lift the orange lever, push in the end stripped 11 mm until it stops, close the lever, tug gently to check.
+869524ae6fc9	The plus rail wire from the switch → WAGO +. The P− wire from the BMS → WAGO −. The other holes are for the three converters in Stages 5-7.
+ff0df845d2ca	Put cell 1 and then cell 2 back in. Switch OFF, measure WAGO + to WAGO − (probes into the small test hole beside the lever): about 0 V. Switch ON: 7.4-8.4 V. Switch OFF again.
+134634359164	Switch OFF. Cut red 22 AWG <b>15 cm (no. 9)</b> and black <b>15 cm (no. 10)</b>. Red: WAGO + → <b>IN+</b>. Black: WAGO − → <b>IN−</b>. Tighten the terminal screws, tug the wires gently to check.
+f2cb08cafb1c	<b>Nothing is on OUT+ / OUT− yet.</b> Switch ON.
+580bcecc1d6f	Press the button until the OUT LED lights. Also measure OUT+ to OUT− with the multimeter.
+aff1d809a031	Turn the trimpot slowly while watching the multimeter. If the number goes up, turn the other way. Stop at <b>5.0 V</b> (4.95-5.1 is fine).
+ca9bc7e725f8	Switch OFF then ON again. Measure again: still 5.0 V.
+6b76c5181a19	Put a tape label "5V LOGIKA" on this module.
+0495e8966a43	Flip the XL4015 board over and read the IN+, IN−, OUT+, OUT− text under the terminals. Mark them with a marker on top of the board.
+e470b8c9fbc0	Switch OFF. Cut red 22 AWG <b>26 cm (no. 11)</b> and black <b>21 cm (no. 12)</b> (longer because the XL4015 will be on level 2, at the front). Red: WAGO + → IN+. Black: WAGO − → IN−. No load on OUT yet.
+63d6086b1f0a	Switch ON. Measure OUT+ to OUT−.
+6370930b2a71	Turn trimpot 3 a few turns while watching the multimeter. If the voltage changes, that is the voltage trimpot (CV). If it does not change, put it back, then try trimpot 4.
+0c48141a58a4	Set the CV trimpot to <b>6.0 V</b> (5.9-6.1). Never above 6.2 V: TT motors and MG90S servos are designed for 6 V at most.
+ff3e23e714bd	Do not change the CC trimpot yet. Put the label "6V MOTOR" on the module.
+b46780695e5a	Switch OFF. Prepare two more WAGOs: green tape (<b>WAGO 6V</b>) and black tape marked 6 (<b>WAGO −6</b>). Cut green 22 AWG <b>15 cm (no. 15)</b>: OUT+ → WAGO 6V. Cut black <b>10 cm (no. 16)</b>: OUT− → WAGO −6. Switch ON, measure WAGO 6V to WAGO −6: still 5.9-6.1 V.
+19f580295374	Switch OFF. Cut red 22 AWG <b>16 cm (no. 13)</b> and black <b>16 cm (no. 14)</b>. Red: WAGO + → IN+, black: WAGO − → IN−.
+30c63360af86	Adjust to <b>5.0 V</b> with no load, as in steps 2-5 of Stage 5.
+e18f51890c91	Put the label "5V KAMERA" on it.
+361bf2950b75	Switch OFF. On the breadboard, place an LED and a 330 Ω resistor in series: the LED's long leg to one end of the resistor.
+4e261c6c0e4a	Connect the resistor's other end to OUT+ of LM2596 #1, the LED's short leg to OUT−.
+f1a3f4a1de3f	Switch ON: the LED lights. Measure OUT again: still about 5.0 V.
+efd542199328	Move it to WAGO 6V and WAGO −6 (XL4015): the LED still lights, slightly brighter.
+7bc471b5f6e1	Switch OFF. Remove the LED and resistor.

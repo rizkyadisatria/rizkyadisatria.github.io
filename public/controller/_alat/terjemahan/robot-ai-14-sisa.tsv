@@ -1,0 +1,166 @@
+06d7be36ca09	=
+f4db9417f7c9	=
+c7aaa573347b	Honest first
+f01a1b7f8a52	Overview
+a465a033b3f9	Order
+f23cd3b44108	Power
+719c97dd8b44	not started
+ebe97e5f61ed	Body
+bbf59101f0fc	Brain
+48d2c8a1825f	Eyes
+60c9869b6656	Intelligence
+9399b66d01a4	Before you start
+91f651c54514	Items
+d28feba12163	Summary
+e08b95c44dae	Function
+ee8bfc10aa38	=
+6135bdf34465	D18, D19 (divider)
+1df37122e5e4	D14, D35 (divider)
+fe93e777b303	D39 + 10k pull-up
+a5e488d59954	Battery
+e7c50ae26e4a	=
+407ab6d96597	=
+b90a5c589ee5	Touch T_CS
+0dae52152598	=
+719ee5463827	Files
+3e25d43ab0d0	Code
+0f622e67b92c	Made for learning. The code compiles, but the complete robot has not been tested on real hardware.
+3673e1271ca5	Robot AI 4WD · Part 1 of 6
+e0bee15f9f04	0 / 0 steps
+eedbe69c5dd1	Basics
+4aaf54f21410	Soldering
+417e7bc3e2e2	Straight pin header trick
+a3bae18b8afb	Joining two wires
+86a112d2fece	Connection
+1565a49ccc01	Step
+45f961b6ce3f	Stage 1
+db4799e58d97	=
+0a2d6ba45dc8	It works if
+2a83aa8c3b23	After passing: OK to lock in, or not yet?
+7b757737dc55	Stage 2
+db602766bc2c	=
+184fd2f574c3	Wire
+7127765aa9a7	Length
+43a5c79078f4	From → to
+1a3be493513d	Stage 3
+ddf66bb4b3bb	Stage 4
+f6b1304b5386	Stage 5
+d3539058f8f6	=
+aca02a6aebec	=
+9b1ada3dbb2d	=
+0718cb03e45f	=
+beddce87cc2f	Stage 6
+7b20dde852a4	Stage 7
+8e1a2ed9e8bf	Stage 8
+ff13c9e7f861	=
+9453a4c46bd1	=
+40e4ca1d0bd6	P+ to P− of the BMS
+625624894ae3	=
+db28ee35523a	=
+5e81223321e1	=
+01eb8e3d99cc	Important
+144a352ed85c	Maintenance
+b353bc4831c0	← Previous
+ed4941918e08	Next →
+5749b2a72279	The code compiles for ESP32 core 3.3.12, but the complete robot has not been tested on real hardware. Disconnect power before changing wires.
+b1c18b1edabe	Robot AI 4WD · Part 2 of 6
+30c7273f32a2	Front HC-SR04
+ba9658baed4f	Rear HC-SR04
+6a3f3ffef320	20k/10k divider
+a8ecff38ad2e	Screwdriver
+2663192ffc43	=
+47f7e4f17727	4 × 100 nF capacitors
+4911e32dbed8	=
+b21733f957da	4 wires
+29ad366abd67	4 F-F wires
+f4f3080adff5	9 F-F wires
+87f7516ff028	=
+291b7f7b512e	470 µF capacitor
+ee5ac68a127d	=
+01a0b5503af4	M-F wires
+994717604ca1	=
+5e9aebf16de1	2 × 1 kΩ resistors
+55834f098925	2 × 2 kΩ resistors
+7b168829ec2e	F-F, F-M, M-M wires
+f4b3af3d61b2	=
+9aee2bdc87c1	=
+f1698be13fe8	=
+24379b5e8625	=
+c16c9ada58cc	=
+36a003249cf7	robot_badan.ino (first part: explanation, settings, pins)
+f50ce29d8338	Double-check
+cbde9826e03b	Hole
+d0ab9c932c83	column 1
+e8cae06634a9	G pin
+5f1a2ea04875	right
+11db8e69db87	5 V point
+ee799ed51149	front 1 kΩ
+13d109db59bc	front 2 kΩ
+6c43ea409ce3	S pin D19
+a1d95ed45ed7	rear 1 kΩ
+2abd4841e3c7	rear 2 kΩ
+c4e132a53b41	S pin D35
+cab5cac39e54	=
+fb6beec72171	S pin D34
+53f4a31a4906	Button
+1fe949efecbe	=
+fb839c4219b6	S pin D39 (VN)
+25a32ac65602	Robot AI 4WD · Part 3 of 6
+382787b9c3ec	Part
+d4427c1936de	S3 GPIO
+734a1b57cf3f	=
+c0238e30bca9	Touch
+6a202a218810	=
+976552b6dce6	=
+dccda43c6b2f	To the body
+7c5b9017ace9	=
+fa733b3fdea3	=
+d62197d1971d	Options
+e879b0be0190	=
+8afd5e3eb7c8	=
+52491c9815ba	=
+b36d138d852e	F-M wires
+ff1d7075f2a2	=
+2a507efee3df	=
+a433f8818a2a	=
+7683b9ab588d	=
+05553c718808	=
+302eafd4b50d	3 F-F wires
+b9f2d6d1f1b4	=
+b7170c965050	From
+28880c70eb1f	S3 3V3 block
+f06c40170f28	S3 GND
+6608ea601f7e	=
+fc5641832307	=
+5284539827c7	Robot AI 4WD · Part 4 of 6
+c123e27ceef7	Result
+bb622a4beef6	=
+185157f47779	640x480 photo
+343f3fe979aa	robot_mata.ino (top part)
+6779ffcd6cc0	1000 µF capacitor
+a3f5eaeec511	Robot AI 4WD · Part 5 of 6
+64aceffd3bed	Service
+e186a4b62b17	Cost
+5b936ea06493	Required?
+92fc95b03b64	free
+28a90dadd4dd	=
+217bc66b5825	=
+a62c180e3f2a	robot_otak.ino (top part: settings and configuration)
+fb479718aed8	Robot AI 4WD · Part 6 of 6
+cfd0a77130ed	Ruler
+374a2bd8cd72	How sure this fits
+1adcb622da37	Floor
+861b9e39506d	Remainder
+7aed51d33680	Cut
+078c22bff3a6	red
+99c1124ea99e	black
+54f4ba88d427	green
+b9dcabee8ffc	=
+ab6e2294cacb	2 wires
+c5200bd2532e	1 wire
+d7dd13df3856	12 mm button
+e1810b883ebd	Adjustments
+ed91cd89f3c8	Laptop
+a19b1c964445	Help
+b702b4d447f9	Symptom
+2866a3fd7a01	Try

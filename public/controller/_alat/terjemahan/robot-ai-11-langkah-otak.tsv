@@ -1,0 +1,33 @@
+# Langkah Bagian 3: Otak
+be3f34812589	Fit the S3 onto the expansion board: the USB-C port faces the USB symbol (number 7). Match the S3's 3V3 pin with the board's 3V3 row.
+2191ff68a83f	Plug the USB-C cable into the S3 port labeled <b>COM</b> or <b>UART</b>. If the label is unreadable, try one, then the other in step 4 if no text appears.
+d0ce1709060e	Set up the Arduino IDE as in the table below, then choose the port that appears.
+e674a6f93dd6	Upload the test code. Serial Monitor at 115200.
+4ae8129e6076	Measure the 3V3 block (number 2) to GND: it must be about 3.3 V.
+41330533fc72	Unplug the USB. Install the <b>LovyanGFX</b> library (lovyan03) from the Library Manager.
+8b068d9aebd2	Set up <b>breadboard 2</b> (the second 400-hole breadboard; the first is used by the body): the S3's <b>3V3</b> block → the top red line, GND → the top blue line. The MAX98357A and INMP441 are also plugged into this breadboard later, from column 12 upward.
+ec12a8dff617	Three columns become the SPI bus: wires from the S pin <b>IO12</b> → <span class="pin">a2</span>, <b>IO11</b> → <span class="pin">a5</span>, <b>IO13</b> → <span class="pin">a8</span>.
+0e775931c007	Connect the display pins according to the diagram. Read the pin names on the back of the display: on your module the order from the bottom is VCC, GND, CS, RESET, DC, SDI(MOSI), SCK, LED, SDO(MISO), T_CLK, T_CS, T_DIN, T_DO, T_IRQ. One breadboard column has 5 holes (a-e), so the display's SCK goes to <span class="pin">b2</span>, T_CLK to <span class="pin">c2</span>, and so on.
+5405ab5a46f3	<b>The display's SDO(MISO) is left unconnected.</b> On many of these red modules, the display's SDO pin does not "stay quiet" when the display is not in use, which disrupts touch and the SD card. The display does not need to be read.
+bd733c22a4f4	Plug in the USB, upload the test code. The display changes red-green-blue then asks for calibration: touch the tip of the arrow in each corner with a fingertip or stylus.
+27b44a86193e	The slot on the back of your display is <b>full-size SD</b>, not micro SD, so your SanDisk 32 GB goes straight in without an adapter. Slide the small lock on the left side of the card up (not LOCK).
+7d5f12fbc5e2	On the laptop, check the card format: a 32 GB card is usually already <b>FAT32</b>. If it says exFAT or NTFS, reformat as FAT32 (the card's contents are erased, move them off first).
+dd7481e773e2	Copy one or two MP3 songs to the main folder, with short names and no spaces (for example <code>lagu1.mp3</code>).
+ec8e52e86f3b	On the right edge of your display are 4 empty holes labeled (from the top) SD_SCK, SD_MISO, SD_MOSI, SD_CS. Solder 4 pin headers there.
+f28abb8a253a	Connect: <span class="pin">SD_SCK</span> → column 2 (<span class="pin">d2</span>), <span class="pin">SD_MOSI</span> → column 5 (<span class="pin">d5</span>), <span class="pin">SD_MISO</span> → column 8 (<span class="pin">d8</span>), <span class="pin">SD_CS</span> → the S pin <b>IO21</b>.
+5c752ef2a828	Insert the SD card into the slot on the back of the display until it clicks, the gold contacts facing the board. Upload the test code.
+e22e1f206871	Your MAX98357A already has pin headers and a screw terminal, so no soldering is needed. The pin names are printed on the front (LRC, BCLK, DIN, GAIN, SD, GND, Vin).
+d417a9a24f43	First check the ohms of your boxed speaker: look at the sticker on the back, or measure its two wires with a multimeter on the 200 Ω scale. About 3-4 Ω means a 4 Ω speaker, about 6-8 Ω means 8 Ω. Both are safe for the MAX98357A (4-8 Ω).
+60d4f7f82731	The white connector on the speaker wire ends does not fit the terminal. Cut the connector off, strip 5 mm from each wire, twist the strands, then clamp them in the terminal: <b>red to ⊕</b>, black to ⊖. Tighten the screws then tug gently to check.
+518c7d3e664c	<span class="pin">Vin</span> → the red line (3.3 V, for the table), <span class="pin">GND</span> → the blue line.
+473a301b71c1	<span class="pin">BCLK</span> → S <b>IO4</b>, <span class="pin">LRC</span> → S <b>IO5</b>, <span class="pin">DIN</span> → S <b>IO7</b>. <span class="pin">GAIN</span> and <span class="pin">SD</span> are left empty.
+d57b0dbc1bb0	Upload the test code (no extra library).
+b3c5543f0638	Solder the pin header to the INMP441 if it is not there yet. The round part with the small hole is the sound hole; do not cover it.
+8bc6226dac13	<span class="pin">VDD</span> → the red line (3.3 V; the INMP441 must not get 5 V), <span class="pin">GND</span> and <span class="pin">L/R</span> → the blue line.
+df273280df31	Upload the test code, open <b>Tools → Serial Plotter</b>. Stay quiet, then clap near the microphone.
+360991108926	Unplug the USB from both boards.
+12a9b47d8b88	S3 <b>IO17</b> (S) → DevKit row <span class="pin">D16</span> / RX2 (S). S3 <b>IO18</b> (S) → DevKit row <span class="pin">D17</span> / TX2 (S).
+6193e6411107	The S3 board's G pin → the 30P board's G pin. Without this GND wire, the UART data is not read.
+aa866c17c594	Plug the USB into the S3 and the DevKit (to the same laptop is fine, two ports). Upload the test code to the <b>S3</b>.
+37a794b141d3	In the S3 Serial Monitor (line ending: Newline) type <code>PING</code> then <code>Q</code>.
+2440c032868a	With the wheels lifted and the battery switch ON, type <code>M 120 120 800</code>.
