@@ -6,7 +6,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="refresh" content="0; url=https://rizkyadisatria.vercel.app/">
   <link rel="canonical" href="https://rizkyadisatria.vercel.app/">
-  <script>location.replace('https://rizkyadisatria.vercel.app/' + location.search + location.hash)</script>
+  <script>
+    (function () {
+      var DEST = 'https://rizkyadisatria.vercel.app'
+      var OK = /^(robot-ai\/[a-z0-9-]+|elektronika-dasar|rakit-cuaca)(:ringkas)?$/
+      var path = '/'
+      try {
+        if (!localStorage.getItem('sudah-pindah')) {
+          var o = {}, n = 0
+          Object.keys(localStorage).forEach(function (k) { if (OK.test(k)) { o[k] = localStorage.getItem(k); n++ } })
+          if (n) {
+            localStorage.setItem('sudah-pindah', '1')
+            location.replace(DEST + '/controller/pindah/#pindah=' + btoa(unescape(encodeURIComponent(JSON.stringify(o)))))
+            return
+          }
+        }
+      } catch (e) {}
+      location.replace(DEST + path + location.search + location.hash)
+    })()
+  </script>
 </head>
 <body>
   <p>Situs ini pindah ke <a href="https://rizkyadisatria.vercel.app/">rizkyadisatria.vercel.app</a>.</p>

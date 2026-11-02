@@ -127,3 +127,10 @@ describe('sumber', () => {
     }
   })
 })
+
+describe('pemindahan progres dari alamat lama', () => {
+  test('halaman /controller/pindah/ terbit dan memakai skrip eksternal', () => {
+    expect(read('controller/pindah/index.html')).toContain('src="./pindah.js"')
+    expect(existsSync(join(DIST, 'controller/pindah/pindah.js'))).toBe(true)
+  })
+})
