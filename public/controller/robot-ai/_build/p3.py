@@ -46,14 +46,14 @@ def halaman():
              (9, 4, 'kuning'), (10, 10, 'cyan'), (11, 3, 'biru'), (12, 5, 'hijau')]
     t += stage(S, 2, 'Layar TFT dan sentuhan', ['TFT 2,4" SPI 240x320', 'Breadboard 2 (400 lubang)', 'Kabel F-F, F-M, M-M', 'Library LovyanGFX'], [
         'Cabut USB. Install library <b>LovyanGFX</b> (lovyan03) dari Library Manager.',
-        'Siapkan <b>breadboard 2</b> (breadboard 400 lubang kedua; yang pertama dipakai badan): blok <b>3V3</b> S3 → garis merah atas, GND → garis biru atas. MAX98357A dan INMP441 nanti juga ditancapkan di breadboard ini, di kolom 12 ke atas.',
+        'Siapkan <b>breadboard 2</b> (breadboard 400 lubang kedua; yang pertama dipakai badan). Breadboard tidak punya sumber daya sendiri: <b>dayanya dari papan ekspansi S3</b>. Satu kabel dari pin <b>3V3</b> di blok 3V3 papan ekspansi S3 → garis <b>merah</b> atas, satu kabel dari pin <b>G</b> papan ekspansi S3 → garis <b>biru</b> atas. Dari dua garis ini layar, MAX98357A, dan INMP441 mendapat daya (S3 sendiri hidup dari USB di mode meja). MAX98357A dan INMP441 nanti ditancapkan di breadboard ini, di kolom 12 ke atas.',
         'Tiga kolom jadi bus SPI: kabel dari pin S <b>IO12</b> → <span class="pin">a2</span>, <b>IO11</b> → <span class="pin">a5</span>, <b>IO13</b> → <span class="pin">a8</span>.',
         'Sambungkan pin layar sesuai diagram. Baca nama pin di belakang layar: di modulmu urutannya dari bawah VCC, GND, CS, RESET, DC, SDI(MOSI), SCK, LED, SDO(MISO), T_CLK, T_CS, T_DIN, T_DO, T_IRQ. Satu kolom breadboard punya 5 lubang (a-e), jadi SCK layar ke <span class="pin">b2</span>, T_CLK ke <span class="pin">c2</span>, dan seterusnya.',
         '<b>SDO(MISO) layar dibiarkan tidak tersambung.</b> Pada banyak modul merah ini, pin SDO layar tidak mau "diam" saat layar tidak dipakai, sehingga mengacaukan sentuhan dan SD. Layar tidak perlu dibaca.',
         'Colok USB, upload kode tes. Layar berganti merah-hijau-biru lalu meminta kalibrasi: sentuh ujung panah di tiap sudut dengan ujung jari atau stylus.',
     ], figs=f'<div class="photos">{photo(IMG + "tft.jpg", "Layar TFT 2,4 inci dilihat dari depan", "Depan layar milikmu: 14 pin di kiri, 4 lubang SD di kanan.")}{photo(IMG + "tft_belakang.jpg", "Belakang layar TFT dengan nama pin dan slot SD", "Belakang: nama pin dari T_IRQ (atas) sampai VCC (bawah), slot SD ukuran penuh.")}</div>'
         + fig(diag.spi_bus()) + fig(diag.conn('TFT 2,4" SPI', '#8c1d18', pins_tft, 'Sambung ke', '#151a18', tujuan, wires, label='Sambungan pin layar TFT'),
-                'Pin bertanda ✕ (SDO(MISO) dan T_IRQ) dibiarkan tanpa kabel.'),
+                'Pin bertanda ✕ (SDO(MISO) dan T_IRQ) dibiarkan tanpa kabel. Garis merah dan biru breadboard 2 sendiri diberi daya oleh pin 3V3 dan G papan ekspansi S3 (langkah 2).'),
         code=kode_tes('tes_layar'),
         ok_='Layar menampilkan "Layar berhasil!", dan setelah kalibrasi, titik kuning mengikuti jarimu.',
         learn='Layar, sentuhan, dan SD memakai tiga kabel yang sama (SCK, MOSI, MISO). ESP32 memilih siapa yang diajak bicara dengan menurunkan pin CS milik perangkat itu. Itulah kenapa tiap perangkat punya kabel CS sendiri.',
