@@ -1,0 +1,130 @@
+# Bagian 6: Rakit akhir
+71b4b4fda394	Final assembly and testing
+4b4ca27794ad	Every part has passed its test on the table. Now they are mounted on the chassis, moved to battery power, and tested on the floor with a hand always near the STOP button.
+d69631f10b27	Final assembly and testing
+3b1eb6753053	Dry stack and check
+d79af278f6d9	The drawing below is to scale. The plate shape was read from your photo using the cutting mat squares as a ruler (error about 1-2 mm), and the motor and item positions were measured from three photos of your dry stack (error a few mm). Calculated result: level 1 is 39% filled, level 2 62%, level 3 73% of the usable area, with at least 3 mm between items and nothing overlapping. The only thing that sticks out past a plate edge is the speaker on level 3 (about 8 mm), and that is deliberate because the robot's width is set by the wheels anyway. What the top-down photos cannot show: the height of each level, which is why there is a height check step.
+a739de99c4d3	The three levels seen from above, the front of the robot on the right, the robot's left at the top of the drawing. All three levels use the same chassis plate.
+badc317d1b8a	Height clearance
+008e72e38558	Tallest item
+dc4961a3a244	1 (between the bottom and top plates)
+e2685a1897b4	30 mm (kit standoffs)
+71bac5b57657	TB6612 + wires, about 25 mm
+6bad6e843e79	2 (between the top plate and level 3)
+af75489dea53	60 mm (2 stacked 30 mm standoffs)
+98706ac39005	DevKit on the 30P board + upright wires, about 45 mm
+4ae1f50ad608	3 (topmost)
+dc6b6d6bf279	no limit
+bd0ceb127c21	pan-tilt head + camera, about 70 mm
+638c0fae14a9	22 AWG wire
+b3e524af648e	<b>red 83 cm, black 88 cm, green 51 cm</b>
+7b9360276bde	enough: red and black 1 m each plus the 2 m that just arrived, green 1 m (51 cm used). Still cut the longest ones first
+daa8e3af9dd2	Estimated from the layout above: horizontal distance + the rise and fall between levels (the level-2 surface is about 3.3 cm above level 1, level 3 about 6.3 cm above level 2), plus 3 cm for stripping and slack, error about ±2 cm. Wires between levels are counted through the plate holes shown on each stage's map. The same numbers are used in every step of Parts 1-4.
+33f1def1cbe5	26 AWG wire and jumpers
+41c6021ced36	thin red with yellow mark
+81a8a0984cdc	red + black
+f3fd6ae60f5d	thin red with blue mark
+8718b060106d	12 mm STOP button → columns 27 and 29 of breadboard 1
+651d8c950569	column 18 of breadboard 1 → S pin D14 (rear TRIG)
+571a86283aa8	UART: 30P board (D16, D17, G) → S3 board (IO17, IO18, G)
+6b81811153d2	front HC-SR04 → 30P board and breadboard 1
+d3409640bab5	The 5 V line is fine with 26 AWG: the highest current is about 1 A, and 25 cm out and back only drops about 0.07 V. Jumper wires are usually 20 cm; the ones listed as 20 cm and up are tight, so extend with an M-F wire if short.
+57cb541c39da	Level 1 dry stack (front at the bottom). The HC-SR04 in this photo is still at the front; move it to the rear end.
+5edf0a634918	Level 2 (front at the bottom, so the robot's left is on the right of the photo). Holder 2 and the XL4015 will be rotated 180° later.
+645c31a76cd7	Level 3: S3, breadboard 2, speaker, TFT lying flat, head. The head in the photo is still lying down; later it stands up and is bolted to the plate.
+2e7ab8fa58cf	<b>Why this way?</b> Level 1 is only 30 mm tall, so it holds low items that are rarely touched: converters and power joints. The DevKit and the S3 board need height for upright jumper wires, so they go up to levels 2 and 3. The big breadboard is replaced by two 400-hole breadboards, one per board, so each board's wires are short.
+8615fff3a9b2	Every item has a place, nothing touches the plate above it, the cells can be pulled out, and every cut wire reaches its end.
+cce8e9b6b046	<span class="py">OK to lock in</span> The position of every item on the three levels, after photographing. This is a gate: once it passes, the whole layout is considered final.
+4c5eaf39c81b	<span class="pn">Not yet</span> No bolts, cable ties or drilling yet: this stage is deliberately without bolts and ties. After it passes, mounting the level-1 items (Stage 2: the modules, not the wire connections not yet made) does not depend on Parts 3-5, so it can be done earlier as long as the top plate stays off. The servo power wire (Part 2 Stage 4) and the camera wire (Part 4 Stage 3) are connected to level 1 once made.
+cd4c2d80e136	Mount level 1
+0acdbfd3d0e1	All level-1 items are steady, every wire that goes up is labeled at its upper end, and no wire touches a wheel.
+eb62f1cd27d7	<span class="py">OK to lock in</span> All level-1 items (LM2596, MPU6050, TB6612, four WAGOs, rear HC-SR04), with wires labeled at their upper ends.
+8f592f3b233d	<span class="pn">Not yet</span> Do not close the top plate yet. The level-1 wires that go up must be complete, labeled, and their connections checked.
+598acba13a3e	Close the top plate and mount level 2
+249b14f5f5eb	Level 2, rear.
+12ec278cc5a4	2 wires, 26 AWG
+ced3b91a0aa8	Level 2 mounted, all items steady, and the cells can be pulled out of the holders without opening anything.
+aea1f109d866	<span class="py">OK to lock in</span> The top plate with all six legs, holders, BMS, switch, fuse, breadboard 1, 30P board, XL4015 and front HC-SR04.
+ecdb3fb2ede5	<span class="pn">Not yet</span> The red 5 V wire of LM2596 #1 is not plugged in yet (Stage 6). The 6 mm button is removed; do not close level 3 before the wires going up are gathered at the front.
+982a8b24989a	Mount level 3
+efcdecd38c8b	Level 3 mounted and the head can move fully without pulling any wire.
+87b54b465d95	<span class="py">OK to lock in</span> The complete third plate: S3, TFT, breadboard 2, head, speaker and STOP button.
+839f7cbf3acc	<span class="pn">Not yet</span> The red 5 V wire of the S3 is not plugged in yet. Turn the head only by hand, with the switch OFF.
+ebbbed09d55f	Tidy the wires
+0f0a7de33a7c	The robot can be lifted and gently shaken without any jumper wire coming loose.
+c20a99b4fda0	<span class="py">OK to lock in</span> The cable-tie bundles per group and the wire labels.
+38497e98ad39	<span class="pn">Not yet</span> Keep power and motor wires away from the display's SPI wires and the microphone. The cells go in last.
+1d4afaa48501	Move to run mode
+7e220757b53f	The robot runs fully on the battery with no USB cable.
+ad9c54cd4253	<span class="py">OK to lock in</span> The LM2596 #1 5 V wires to the 30P board and the S3, and the MAX98357A Vin on the S3 board's 5V pin.
+b98b3744f1cc	<span class="pn">Not yet</span> After this stage the hardware is considered done. Do not take it apart to tune the code; that is for Stage 8.
+a48efc4e60aa	The display flickers or the S3 restarts when the speaker is loud: 5 V is dropping. Lower the volume, make sure LM2596 #1 is not supplying the camera, or fit a 470 µF capacitor on the S3 board's 5V pin.
+20ce059205c6	The bot greets you but "badan belum terhubung": the DevKit is not getting 5 V (check the wire to the 30P power block) or a UART wire came off during assembly.
+c27814ada2df	First test on the floor
+e7b59ae902b7	<b>Why this way?</b> Ultrasonic sensors have a narrow field of view (about 15°) and do not see thin objects (chair legs) or soft objects. This robot is safe for a living room, but do not leave it driving alone near stairs: no sensor sees the floor disappearing.
+53a0534c49fb	The robot moves as commanded, stops by itself in front of an obstacle, and the STOP button always wins.
+fe6b506402f0	<span class="py">OK to lock in</span> The floor test result: the robot obeys commands, stops at obstacles, and the STOP button wins.
+d4d422e19ef7	<span class="pn">Not yet</span> Do not leave the robot driving alone near stairs: no sensor sees the floor disappearing.
+c1ca0cf71c93	The robot feels right for your room.
+49aba95bd469	<span class="py">OK to lock in</span> The constants in the code: speed, stop distance, tilt limits, battery factor, camera direction and the robot's personality.
+c79797585ba8	<span class="pn">Not yet</span> The hardware is not changed at this stage.
+d7123c527e57	If something does not work
+b9c91a4d78a0	Most likely cause
+39e3d1d7b68c	Robot switches off by itself when the motors start
+42bf180f97c8	weak battery, or the BMS cuts out because of a current spike
+d380b2afa1f1	charge the battery; check the fuse; lower the starting speed
+46a3fa5e4513	ESP32 restarts randomly while the motors run
+d42408f8297a	motor noise, poor GND
+d817c6ad13d9	100 nF capacitor on each motor, 470 µF on VM, join the GNDs at a single point
+d379f866e456	The wheels on one side do not turn
+82ed14a892af	motor wire came loose, or the TB6612 channel gets no signal
+b87154c14b85	Part 2 Stage 3 with tes_motor
+4ed0c8f0b188	Robot always veers when going forward
+2a2f6928cd43	the TT motors are not equally strong
+aeceaf8aa070	normal; reduce the speed of the stronger side in the command
+01dc427b7d28	Always "E DITOLAK" even with no obstacle
+3843864e62ba	the front sensor sees the floor or the robot's own body
+480a4347bde3	mount the HC-SR04 higher and straight
+46666f411b18	White screen after assembly
+f6c494941615	SPI or CS wire came loose
+5399d2c8c26e	Part 3 Stage 2
+532159bc2ea9	Photo fails
+2b31e2606e5e	camera IP changed, camera has too little power
+c1496a370169	DHCP reservation in the router; 1000 µF capacitor
+1461e8092184	AI does not answer (code 401/400/429)
+00f1fe75404e	wrong key / balance used up / too frequent
+442863ab005a	check at platform.claude.com
+aa3a0f64a5f5	Robot makes no sound
+e9dc2fd7dee2	volume 0, MAX98357A Vin came off, Google TTS refuses
+b7a9f1224973	/volume 15; tes_speaker; the answer is still in Telegram
+c715ec549b19	Touch is off target
+ebca00834498	old calibration
+8da00094525f	touch the screen while the S3 starts to recalibrate
+ba1ef1e61799	BMS gives no power after the fuse blew or a short circuit
+03b808b08cf4	protection is latched
+59ed362b0f7a	remove both cells, wait, reinsert in the order 0V → 4.2V → 8.4V
+1ff9c0713cc2	Still stuck? Photograph your circuit from above in bright light, write down which part and stage, and what appears in the Serial Monitor.
+60014590bb59	Caring for the battery and the robot
+b90221622618	Switch off after use. The BMS still draws a small current; do not store it for weeks with the cells in the holders.
+fe2b56707c8d	Charge the battery when the robot sends a low-battery warning (6.4 V total). Never let a cell drop below 3.0 V.
+ce34adb275c6	A cell that gets hot while charging, swells, or smells: stop, put it somewhere safe, and do not use it again.
+79ae7025b026	Tighten the motor bolts and screw terminals from time to time; vibration loosens them.
+420ce7fa4aa3	Next ideas: wheel encoders (the code wheel from the chassis kit) for exact distance travelled, a line sensor to follow a path, or a cliff sensor under the front.
+c191578d8735	All the parts already tested in Parts 1-5
+c1727882cf4c	The third chassis plate
+c167eb6571a6	12 M3 brass standoffs 30+6 mm (6 legs x 2)
+d0f578a93d8d	Bottom plate with motors
+d88ef9d8d389	M3 nylon standoff kit (6 mm)
+1a4a761ebc5e	Cable ties 3 x 100 mm
+ac70934487f9	Masking tape + marker
+9c2787e86086	3 mm drill (if needed)
+0f07c4a55620	Top plate
+0d9eb1447ab5	12 brass standoffs
+3fcbbea89002	Short M3 bolts + nuts
+affc3f43da3f	M3 nylon standoff kit
+91eaf90e3065	Cable ties
+b433b7b755de	Third plate
+f1f9ec8a2504	M3 bolts + nylon standoff kit
+ab07cde6ccbe	26 AWG wire
+3739cd6d2f13	2x2 m of clear space
+b2d90e4fb2c5	Fully charged battery

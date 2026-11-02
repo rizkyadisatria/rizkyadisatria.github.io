@@ -1,0 +1,164 @@
+# Bagian 1: Daya
+b1b848be92f8	Power system
+643ac6deed88	The most important part for the safety of your boards. By the end of this part you have three measured voltage sources: 5 V for the brain and body, 5 V for the camera, and 6 V for the motors and servos.
+ce4adf550de4	Four power rules
+eef9a790996a	Every converter is adjusted and measured with no load. New converters often come out with the same voltage as the input (8 V), and that is enough to destroy an ESP32.
+6df22d1b576f	22 AWG power wires use only these three colors. 5 V wires use 26 AWG red-black. The converter modules and the BMS have no reverse polarity protection.
+02b2fa006d8d	Change wiring only when the main switch is off. If anything gets hot, smokes or smells, switch it off and pull the cells.
+1be7c8569f4f	Two 18650 cells can deliver tens of amps if shorted. Never let the plus and minus wire ends touch.
+de4ca1968d40	Two skills you will use constantly
+cb1d223670b4	Using the multimeter
+e5b1f5db1d0c	Your multimeter. The black lead always goes in the COM socket.
+f426859197a6	<b>DC voltage</b> (V symbol with a straight line): red lead in the <b>VΩmA</b> socket, turn to <b>20</b> in the V⎓ area. Black probe to minus, red to plus. A negative number means the probes are reversed; it does no harm.
+993851be2951	<b>Continuity</b> (tone/diode symbol): with power OFF, touch the two probes to two points. A beep = directly connected.
+d1b6aab790af	<b>Resistance Ω</b>: to confirm a resistor value, for example a 2k reads about 1.98-2.02 kΩ.
+3e05870301c0	<b>Never</b> measure voltage with the red lead in the <b>10A</b> socket. That socket is almost 0 Ω, so touching it to a battery is the same as a short circuit. The 10A socket on this multimeter also has no fuse.
+4fbccfe44338	Your soldering iron, 0.8 mm solder, RMA-223 flux and desoldering braid.
+0a9d504eb8d5	Heat the iron for 2-3 minutes. Clean the tip, then coat it with a little solder so it is shiny.
+06dd72b48987	Apply a little flux to the spot you will solder. Flux makes the solder flow evenly.
+bed5f13061ea	Touch the iron tip to the <b>pad and the leg together</b> for 1-2 seconds, then touch the solder to the pad (not to the iron tip). Remove the solder first, then the iron.
+fa1933af8879	A good joint is a small shiny cone. Dull or ball-shaped = a "cold joint"; reheat it.
+f9e5352f3e0f	Solder bridging two pins? Lay the braid on top, heat it, and the solder is absorbed.
+5e6def0bb5d5	Do not breathe in the flux smoke. Work near a window or a fan.
+940a9472c762	Plug the pin header into the breadboard first, rest the module on top, then solder. The breadboard keeps the pins upright. Solder one pin first, check that the module sits flat, then do the rest.
+dce32abe62d2	Strip 5-8 mm, slide the heat shrink on first, twist the two ends together, solder, then slide the heat shrink over the joint and heat it with the side of the iron or a lighter (do not let it burn). Cut the heat shrink to about 2 cm from the 40 mm stick.
+5032ac887ccd	Your Taffware heat shrink
+fec540b74e89	26 AWG wire, servo wires, capacitor legs
+6f73ebbaeb56	Two 22 AWG wires, motor wires
+eb67d91e31c2	Three or four wires at once (midpoint + 4.2V, servo joint + capacitor)
+a42479fc3a1c	Switch and fuse legs
+b58361bddd2a	Choose a size that can still slide over the joint; after heating it shrinks to about half. Black for GND, red for plus so the wire ends are easy to recognize.
+281263aa3690	Build the power system
+689b0b24f25b	Work in order. Every stage has a success sign before you move on to the next.
+c30cb17038d8	Check both 18650 cells
+978aae091608	Your two 18650 cells. Treat them as one pair.
+04a0dad3d928	<b>Why this way?</b> The two cells are wired in series, so the same current passes through both. The emptier cell runs out first and the BMS cuts power sooner. Starting from two matched cells lets both last a long time.
+f2e683e9bd68	Both cells between 3.0 and 4.2 V, and they differ by less than 0.1 V. A freshly full cell reads about 4.15-4.2 V.
+e21704dd750b	<span class="py">OK to lock in</span> Nothing is installed at this stage. It is only a check.
+33a3953960ad	<span class="pn">Not yet</span> Do not solder or put the cells into the holders yet. Always use these two cells as a pair.
+f01920b41cda	If it does not work
+739dfc8726be	Reads below 2.5 V: the cell is too empty. Do not use it in the robot.
+b4bb7d9689e8	Reads 0 V: check the probes are in the right sockets (COM and VΩmA) and the dial is on V⎓, not V~.
+655681d33d9b	Cut the wires and solder them to the BMS
+9e7f94098b9a	Your BMS pads. The 充电/放电 text beside ⊕ ⊖ means "charge/discharge".
+7080d6a020e4	Seen from above, the positions match the robot exactly (see the layout drawing in Part 6). The numbers in the drawing = the numbers in the table and in the steps.
+a7cbe89720ff	the holders' own wires (red from holder 1 + black from holder 2)
+137d2cbf8b81	midpoint: holder 1 (+) connected directly to holder 2 (−)
+e7b6c620bfed	holder 2's own wire (red)
+70ce9048da8b	holder 2 (+) → BMS pad 8.4V
+5cd50c2e0240	holder 1's own wire (black)
+f8960badfb86	holder 1 (−) → BMS pad 0V
+7665a656a3b9	thin red with yellow mark, 26 AWG
+a36af0d52517	BMS pad 4.2V → midpoint
+c3ac027a8326	red 22 AWG
+2fdc6991285f	BMS pad ⊕ (P+) → end 1 of the fuse holder wire (leave 3 cm)
+36d7717b52f7	end 2 of the fuse holder wire (leave 3 cm) → switch
+1c71f09602e5	the switch's other leg → WAGO + (level 1)
+1306f6259fff	black 22 AWG
+6802d0b121c3	BMS pad ⊖ (P−) → WAGO − (level 1)
+bc72d6dd9dc9	<b>Why this way?</b> The BMS cuts the minus line (⊖) if a cell is too empty, too full, or the current is too high. The 4.2V pad is used to measure and balance each cell, so the current is small and a thin wire is enough. Your BMS spec: 10 A continuous, 20 A peak, short-circuit protection. The BMS's low-voltage cutoff is wide (2.3-3.0 V per cell), so the robot must still switch itself off earlier at around 3.3 V per cell (6.6 V total) using the battery ADC. The cells are charged in the iMFG charger (4.2 V per cell), not through the BMS.
+ed2a7d1165a5	Two wires (4.2V and P−) attached firmly (a gentle tug does not pull them off), and no solder bridges two pads.
+4b9010d29d54	<span class="py">OK to lock in</span> The solder joints of the 4.2V wire (yellow heat shrink) and P− on the BMS pads. The lengths were calculated from the final position in the robot, so these are final connections.
+71b94d1b330b	<span class="pn">Not yet</span> The ⊕, 8.4V and 0V pads are still empty (Stages 3 and 4). The BMS is not strapped to the top plate yet: that is Part 6 Stage 3.
+0771a7b6ee4a	Wire the two holders and insert the cells
+e845ad466be8	Your two holders. The spring end = − (black wire), the flat plate end marked + = + (red wire).
+79d8bd3559cf	Holder, BMS and wire number positions: the level-2 map in Stage 2. Connection order: 0V first, then the midpoint, then 8.4V. Disconnect in the reverse order.
+f7be89325802	P+ to P− reads 7.4-8.4 V. During this, the ⊕ pad and the P− wire must not touch.
+84aa8605564f	<span class="py">OK to lock in</span> The holder solder joints to the 0V pad, the midpoint (heat shrink already covering it) and the 8.4V pad.
+4f6da3ca2ea3	<span class="pn">Not yet</span> The holders are not bolted to the top plate yet (Part 6 Stage 3). Both cells are taken out again in Stage 4 before soldering the fuse.
+dc65e7936ff2	P+ to P− reads 0 V even though 0V to 8.4V is correct: the BMS protection is latched (common when cells are first installed). Remove both cells, wait 10 seconds, insert cell 1 and then cell 2 again. If it is still 0 V, with P+ and P− connected to nothing, briefly touch a piece of wire between the ⊖ pad and the 0V pad to "wake up" the BMS. Still 0 V: check that the 0V and 8.4V wires are not swapped.
+6bdf44998a56	Total voltage about 0 V or only one cell: the midpoint joint came loose, or one cell is reversed. Remove the cells and check the + marks.
+cab49db54bdc	Anything gets hot when the cells go in: remove the cells at once. There is usually a short circuit or a reversed cell.
+53efc0c739d9	Install the fuse, main switch and battery WAGO
+0a2149c64c28	The fuse holder and blade fuse.
+029bc1181301	The rocker switch. Check the maximum current printed on its body.
+64c17ba827d6	<b>Why this way?</b> The fuse is placed as close to the battery as possible, so that if a wire is stripped and shorts anywhere after it, the fuse blows before the wire burns.
+f662164cf076	The switch really breaks and makes the plus rail, the fuse sits between the BMS and the switch, and WAGO + / WAGO − read 7.4-8.4 V with the switch ON.
+4c07bb9c362e	<span class="py">OK to lock in</span> All the fuse and switch solder joints with heat shrink closed over them, and the plus rail and P− wires in WAGO + and WAGO − (lever closed, a gentle tug does not pull them out).
+cf24f600cd82	<span class="pn">Not yet</span> The fuse, switch and WAGO are not strapped to the plate yet. The empty holes in the WAGO are deliberately left for the converters and capacitor.
+0e5c14de2e1b	Wires come out of the WAGO easily: the strip is not long enough or the lever is not fully closed. Strip exactly 11 mm, push in until it stops, close the lever until it clicks, then tug gently.
+e8490054eba6	Adjust LM2596 #1 to 5.0 V (logic rail)
+a43a4d47cdc8	<b>1</b> <span class="pin">IN+</span> plus input (from the battery plus rail). <b>2</b> <span class="pin">IN−</span> minus input (GND rail). The VIN+ and VIN− text is on the PCB.
+9cd2c3107b3e	<b>3</b> <span class="pin">OUT+</span> 5 V output. <b>4</b> <span class="pin">OUT−</span> minus output.
+61120ad3f68e	<b>5</b> Blue trimpot: turn it with a small flat screwdriver to set the output voltage. It takes a dozen or more turns for a big change.
+f9187e023bc5	<b>6</b> Button: switches the display between input voltage (IN LED lit) and output (OUT LED). <b>7</b> Voltmeter display. This display is approximate; trust the multimeter.
+6093089365bc	Seen from above, the positions match the robot exactly (see the layout drawing in Part 6). The numbers in the drawing = the numbers in the table and in the steps. Wires 7 and 8 come from level 2 through holes H7 and H8. Wires 11, 12, 15, 16 go up and down to the XL4015 on level 2.
+6b08c5563f9f	WAGO + → IN+ XL4015 (up to level 2)
+bc8391e4e63d	WAGO − → IN− XL4015 (up to level 2)
+d39470d15090	green 22 AWG
+4cd04d75593f	OUT+ XL4015 → WAGO 6V (down to level 1)
+2c9d67bb1cc4	OUT− XL4015 → WAGO −6 (down to level 1)
+786eca5a3765	red + black 26 AWG
+beb42331cc0e	OUT LM2596 #1 → 30P board power block (5V and GND)
+6e37caed8252	OUT LM2596 #1 → S3 board power block (5V and GND)
+eb5d9e15713f	OUT LM2596 #2 → ESP32-CAM 5V and GND pins
+79191d880b33	thin red with blue mark, 26 AWG
+d2ddca0ca13a	LM2596 #1 IN+ terminal → hole a20 of breadboard 1 (battery measurement)
+60cf6c63e8f8	<b>Why this way?</b> The LM2596 is a buck converter: it chops the battery voltage quickly and then smooths it, so it is far more efficient than an ordinary regulator. The output must be slightly above what the ESP32 needs (5 V input), but no more than 5.5 V.
+8a7bcc487445	The multimeter reads 4.95-5.1 V from OUT+ to OUT−, and it stays the same after switching off and on.
+cc724661bbba	<span class="py">OK to lock in</span> The 5.0 V setting of LM2596 #1: do not turn the trimpot again. The WAGO + and WAGO − wires to IN+ and IN−.
+5f5f6f2d7f79	<span class="pn">Not yet</span> The module is not mounted on the level-1 plate yet (Part 6 Stage 2). OUT is only connected to the 30P board and the S3 in Part 6 Stage 6; before that the DevKit and S3 run from USB (Stage 8 uses it only for the LED test).
+807963b84494	The voltage does not change even after dozens of turns of the trimpot: turn it the other way. This trimpot has no noticeable end stop.
+aca57fec022a	Output equals input (about 8 V): the trimpot is still at its maximum. Keep turning in the direction that lowers the voltage.
+653559f5231f	Adjust the XL4015 to 6.0 V (motor and servo rail)
+393bedf182f4	<b>1</b> and <b>2</b>: two screw terminals. IN and OUT are printed on the underside of the board. Usually the input is on the side of the 100 µF 50 V capacitor (<b>5</b>) and the output on the side of the 220 µF 35 V capacitor. <b>Flip the board over and read the labels before connecting.</b>
+c7018d3c6cfa	<b>3</b> and <b>4</b>: two trimpots. One sets the voltage (CV), one limits the current (CC). Which is which, we find in step 4.
+8948a9207c3a	OUT+ to OUT− reads 5.9-6.1 V with no load.
+b9f1afb40643	<span class="py">OK to lock in</span> The 6.0 V setting of the XL4015 (do not turn the voltage trimpot again, do not change the current-limit trimpot) and the OUT wires to WAGO 6V and WAGO −6.
+2f4609ed9604	<span class="pn">Not yet</span> The XL4015 is not mounted yet: its place is on level 2 (Part 6 Stage 3). Its input wires are deliberately long because they must climb up to level 2.
+09b41d0073cb	Later, when the motors run, the voltage drops a lot and a red LED lights on the XL4015: the current limit (CC) is too low. Turn the CC trimpot a few turns clockwise, then check again.
+c2c5fff3fbe1	Adjust LM2596 #2 to 5.0 V (camera rail)
+7734124700ae	Output 5.0 V. A separate camera rail keeps the camera's WiFi current spikes from disturbing the ESP32-S3.
+09b6e3a7159f	<span class="py">OK to lock in</span> The 5.0 V setting of LM2596 #2 and the WAGO + and WAGO − wires to IN+ and IN−.
+4c608f1e766f	<span class="pn">Not yet</span> The module is not mounted on the plate yet. Its OUT is only connected to the camera in Part 4 Stage 3.
+7ac465d965c8	Test each rail with a small load
+a18273633fdf	<b>Why this way?</b> A 330 Ω resistor limits the LED current to about (5 - 2) / 330 = 9 mA. Without a resistor, the LED burns out immediately.
+0cc7e4dde4c7	The LED lights on both rails and the voltage does not change. You now have a safe power source for all three boards.
+dec6408fe07c	<span class="py">OK to lock in</span> The whole power system is electrically final: voltage settings, solder joints and the contents of the WAGOs. Do not change them again.
+04ad76129a7a	<span class="pn">Not yet</span> Mounting to the chassis waits until the dry stack in Part 6 Stage 1 passes. The battery and modules may still be lifted and moved.
+6c595c765b54	Power path map
+35949f8c0cbd	Level 2, rear: battery to switch.
+e560e518e28d	Level 1: the WAGOs and the three converters. The length of each number is in the Part 6 table.
+5aba32b63583	Measurement point
+c0b26582358b	Must read
+08040171957f	If not
+b13129be010c	Plus rail to GND, switch ON
+db8186cfa0e9	Plus rail, switch OFF
+012f8efde8ff	switch on the wrong leg
+2de41ecb30c1	Table mode and run mode
+8bff2be903a3	Table mode (USB to laptop)
+d4d7df7302f1	Used when uploading code and reading the Serial Monitor. The boards get power from USB. The <b class="r">red 5 V</b> wire from the LM2596 to the board is <b>unplugged</b>, but the <b>GND wire stays connected</b>. The motors and servos may still get power from the XL4015.
+258a53c7b179	Run mode (battery)
+6be00b841098	USB unplugged, the <b class="r">red 5 V</b> wire plugged into the expansion board's 5V pin. Never plug in USB and the 5 V wire from the LM2596 at the same time: two slightly different 5 V sources fight each other, and current can flow back into the laptop's USB port.
+e7c1e255266d	To make it easy, use a dedicated female jumper wire (for example red) for the 5 V to each board. That is the only wire you plug and unplug when switching modes.
+75150b665f84	How to charge the battery
+98b53fcf2d35	iMFG 2-slot charger: 5 V input, 4.2 V 1 A output per cell.
+3e48454bc4f2	Switch off, and take <b>both</b> cells out of the holders.
+22699f224f65	Put them in the charger with the + facing the way the slot marks show. Plug the charger into your 5 V 2 A adapter.
+7732858592ab	Wait until the light shows full. Charge near you, on a surface that does not burn easily, and do not leave it while you sleep.
+dc74551f5a5f	Measure: each cell about 4.15-4.2 V. Put them back in the holders in the order cell 1 then cell 2.
+92f4dc197913	Always use the same two cells as a pair. If you later get a third cell, keep it as a spare and do not mix it in.
+1e4334a3e69d	For long storage (more than a month), keep around 3.7-3.8 V per cell, in a cool place.
+87334d42c1f7	2 RakkiPanda 18650 cells
+91ea634a8a81	Black 22 AWG wire
+fcc6e65fa6a8	26 AWG red wire + 2 mm yellow heat shrink
+be042eae423c	Wire cutter + ruler
+8c720c11c207	Solder, solder wire, flux
+ce65dafaade7	2 single-slot 18650 holders (with their own wires)
+c2a778f51a8d	The BMS, already wired
+dc17430e942c	3 and 4 mm heat shrink
+a6802c8068b2	Fuse holder + 7.5 A fuse
+c59950714049	Red rocker switch
+112254f56c4d	Red 22 AWG wire
+3258e1b79efe	6 mm heat shrink
+55408737f4d5	2 WAGO 221-415 (5-way)
+f376abdb4698	Red and black tape
+ed910b38bc7d	LM2596 with voltmeter
+212e1b45450a	Small flat screwdriver
+ab95c5ac265a	The second LM2596 (if you have it)
+3507bcc81b8d	330 Ω resistor (orange-orange-black-black-brown)
+f5e1ee1f1217	Jumper wires
+ba24c6fb6bd6	Measure first, then connect
+d33472d9fbb6	Red +7.4 V, green +6 V, black GND
+c23c303b122b	Switch OFF while building
+a5d4f5616166	A battery is not a toy

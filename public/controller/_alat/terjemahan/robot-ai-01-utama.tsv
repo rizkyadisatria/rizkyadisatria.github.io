@@ -1,0 +1,61 @@
+# Halaman utama robot-ai. Format: kunci<TAB>HTML Inggris (tag harus sama dengan aslinya).
+be86eb67256a	A four-wheeled robot you can talk to, driven from the touch screen or Telegram. It sees through a camera, plays music, follows objects in front of it, and stands guard. You build it step by step, from the battery up to the AI, with a small test at every step.
+ea0aa3bac453	Status of this guide
+00a6ad1d5310	Checked
+da2e351031c3	All three full programs and the 13 test programs <b>compiled successfully</b> with Arduino ESP32 core 3.3.12 and the latest libraries.
+564d5f9e8b2b	Pins were chosen to avoid the boot, PSRAM and USB pins on both ESP32s.
+93c58d2ec4ee	The voltage of each module was matched against its datasheet.
+c60e77662abb	Not checked yet
+090b7d0e8a6e	The complete robot has not been built and tested on real hardware yet.
+299ffd7f1850	The pin order of the TB6612 and the display differs between sellers. This guide was matched against photos of your modules, but still match the pin <b>names</b> printed on the board when you connect them.
+7c7124acefbe	The robot's voice uses an unofficial Google TTS service that can stop working at any time.
+f4e05ec8f773	Three boards, one robot
+84542fd37573	Swipe the image sideways to see all of it.
+2959294c0740	The robot is split in three because one ESP32 does not have enough pins for everything. The <b>Body</b> (DevKit V1) handles what must be fast and safe: motors, sensors, stopping by itself. The <b>Brain</b> (ESP32-S3) handles the display, sound and internet. The <b>Eyes</b> (ESP32-CAM) only takes photos. The brain and body talk over 3 UART wires with simple text commands, so you can test the body on its own from the Serial Monitor.
+ec73573e549a	Six parts, do them in order
+54d2ecb000da	Each part has small stages with a "it works" check. Tick the steps you finish; your progress is saved in your browser.
+ffea3b04f3ca	Battery, BMS, fuse, switch and three voltage converters. Measured with a multimeter before any board is connected.
+b36fa10a2fdb	Chassis, 4 motors through the TB6612, pan-tilt head, distance, tilt and weather sensors, STOP button, and the body code.
+001c583862a7	ESP32-S3 with a touch screen, SD card, speaker and microphone, then connected to the body over UART.
+f79177a8ed8c	ESP32-CAM: upload through the MB board, view the photo in the browser, then move it to robot power and the pan-tilt head.
+39d9c79c4c27	Telegram bot, Claude AI, speech to text, then the full brain code: face, chatting, seeing, follow and guard modes.
+105afb09e53b	Final assembly
+ac4dc94d6fce	Layout on the three-level chassis, switching to battery power, testing on the floor, calibration, and a list of common problems.
+634aeb4cdcf8	Rules that apply in every part
+0369a7882f61	Measure every voltage with the multimeter first. A converter that has not been set can output 8 V.
+cb64ca867d9a	Battery switch OFF and USB unplugged every time you move a wire.
+07cd98ecb1d8	Add one module, test it, then continue. If it fails, you know the cause is in the last module.
+f7feb24438c1	Do all motor tests with the robot raised on a box, until Part 6.
+a5c48e62b1e4	Make sure the speed is 115200 baud, then press the EN/RST button on the board. Every test program prints a "=== TES ... ===" title at the start. On the ESP32-S3: if the upload log says <code>USB mode: USB-Serial/JTAG</code>, change <b>Tools → USB CDC On Boot</b> to Enabled.
+2ead08682fef	Every stage ends with an "OK to lock in, or not yet" box. Lock in only what passed its test, does not need to be reached by other tests, and whose position is final. Bolts, cable ties and drilling into the plates wait for the dry stack in Part 6 Stage 1.
+846bcf7a6c94	Boards and modules that send signals to each other must have their GND connected, even if their power comes from different sources. Check with the beep test.
+13934eb109ae	Not sure about terms like voltage, GND, PWM, or how to use a multimeter? Read <a href="../elektronika-dasar/">Basic Electronics for IoT and Microcontrollers</a> first; the basics apply to this robot and other projects.
+f4c44eff81f6	What you have, and what is still missing
+a493b930a565	Turn on JavaScript to tick the items you already have.
+3743a124d860	All pins in one place
+60255ba4b84c	Left motor: PWMA, AIN1, AIN2
+f9471b43a98c	Right motor: PWMB, BIN1, BIN2
+a13bb46693d9	STBY, TB6612 VCC
+d919423ae0c3	Pan, tilt servos
+d02aa89fa7a3	Front HC-SR04 TRIG, ECHO
+1833477ac7a9	Rear HC-SR04 TRIG, ECHO
+51b944e76ec7	I2C SDA, SCL
+96dfcf1e560d	DHT11 (without BME280)
+4fdfcacd8952	STOP button
+1b7938220ca7	SPI SCK, MOSI, MISO
+ea7dbbbf812c	TFT CS, DC, RESET
+00ef901b6589	Speaker BCLK, LRC, DIN
+7ab12cd3b288	Microphone SCK, WS, SD
+524a39efa133	The ESP32-CAM needs no signal wires: only 5 V and GND. Its camera pins are already fixed on the board.
+92992adb7ae0	<a href="kode/robot-ai-kode.zip" download>robot-ai-kode.zip</a>: all the code in one file (3 full programs + 13 test programs, each in its own folder, ready to open in the Arduino IDE).
+7a4b7bed388f	<a href="kode/robot_badan/robot_badan.ino" download>robot_badan.ino</a>: for the DevKit V1 (board: ESP32 Dev Module).
+52a2d19a8bb6	<a href="kode/robot_otak/robot_otak.ino" download>robot_otak.ino</a>: for the ESP32-S3 (board: ESP32S3 Dev Module, PSRAM OPI, Huge APP).
+e4143d3836eb	<a href="kode/robot_mata/robot_mata.ino" download>robot_mata.ino</a>: for the ESP32-CAM (board: AI Thinker ESP32-CAM, Huge APP).
+1e217c265d1d	Fill in WiFi, tokens and API keys only on your own computer. Do not upload the filled-in file to GitHub.
+f9929e1c2446	Measure first, then connect
+bbc32dc0a086	Power off while assembling
+b482fa354bf4	One change, one test
+ba8598f036a7	Wheels raised
+4ef8fec36fb6	Serial Monitor empty?
+49c62e73056e	Locked in after passing
+60b46c2f0b05	GND always shared

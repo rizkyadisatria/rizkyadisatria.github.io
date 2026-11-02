@@ -122,31 +122,31 @@ nav a:hover,nav a:focus-visible{color:var(--ink);border-color:var(--line-2)}
 .figure svg{min-width:520px}
 </style>
 </head>
-<body><div class="wrap">
+<body data-katalog="en.json"><div class="wrap">
 <header>
   <a class="back" href="../">← Semua panduan</a>
-  <span class="eyebrow">ESP32 · Proyek 1</span>
-  <h1>Panduan Rakit Stasiun Cuaca</h1>
-  <p class="lead">Kenali dulu setiap komponen di kit-mu, pahami cara kerja breadboard, lalu rakit sedikit demi sedikit. Setiap tahap punya kode tes kecil, jadi kamu tahu bagian itu berhasil sebelum lanjut.</p>
-  <div class="progress"><span id="prog">0 / 0 langkah</span><div class="bar"><i id="progbar"></i></div></div>
+  <span class="eyebrow" data-t="29731b5fc7a5">ESP32 · Proyek 1</span>
+  <h1 data-t="f56a7df570ec">Panduan Rakit Stasiun Cuaca</h1>
+  <p class="lead" data-t="77838dd75cdc">Kenali dulu setiap komponen di kit-mu, pahami cara kerja breadboard, lalu rakit sedikit demi sedikit. Setiap tahap punya kode tes kecil, jadi kamu tahu bagian itu berhasil sebelum lanjut.</p>
+  <div class="progress"><span id="prog" data-t="e0bee15f9f04">0 / 0 langkah</span><div class="bar"><i id="progbar"></i></div></div>
   <nav aria-label="Bagian">
     <a href="#komponen">1. Komponen</a><a href="#dasar">2. Dasar</a><a href="#rakit">3. Rakit</a><a href="#kabel">4. Daftar kabel</a><a href="#masalah">5. Masalah</a>
   </nav>
 </header>
 
 <section aria-labelledby="aturan">
-  <h2 id="aturan">Tiga aturan sebelum mulai</h2>
+  <h2 id="aturan" data-t="38031c25efab">Tiga aturan sebelum mulai</h2>
   <div class="rules">
-    <div class="rule"><b>Cabut USB saat memasang kabel</b><p>Pasang atau pindahkan kabel hanya saat ESP32 mati. Colok USB lagi setelah semuanya dicek.</p></div>
-    <div class="rule"><b>Merah = +, biru = −</b><p>Garis merah di breadboard untuk tegangan (+), garis biru untuk GND (−). Jangan pernah sambungkan keduanya langsung.</p></div>
-    <div class="rule"><b>Cek dua kali, colok sekali</b><p>Bandingkan setiap kabel dengan gambar dan tulisan di langkah. Hampir semua kegagalan pemula karena satu kabel bergeser satu lubang.</p></div>
+    <div class="rule"><b data-t="792c1fdfff0a">Cabut USB saat memasang kabel</b><p data-t="f4c22c320f0b">Pasang atau pindahkan kabel hanya saat ESP32 mati. Colok USB lagi setelah semuanya dicek.</p></div>
+    <div class="rule"><b data-t="6c3d327790b2">Merah = +, biru = −</b><p data-t="1861081476a6">Garis merah di breadboard untuk tegangan (+), garis biru untuk GND (−). Jangan pernah sambungkan keduanya langsung.</p></div>
+    <div class="rule"><b data-t="cc64489d4343">Cek dua kali, colok sekali</b><p data-t="3912d5ce3d7a">Bandingkan setiap kabel dengan gambar dan tulisan di langkah. Hampir semua kegagalan pemula karena satu kabel bergeser satu lubang.</p></div>
   </div>
 </section>
 
 <section id="komponen" aria-labelledby="h-komp">
-  <span class="eyebrow">Bagian 1</span>
-  <h2 id="h-komp">Kenali komponenmu</h2>
-  <p class="lead">Semua foto ini dari kit-mu sendiri. Setelah membaca, nyalakan <b>mode tebak nama</b>: nama tiap komponen disamarkan, coba sebutkan lalu ketuk kartunya untuk mengecek.</p>
+  <span class="eyebrow" data-t="cdb8d8829aa4">Bagian 1</span>
+  <h2 id="h-komp" data-t="ec16d138a517">Kenali komponenmu</h2>
+  <p class="lead" data-t="f4015f333dfc">Semua foto ini dari kit-mu sendiri. Setelah membaca, nyalakan <b>mode tebak nama</b>: nama tiap komponen disamarkan, coba sebutkan lalu ketuk kartunya untuk mengecek.</p>
   <div class="toolbar">
     <button id="quizbtn" aria-pressed="false" type="button">Mode tebak nama</button>
     <span class="quizhint" id="quizhint"></span>
@@ -155,153 +155,153 @@ nav a:hover,nav a:focus-visible{color:var(--ink);border-color:var(--line-2)}
 </section>
 
 <section id="dasar" aria-labelledby="h-dasar">
-  <span class="eyebrow">Bagian 2</span>
-  <h2 id="h-dasar">Dasar yang perlu kamu tahu</h2>
+  <span class="eyebrow" data-t="5233b8411d9f">Bagian 2</span>
+  <h2 id="h-dasar" data-t="b2caa60fcf4d">Dasar yang perlu kamu tahu</h2>
 
   <div class="panel">
-    <h3>Cara kerja breadboard</h3>
-    <p>Di dalam breadboard ada lempeng logam yang menyambungkan lubang-lubang tertentu. Setiap lubang punya alamat: <b>huruf baris</b> (a–j) dan <b>angka kolom</b> (1–30), keduanya tercetak di breadboard-mu. Jadi <span class="hole">e3</span> artinya baris e, kolom 3.</p>
+    <h3 data-t="55403e4c2656">Cara kerja breadboard</h3>
+    <p data-t="0a276f9841fe">Di dalam breadboard ada lempeng logam yang menyambungkan lubang-lubang tertentu. Setiap lubang punya alamat: <b>huruf baris</b> (a–j) dan <b>angka kolom</b> (1–30), keduanya tercetak di breadboard-mu. Jadi <span class="hole">e3</span> artinya baris e, kolom 3.</p>
     <div class="figure" id="fig-dasar" role="img" aria-label="Breadboard dengan kolom 5 baris a sampai e disorot hijau, kolom 5 baris f sampai j disorot jingga, dan rel plus disorot merah"></div>
     <ul class="plain">
-      <li><b>Hijau:</b> lima lubang dalam satu kolom (a–e) saling tersambung. Komponen yang kakinya di <span class="hole">a5</span> tersambung dengan kabel di <span class="hole">d5</span>.</li>
-      <li><b>Jingga:</b> f–j di kolom yang sama juga tersambung, tapi <b>terpisah</b> dari a–e oleh parit di tengah.</li>
-      <li><b>Merah:</b> rel daya tersambung memanjang sepanjang garisnya. Lubang mana pun di sepanjang garis merah sama saja.</li>
-      <li>Kolom yang berbeda <b>tidak</b> tersambung. <span class="hole">a5</span> dan <span class="hole">a6</span> tidak terhubung.</li>
+      <li data-t="f4850fe98532"><b>Hijau:</b> lima lubang dalam satu kolom (a–e) saling tersambung. Komponen yang kakinya di <span class="hole">a5</span> tersambung dengan kabel di <span class="hole">d5</span>.</li>
+      <li data-t="cc0bb543332b"><b>Jingga:</b> f–j di kolom yang sama juga tersambung, tapi <b>terpisah</b> dari a–e oleh parit di tengah.</li>
+      <li data-t="861fd3085beb"><b>Merah:</b> rel daya tersambung memanjang sepanjang garisnya. Lubang mana pun di sepanjang garis merah sama saja.</li>
+      <li data-t="e8633a81bd2f">Kolom yang berbeda <b>tidak</b> tersambung. <span class="hole">a5</span> dan <span class="hole">a6</span> tidak terhubung.</li>
     </ul>
-    <p class="cap">Arah breadboard tidak penting. Yang penting cocokkan huruf dan angka yang tercetak di breadboard-mu.</p>
+    <p class="cap" data-t="b4c19e6be4e1">Arah breadboard tidak penting. Yang penting cocokkan huruf dan angka yang tercetak di breadboard-mu.</p>
   </div>
 
   <div class="two">
     <div class="panel">
-      <h3>Tiga jenis kabel jumper</h3>
-      <p><b>Jantan</b> = ujungnya berupa pin logam (bisa masuk lubang breadboard). <b>Betina</b> = ujungnya berupa lubang (dipasang menutupi pin).</p>
+      <h3 data-t="17f8f1103299">Tiga jenis kabel jumper</h3>
+      <p data-t="aeeda35b13ef"><b>Jantan</b> = ujungnya berupa pin logam (bisa masuk lubang breadboard). <b>Betina</b> = ujungnya berupa lubang (dipasang menutupi pin).</p>
       <ul class="plain">
-        <li><b>Jantan–jantan (M-M):</b> lubang breadboard ke lubang breadboard.</li>
-        <li><b>Jantan–betina (M-F):</b> pin papan ekspansi ke breadboard. Paling sering dipakai di proyek ini.</li>
-        <li><b>Betina–betina (F-F):</b> pin ke pin, misalnya LCD langsung ke papan ekspansi.</li>
+        <li data-t="ebd5db50574b"><b>Jantan–jantan (M-M):</b> lubang breadboard ke lubang breadboard.</li>
+        <li data-t="f8ee2d892e90"><b>Jantan–betina (M-F):</b> pin papan ekspansi ke breadboard. Paling sering dipakai di proyek ini.</li>
+        <li data-t="8b6574011143"><b>Betina–betina (F-F):</b> pin ke pin, misalnya LCD langsung ke papan ekspansi.</li>
       </ul>
-      <p class="cap">Warna kabel tidak berpengaruh secara listrik. Tapi biasakan merah untuk +, hitam atau coklat untuk GND, supaya mudah dicek.</p>
+      <p class="cap" data-t="2ccb260840da">Warna kabel tidak berpengaruh secara listrik. Tapi biasakan merah untuk +, hitam atau coklat untuk GND, supaya mudah dicek.</p>
     </div>
     <div class="panel">
-      <h3>Membaca papan ekspansi</h3>
-      <p>ESP32-mu dicolok di papan ekspansi hitam. Setiap pin GPIO punya satu baris berisi <b>3 pin</b>:</p>
+      <h3 data-t="9312b1cd2d36">Membaca papan ekspansi</h3>
+      <p data-t="902d47a8f6b3">ESP32-mu dicolok di papan ekspansi hitam. Setiap pin GPIO punya satu baris berisi <b>3 pin</b>:</p>
       <ul class="plain">
-        <li><b>S</b> (signal) = pin GPIO-nya, misalnya <span class="pin">D4</span>. Ke sinilah kabel sinyal.</li>
-        <li><b>V</b> = tegangan untuk komponen.</li>
-        <li><b>G</b> = GND.</li>
+        <li data-t="b99af48ff90c"><b>S</b> (signal) = pin GPIO-nya, misalnya <span class="pin">D4</span>. Ke sinilah kabel sinyal.</li>
+        <li data-t="c286b6415c6e"><b>V</b> = tegangan untuk komponen.</li>
+        <li data-t="4f5b4393aab3"><b>G</b> = GND.</li>
       </ul>
-      <p class="cap">Label di papan ekspansi pakai format D + angka GPIO: GPIO 25 = <span class="pin">D25</span>. Penjelasan lengkap papanmu ada di bawah.</p>
+      <p class="cap" data-t="a90ace016713">Label di papan ekspansi pakai format D + angka GPIO: GPIO 25 = <span class="pin">D25</span>. Penjelasan lengkap papanmu ada di bawah.</p>
     </div>
   </div>
 
   <div class="panel" id="ekspansi">
-    <h3>Mengenal papan ekspansimu</h3>
-    <p>Ini papanmu sendiri tanpa ESP32: <b>ESP32 ESP32S 30P Expansion board</b>. Nomor di foto dijelaskan di bawahnya.</p>
+    <h3 data-t="0e546cc17c80">Mengenal papan ekspansimu</h3>
+    <p data-t="722b5dc73418">Ini papanmu sendiri tanpa ESP32: <b>ESP32 ESP32S 30P Expansion board</b>. Nomor di foto dijelaskan di bawahnya.</p>
     <img src="img/ekspansi_anot.jpg" alt="Papan ekspansi dengan tujuh bagian bernomor" style="width:100%;max-width:520px;border-radius:8px;background:var(--photo)">
     <ol class="legend">
-      <li><b class="r">Jumper pemilih tegangan</b> bertulisan <span class="pin">3.3V</span> <span class="pin">V</span> <span class="pin">5V</span>. Penutup hitamnya menyambungkan pin tengah (V) ke salah satu sisi, dan itulah tegangan semua pin V di papan. <b>Dari fotomu, penutupnya tampak di posisi V–5V.</b> Untuk proyek ini pindahkan ke posisi <b>3.3V–V</b>: tarik penutup lurus ke atas (pakai kuku atau pinset), lalu tancapkan di dua pin sisi 3.3V.</li>
-      <li><b>Baris pin sisi kanan.</b> Tiap baris punya 3 pin. Urutannya tercetak di bawah: <b>G</b> paling dalam, <b>V</b> di tengah, <b>S</b> paling luar (dekat tepi papan). Nama pin (D25, D26, D34, ...) tercetak di samping pin S. Blok bertulisan GND di atasnya berisi pin GND tambahan.</li>
-      <li><b>Baris pin sisi kiri</b> untuk D15, D2, D4, D16, D17, D5, D18, D19, D21, RX, TX, D22, D23. Huruf urutan G/V/S di bawah kolom ini tidak terbaca di fotomu. Biasanya dicerminkan (S di tepi luar), tapi cek sendiri huruf di bawahnya sebelum memasang kabel di sisi ini.</li>
-      <li><b>Header GND, VCC, D21, D22</b> untuk modul I2C, misalnya layar LCD versi I2C. Belum dipakai.</li>
-      <li><b>Dua soket betina panjang</b>, tempat ESP32 dicolok.</li>
-      <li><b>Jack DC 6.5–16V</b> untuk adaptor. Belum dipakai, cukup daya dari USB.</li>
-      <li><b>Port micro-USB dan USB-C papan ekspansi</b>, kemungkinan besar hanya untuk daya. Untuk upload kode, colok kabel ke port di modul ESP32 sendiri.</li>
+      <li data-t="fa2f6f8969a2"><b class="r">Jumper pemilih tegangan</b> bertulisan <span class="pin">3.3V</span> <span class="pin">V</span> <span class="pin">5V</span>. Penutup hitamnya menyambungkan pin tengah (V) ke salah satu sisi, dan itulah tegangan semua pin V di papan. <b>Dari fotomu, penutupnya tampak di posisi V–5V.</b> Untuk proyek ini pindahkan ke posisi <b>3.3V–V</b>: tarik penutup lurus ke atas (pakai kuku atau pinset), lalu tancapkan di dua pin sisi 3.3V.</li>
+      <li data-t="9a74d0961f21"><b>Baris pin sisi kanan.</b> Tiap baris punya 3 pin. Urutannya tercetak di bawah: <b>G</b> paling dalam, <b>V</b> di tengah, <b>S</b> paling luar (dekat tepi papan). Nama pin (D25, D26, D34, ...) tercetak di samping pin S. Blok bertulisan GND di atasnya berisi pin GND tambahan.</li>
+      <li data-t="4f81b0466ee5"><b>Baris pin sisi kiri</b> untuk D15, D2, D4, D16, D17, D5, D18, D19, D21, RX, TX, D22, D23. Huruf urutan G/V/S di bawah kolom ini tidak terbaca di fotomu. Biasanya dicerminkan (S di tepi luar), tapi cek sendiri huruf di bawahnya sebelum memasang kabel di sisi ini.</li>
+      <li data-t="c8eb8fc87c83"><b>Header GND, VCC, D21, D22</b> untuk modul I2C, misalnya layar LCD versi I2C. Belum dipakai.</li>
+      <li data-t="4982d11ad349"><b>Dua soket betina panjang</b>, tempat ESP32 dicolok.</li>
+      <li data-t="90c9d55a5ec8"><b>Jack DC 6.5–16V</b> untuk adaptor. Belum dipakai, cukup daya dari USB.</li>
+      <li data-t="52620ca961ae"><b>Port micro-USB dan USB-C papan ekspansi</b>, kemungkinan besar hanya untuk daya. Untuk upload kode, colok kabel ke port di modul ESP32 sendiri.</li>
     </ol>
-    <div class="warn"><b>Kenapa harus 3.3V?</b><p>Sensor (DHT11, LDR) diberi tegangan dari rel merah, lalu mengirim sinyal ke pin ESP32 dengan tegangan yang sama. Pin ESP32 dirancang untuk maksimal 3.3V. Memberinya 5V terus-menerus bisa merusaknya. Kalau punya multimeter, setelah jumper dipindah ukur tegangan antara pin V dan G: hasilnya harus sekitar 3.3V.</p></div>
-    <div class="ok"><b>Cara memasang ESP32 kembali</b><p>Cabut USB dulu. Hadapkan port micro-USB ESP32 ke arah jack DC dan port USB papan ekspansi (atas), bagian pelat logam ESP32 ke bawah. Cocokkan tulisan <span class="pin">D15</span> di ESP32 dengan baris D15 papan ekspansi. Pastikan ke-30 pin masuk soket dan tidak ada yang tersisa di luar, lalu tekan rata pelan-pelan dengan kedua ibu jari.</p></div>
+    <div class="warn"><b data-t="8edd6243563f">Kenapa harus 3.3V?</b><p data-t="a83486a92b25">Sensor (DHT11, LDR) diberi tegangan dari rel merah, lalu mengirim sinyal ke pin ESP32 dengan tegangan yang sama. Pin ESP32 dirancang untuk maksimal 3.3V. Memberinya 5V terus-menerus bisa merusaknya. Kalau punya multimeter, setelah jumper dipindah ukur tegangan antara pin V dan G: hasilnya harus sekitar 3.3V.</p></div>
+    <div class="ok"><b data-t="31961cbe5d63">Cara memasang ESP32 kembali</b><p data-t="c3231ff6a05b">Cabut USB dulu. Hadapkan port micro-USB ESP32 ke arah jack DC dan port USB papan ekspansi (atas), bagian pelat logam ESP32 ke bawah. Cocokkan tulisan <span class="pin">D15</span> di ESP32 dengan baris D15 papan ekspansi. Pastikan ke-30 pin masuk soket dan tidak ada yang tersisa di luar, lalu tekan rata pelan-pelan dengan kedua ibu jari.</p></div>
   </div>
 
   <div class="panel">
-    <h3>Membaca nilai resistor</h3>
-    <p>Resistor di kit bisa memakai 4 atau 5 gelang warna. Baca dari ujung yang gelangnya berkumpul; gelang terakhir yang agak terpisah adalah toleransi. Kalau resistor 10 kΩ-mu berwarna <b>coklat, hitam, oranye, emas</b>, itu 4 gelang dan nilainya sama persis dengan yang di bawah.</p>
-    <div class="bands"><span class="res" aria-hidden="true"><i style="background:#7a4a22"></i><i style="background:#1a1a1a"></i><i style="background:#f08a24"></i><i style="background:transparent"></i><i style="background:#c9a227"></i></span><span><b>10 kΩ (versi 4 gelang)</b> · coklat, hitam, oranye, emas. Sama dengan 10 kΩ 5 gelang.</span></div>
-    <div class="bands"><span class="res" aria-hidden="true"><i style="background:#7a4a22"></i><i style="background:#1a1a1a"></i><i style="background:#1a1a1a"></i><i style="background:#d33"></i><i style="background:transparent"></i><i style="background:#7a4a22"></i></span><span><b>10 kΩ (versi 5 gelang)</b> · coklat, hitam, hitam, merah, coklat. Dipakai 2 buah.</span></div>
-    <div class="bands"><span class="res" aria-hidden="true"><i style="background:#d33"></i><i style="background:#d33"></i><i style="background:#1a1a1a"></i><i style="background:#1a1a1a"></i><i style="background:transparent"></i><i style="background:#7a4a22"></i></span><span><b>220 Ω</b> · merah, merah, hitam, hitam, coklat. Untuk LED.</span></div>
-    <div class="bands"><span class="res" aria-hidden="true"><i style="background:#f08a24"></i><i style="background:#f08a24"></i><i style="background:#1a1a1a"></i><i style="background:#1a1a1a"></i><i style="background:transparent"></i><i style="background:#7a4a22"></i></span><span><b>330 Ω</b> · oranye, oranye, hitam, hitam, coklat. Pengganti 220 Ω kalau tidak ada.</span></div>
-    <div class="bands"><span class="res" aria-hidden="true"><i style="background:#7a4a22"></i><i style="background:#1a1a1a"></i><i style="background:#1a1a1a"></i><i style="background:#1a1a1a"></i><i style="background:transparent"></i><i style="background:#7a4a22"></i></span><span><b>100 Ω</b> · coklat, hitam, hitam, hitam, coklat. Untuk buzzer.</span></div>
-    <p class="cap">Warna di resistor kecil kadang sulit dibedakan. Multimeter di mode Ω memberi jawaban pasti. Resistor tidak punya kutub, jadi bebas dipasang bolak-balik.</p>
+    <h3 data-t="6cbfbbe9ed2b">Membaca nilai resistor</h3>
+    <p data-t="24ef0f5b775d">Resistor di kit bisa memakai 4 atau 5 gelang warna. Baca dari ujung yang gelangnya berkumpul; gelang terakhir yang agak terpisah adalah toleransi. Kalau resistor 10 kΩ-mu berwarna <b>coklat, hitam, oranye, emas</b>, itu 4 gelang dan nilainya sama persis dengan yang di bawah.</p>
+    <div class="bands"><span class="res" aria-hidden="true"><i style="background:#7a4a22"></i><i style="background:#1a1a1a"></i><i style="background:#f08a24"></i><i style="background:transparent"></i><i style="background:#c9a227"></i></span><span data-t="86d92d8366df"><b>10 kΩ (versi 4 gelang)</b> · coklat, hitam, oranye, emas. Sama dengan 10 kΩ 5 gelang.</span></div>
+    <div class="bands"><span class="res" aria-hidden="true"><i style="background:#7a4a22"></i><i style="background:#1a1a1a"></i><i style="background:#1a1a1a"></i><i style="background:#d33"></i><i style="background:transparent"></i><i style="background:#7a4a22"></i></span><span data-t="f64b3c728dfd"><b>10 kΩ (versi 5 gelang)</b> · coklat, hitam, hitam, merah, coklat. Dipakai 2 buah.</span></div>
+    <div class="bands"><span class="res" aria-hidden="true"><i style="background:#d33"></i><i style="background:#d33"></i><i style="background:#1a1a1a"></i><i style="background:#1a1a1a"></i><i style="background:transparent"></i><i style="background:#7a4a22"></i></span><span data-t="cafe3b0e65b4"><b>220 Ω</b> · merah, merah, hitam, hitam, coklat. Untuk LED.</span></div>
+    <div class="bands"><span class="res" aria-hidden="true"><i style="background:#f08a24"></i><i style="background:#f08a24"></i><i style="background:#1a1a1a"></i><i style="background:#1a1a1a"></i><i style="background:transparent"></i><i style="background:#7a4a22"></i></span><span data-t="0b5c8e70401a"><b>330 Ω</b> · oranye, oranye, hitam, hitam, coklat. Pengganti 220 Ω kalau tidak ada.</span></div>
+    <div class="bands"><span class="res" aria-hidden="true"><i style="background:#7a4a22"></i><i style="background:#1a1a1a"></i><i style="background:#1a1a1a"></i><i style="background:#1a1a1a"></i><i style="background:transparent"></i><i style="background:#7a4a22"></i></span><span data-t="d496e6c2762b"><b>100 Ω</b> · coklat, hitam, hitam, hitam, coklat. Untuk buzzer.</span></div>
+    <p class="cap" data-t="8060c6097f24">Warna di resistor kecil kadang sulit dibedakan. Multimeter di mode Ω memberi jawaban pasti. Resistor tidak punya kutub, jadi bebas dipasang bolak-balik.</p>
   </div>
 </section>
 
 <section id="rakit" aria-labelledby="h-rakit">
-  <span class="eyebrow">Bagian 3</span>
-  <h2 id="h-rakit">Rakit bertahap</h2>
-  <p class="lead">Di setiap gambar, bagian yang baru dipasang tampil terang dan bagian dari tahap sebelumnya tampil pudar. Titik putih = ujung kaki atau kabel yang masuk ke lubang. Kabel boleh bersilangan di atas breadboard, yang penting ujungnya di lubang yang benar. Di HP, geser gambar ke samping untuk melihat seluruh breadboard.</p>
+  <span class="eyebrow" data-t="76d10f9c5731">Bagian 3</span>
+  <h2 id="h-rakit" data-t="df4eb9552989">Rakit bertahap</h2>
+  <p class="lead" data-t="e9241888dc7e">Di setiap gambar, bagian yang baru dipasang tampil terang dan bagian dari tahap sebelumnya tampil pudar. Titik putih = ujung kaki atau kabel yang masuk ke lubang. Kabel boleh bersilangan di atas breadboard, yang penting ujungnya di lubang yang benar. Di HP, geser gambar ke samping untuk melihat seluruh breadboard.</p>
   <div id="stages"></div>
 </section>
 
 <section id="kabel" aria-labelledby="h-kabel">
-  <span class="eyebrow">Bagian 4</span>
-  <h2 id="h-kabel">Daftar lengkap</h2>
-  <p class="lead">Untuk mengecek ulang rangkaian yang sudah jadi (Tahap 1–5). "Atas" = rel di sisi baris a, "bawah" = rel di sisi baris j.</p>
+  <span class="eyebrow" data-t="d95dfe383c0c">Bagian 4</span>
+  <h2 id="h-kabel" data-t="42909edb8726">Daftar lengkap</h2>
+  <p class="lead" data-t="9524a0c0a2d7">Untuk mengecek ulang rangkaian yang sudah jadi (Tahap 1–5). "Atas" = rel di sisi baris a, "bawah" = rel di sisi baris j.</p>
   <div class="panel">
-    <h3>Komponen di breadboard</h3>
+    <h3 data-t="5138955c53fb">Komponen di breadboard</h3>
     <div class="tbl"><table>
-      <thead><tr><th>Komponen</th><th>Kaki di lubang</th><th>Catatan</th></tr></thead>
+      <thead><tr><th data-t="0750e291bd60">Komponen</th><th data-t="78886321eece">Kaki di lubang</th><th data-t="9f09aefd0dd4">Catatan</th></tr></thead>
       <tbody>
-        <tr><td>LED merah</td><td><span class="hole">f16</span> <span class="hole">f17</span></td><td>Kaki panjang di f16</td></tr>
-        <tr><td>Resistor 220 Ω</td><td><span class="hole">g16</span> <span class="hole">g20</span></td><td></td></tr>
-        <tr><td>Buzzer</td><td><span class="hole">f24</span> <span class="hole">f27</span></td><td>Kaki di bawah tanda ⊕ di f24</td></tr>
-        <tr><td>Resistor 100 Ω</td><td><span class="hole">h22</span> <span class="hole">h24</span></td><td>Atau 220 Ω</td></tr>
-        <tr><td>LDR</td><td><span class="hole">e10</span> <span class="hole">e12</span></td><td>Bebas bolak-balik</td></tr>
-        <tr><td>Resistor 10 kΩ (LDR)</td><td><span class="hole">a12</span> + garis <span class="bl">biru</span> atas</td><td></td></tr>
-        <tr><td>DHT11</td><td><span class="hole">e3</span> <span class="hole">e4</span> <span class="hole">e5</span> <span class="hole">e6</span></td><td>Sisi berlubang menghadapmu</td></tr>
-        <tr><td>Resistor 10 kΩ (DHT11)</td><td><span class="hole">a4</span> + garis <span class="r">merah</span> atas</td><td></td></tr>
+        <tr><td data-t="5bcd7dc2b0bf">LED merah</td><td><span class="hole">f16</span> <span class="hole">f17</span></td><td data-t="39b8819b507b">Kaki panjang di f16</td></tr>
+        <tr><td data-t="e6672b947f39">Resistor 220 Ω</td><td><span class="hole">g16</span> <span class="hole">g20</span></td><td></td></tr>
+        <tr><td data-t="6b80b24cf557">Buzzer</td><td><span class="hole">f24</span> <span class="hole">f27</span></td><td data-t="c615b2cdc522">Kaki di bawah tanda ⊕ di f24</td></tr>
+        <tr><td data-t="0a3135800f9d">Resistor 100 Ω</td><td><span class="hole">h22</span> <span class="hole">h24</span></td><td data-t="c809b370c6a9">Atau 220 Ω</td></tr>
+        <tr><td data-t="98df717d49ff">LDR</td><td><span class="hole">e10</span> <span class="hole">e12</span></td><td data-t="779f4953ff7a">Bebas bolak-balik</td></tr>
+        <tr><td data-t="1aeeeaa582de">Resistor 10 kΩ (LDR)</td><td data-t="6a328145d58f"><span class="hole">a12</span> + garis <span class="bl">biru</span> atas</td><td></td></tr>
+        <tr><td data-t="25f94159fca8">DHT11</td><td><span class="hole">e3</span> <span class="hole">e4</span> <span class="hole">e5</span> <span class="hole">e6</span></td><td data-t="6d872bbf1062">Sisi berlubang menghadapmu</td></tr>
+        <tr><td data-t="ef00fade2034">Resistor 10 kΩ (DHT11)</td><td data-t="d3c5520796de"><span class="hole">a4</span> + garis <span class="r">merah</span> atas</td><td></td></tr>
       </tbody>
     </table></div>
   </div>
   <div class="panel">
-    <h3>Kabel</h3>
+    <h3 data-t="184fd2f574c3">Kabel</h3>
     <div class="tbl"><table>
-      <thead><tr><th>#</th><th>Dari</th><th>Ke</th><th>Jenis</th></tr></thead>
+      <thead><tr><th>#</th><th data-t="b7170c965050">Dari</th><th>Ke</th><th data-t="fabb2b5c779a">Jenis</th></tr></thead>
       <tbody>
-        <tr><td>1</td><td>Pin <span class="pin">V</span> papan ekspansi (jumper di 3.3V)</td><td>Garis <span class="r">merah</span> atas</td><td>M-F</td></tr>
-        <tr><td>2</td><td>Pin <span class="pin">G</span> papan ekspansi</td><td>Garis <span class="bl">biru</span> atas</td><td>M-F</td></tr>
-        <tr><td>3</td><td>Garis <span class="bl">biru</span> atas</td><td>Garis <span class="bl">biru</span> bawah</td><td>M-M</td></tr>
-        <tr><td>4</td><td><span class="hole">j17</span></td><td>Garis <span class="bl">biru</span> bawah</td><td>M-M</td></tr>
-        <tr><td>5</td><td><span class="hole">i20</span></td><td>S di baris <span class="pin">D25</span></td><td>M-F</td></tr>
-        <tr><td>6</td><td><span class="hole">j27</span></td><td>Garis <span class="bl">biru</span> bawah</td><td>M-M</td></tr>
-        <tr><td>7</td><td><span class="hole">i22</span></td><td>S di baris <span class="pin">D26</span></td><td>M-F</td></tr>
-        <tr><td>8</td><td><span class="hole">a10</span></td><td>Garis <span class="r">merah</span> atas</td><td>M-M</td></tr>
-        <tr><td>9</td><td><span class="hole">c12</span></td><td>S di baris <span class="pin">D34</span></td><td>M-F</td></tr>
-        <tr><td>10</td><td><span class="hole">a3</span></td><td>Garis <span class="r">merah</span> atas</td><td>M-M</td></tr>
-        <tr><td>11</td><td><span class="hole">a6</span></td><td>Garis <span class="bl">biru</span> atas</td><td>M-M</td></tr>
-        <tr><td>12</td><td><span class="hole">c4</span></td><td>S di baris <span class="pin">D4</span></td><td>M-F</td></tr>
+        <tr><td>1</td><td data-t="068643368d56">Pin <span class="pin">V</span> papan ekspansi (jumper di 3.3V)</td><td data-t="7041e53c8ba8">Garis <span class="r">merah</span> atas</td><td>M-F</td></tr>
+        <tr><td>2</td><td data-t="7a4ffef3ae44">Pin <span class="pin">G</span> papan ekspansi</td><td data-t="147c5716225b">Garis <span class="bl">biru</span> atas</td><td>M-F</td></tr>
+        <tr><td>3</td><td data-t="147c5716225b">Garis <span class="bl">biru</span> atas</td><td data-t="095f87ea0297">Garis <span class="bl">biru</span> bawah</td><td>M-M</td></tr>
+        <tr><td>4</td><td><span class="hole">j17</span></td><td data-t="095f87ea0297">Garis <span class="bl">biru</span> bawah</td><td>M-M</td></tr>
+        <tr><td>5</td><td><span class="hole">i20</span></td><td data-t="ee3554218a3f">S di baris <span class="pin">D25</span></td><td>M-F</td></tr>
+        <tr><td>6</td><td><span class="hole">j27</span></td><td data-t="095f87ea0297">Garis <span class="bl">biru</span> bawah</td><td>M-M</td></tr>
+        <tr><td>7</td><td><span class="hole">i22</span></td><td data-t="83d596eb1f83">S di baris <span class="pin">D26</span></td><td>M-F</td></tr>
+        <tr><td>8</td><td><span class="hole">a10</span></td><td data-t="7041e53c8ba8">Garis <span class="r">merah</span> atas</td><td>M-M</td></tr>
+        <tr><td>9</td><td><span class="hole">c12</span></td><td data-t="f998f0eb29bb">S di baris <span class="pin">D34</span></td><td>M-F</td></tr>
+        <tr><td>10</td><td><span class="hole">a3</span></td><td data-t="7041e53c8ba8">Garis <span class="r">merah</span> atas</td><td>M-M</td></tr>
+        <tr><td>11</td><td><span class="hole">a6</span></td><td data-t="147c5716225b">Garis <span class="bl">biru</span> atas</td><td>M-M</td></tr>
+        <tr><td>12</td><td><span class="hole">c4</span></td><td data-t="f36a4f48f8b1">S di baris <span class="pin">D4</span></td><td>M-F</td></tr>
       </tbody>
     </table></div>
-    <p class="cap">Total 6 kabel jantan-betina dan 6 kabel jantan-jantan. Hitung dulu kabelmu sebelum mulai.</p>
+    <p class="cap" data-t="adb14328a3fe">Total 6 kabel jantan-betina dan 6 kabel jantan-jantan. Hitung dulu kabelmu sebelum mulai.</p>
   </div>
 </section>
 
 <section id="masalah" aria-labelledby="h-masalah">
-  <span class="eyebrow">Bagian 5</span>
-  <h2 id="h-masalah">Kalau ada yang tidak jalan</h2>
+  <span class="eyebrow" data-t="1665d81678eb">Bagian 5</span>
+  <h2 id="h-masalah" data-t="d7123c527e57">Kalau ada yang tidak jalan</h2>
   <div class="panel">
     <ul class="plain">
-      <li><b>Port tidak muncul di Arduino IDE:</b> kabel USB-mu mungkin hanya kabel charge, coba kabel lain. Kalau tetap tidak muncul, install driver CP210x atau CH340 (lihat tulisan pada chip kecil dekat port USB ESP32).</li>
-      <li><b>Upload berhenti di "Connecting.....":</b> tekan dan tahan tombol <b>BOOT</b> di ESP32 sampai persentase upload muncul, lalu lepas.</li>
-      <li><b>Serial Monitor berisi huruf aneh:</b> ubah baud di pojok kanan bawah Serial Monitor ke 115200.</li>
-      <li><b>LED tidak menyala:</b> hampir pasti terbalik. Cabut USB, putar LED, coba lagi. LED tidak rusak karena terbalik.</li>
-      <li><b>ESP32 tiba-tiba mati atau restart saat dicolok:</b> cabut USB segera. Biasanya ada kabel yang menyambungkan rel merah langsung ke biru (korsleting).</li>
-      <li><b>Bagian yang dulu jalan jadi tidak jalan:</b> kabel di breadboard sering tersenggol saat memasang komponen baru. Cek tahap itu dengan kode tesnya lagi.</li>
-      <li><b>Serial Monitor berulang "load:0xffffffff,len:-1" (restart terus):</b> di Tools atur Flash Mode ke DIO, Flash Frequency 40MHz, Erase All Flash Before Sketch Upload ke Enabled, Upload Speed 115200, lalu upload ulang.</li>
-      <li><b>Upload gagal di tengah jalan setelah kabel V/G dipasang:</b> kabel dari pin V atau G kemungkinan menyentuh (korsleting) atau menarik arus berlebih. Cabut semua kabel dari papan ekspansi, upload dulu, lalu pasang kabel kembali satu per satu.</li>
-      <li><b>Bot Telegram tidak membalas:</b> pastikan WiFi 2.4 GHz, token benar, chat ID benar, dan kamu sudah menekan Start di bot.</li>
-      <li><b>Masih bingung?</b> Foto rangkaianmu dari atas dengan cahaya terang, kirim ke saya, sebutkan tahap berapa.</li>
+      <li data-t="86f303dc5109"><b>Port tidak muncul di Arduino IDE:</b> kabel USB-mu mungkin hanya kabel charge, coba kabel lain. Kalau tetap tidak muncul, install driver CP210x atau CH340 (lihat tulisan pada chip kecil dekat port USB ESP32).</li>
+      <li data-t="3a7af0f00046"><b>Upload berhenti di "Connecting.....":</b> tekan dan tahan tombol <b>BOOT</b> di ESP32 sampai persentase upload muncul, lalu lepas.</li>
+      <li data-t="7141f61ed77f"><b>Serial Monitor berisi huruf aneh:</b> ubah baud di pojok kanan bawah Serial Monitor ke 115200.</li>
+      <li data-t="995c51b0eba8"><b>LED tidak menyala:</b> hampir pasti terbalik. Cabut USB, putar LED, coba lagi. LED tidak rusak karena terbalik.</li>
+      <li data-t="61eb25e00388"><b>ESP32 tiba-tiba mati atau restart saat dicolok:</b> cabut USB segera. Biasanya ada kabel yang menyambungkan rel merah langsung ke biru (korsleting).</li>
+      <li data-t="2e10b219186b"><b>Bagian yang dulu jalan jadi tidak jalan:</b> kabel di breadboard sering tersenggol saat memasang komponen baru. Cek tahap itu dengan kode tesnya lagi.</li>
+      <li data-t="0a0b18fc51d7"><b>Serial Monitor berulang "load:0xffffffff,len:-1" (restart terus):</b> di Tools atur Flash Mode ke DIO, Flash Frequency 40MHz, Erase All Flash Before Sketch Upload ke Enabled, Upload Speed 115200, lalu upload ulang.</li>
+      <li data-t="e2d5f1541e90"><b>Upload gagal di tengah jalan setelah kabel V/G dipasang:</b> kabel dari pin V atau G kemungkinan menyentuh (korsleting) atau menarik arus berlebih. Cabut semua kabel dari papan ekspansi, upload dulu, lalu pasang kabel kembali satu per satu.</li>
+      <li data-t="8ac103949d0c"><b>Bot Telegram tidak membalas:</b> pastikan WiFi 2.4 GHz, token benar, chat ID benar, dan kamu sudah menekan Start di bot.</li>
+      <li data-t="7892e41d2e5b"><b>Masih bingung?</b> Foto rangkaianmu dari atas dengan cahaya terang, kirim ke saya, sebutkan tahap berapa.</li>
     </ul>
   </div>
 </section>
 
 <section aria-labelledby="h-unduh">
-  <span class="eyebrow">Berkas</span>
-  <h2 id="h-unduh">Kode lengkap</h2>
-  <div class="panel"><p><a href="stasiun_cuaca.ino" download>Unduh stasiun_cuaca.ino</a>. Isi dulu nama WiFi, password, token bot, dan chat ID di bagian atas berkas sebelum upload. Jangan unggah berkas yang sudah berisi token ke tempat publik.</p><p class="cap">Kode ini sudah dicek berhasil dikompilasi dengan Arduino ESP32 core 3.3.12, dengan <code>USE_LCD</code> 0 maupun 1. Library LiquidCrystal sudah bawaan Arduino IDE; kalau muncul error "LiquidCrystal.h: No such file", install <b>LiquidCrystal by Arduino</b> dari Library Manager.</p></div>
+  <span class="eyebrow" data-t="719ee5463827">Berkas</span>
+  <h2 id="h-unduh" data-t="ef5b8e315d4b">Kode lengkap</h2>
+  <div class="panel"><p data-t="e33536c10735"><a href="stasiun_cuaca.ino" download>Unduh stasiun_cuaca.ino</a>. Isi dulu nama WiFi, password, token bot, dan chat ID di bagian atas berkas sebelum upload. Jangan unggah berkas yang sudah berisi token ke tempat publik.</p><p class="cap" data-t="45d5af972eed">Kode ini sudah dicek berhasil dikompilasi dengan Arduino ESP32 core 3.3.12, dengan <code>USE_LCD</code> 0 maupun 1. Library LiquidCrystal sudah bawaan Arduino IDE; kalau muncul error "LiquidCrystal.h: No such file", install <b>LiquidCrystal by Arduino</b> dari Library Manager.</p></div>
 </section>
 
 <section aria-labelledby="h-lanjut">
-  <span class="eyebrow">Berikutnya</span>
-  <h2 id="h-lanjut">Setelah stasiun cuaca</h2>
-  <div class="panel"><p>Sensor, LED, dan bot Telegram yang kamu pelajari di sini dipakai lagi di <a href="../robot-ai/">Robot AI 4WD</a>: DHT11 bisa langsung menjadi sensor cuaca robot, dan cara membaca Serial Monitor serta menyambung kabel di breadboard sama persis.</p></div>
+  <span class="eyebrow" data-t="1b4ac3d41520">Berikutnya</span>
+  <h2 id="h-lanjut" data-t="9527e7f61726">Setelah stasiun cuaca</h2>
+  <div class="panel"><p data-t="7dab9aa09bac">Sensor, LED, dan bot Telegram yang kamu pelajari di sini dipakai lagi di <a href="../robot-ai/">Robot AI 4WD</a>: DHT11 bisa langsung menjadi sensor cuaca robot, dan cara membaca Serial Monitor serta menyambung kabel di breadboard sama persis.</p></div>
 </section>
 </div>
 
@@ -329,9 +329,11 @@ const COMPONENTS=[
 const BADGE={1:["Dipakai di proyek ini",""],2:["Opsional (tahap LCD)","later"],0:["Untuk proyek berikutnya","later"]};
 
 const grid=document.getElementById('cards');
-grid.innerHTML=COMPONENTS.map(([img,n,en,what,how,use])=>`<article class="card" tabindex="0"><img src="img/${img}.jpg" alt="Foto ${n} dari kit" loading="lazy"><div class="body"><span class="name">${n}</span><span class="en">${en}</span><p class="what">${what}</p><p class="how">${how}</p><span class="badge ${BADGE[use][1]}">${BADGE[use][0]}</span></div></article>`).join('');
+grid.innerHTML=COMPONENTS.map(([img,n,en,what,how,use],i)=>`<article class="card" tabindex="0"><img src="img/${img}.jpg" alt="Foto ${n} dari kit" data-en-alt="Photo of the ${n} from the kit" loading="lazy"><div class="body"><span class="name" data-t="js:cn${i}">${n}</span><span class="en">${en}</span><p class="what" data-t="js:cw${i}">${what}</p><p class="how" data-t="js:ch${i}">${how}</p><span class="badge ${BADGE[use][1]}" data-t="js:cb${use}">${BADGE[use][0]}</span></div></article>`).join('');
 const quizbtn=document.getElementById('quizbtn'),hint=document.getElementById('quizhint');
-function updHint(){const q=grid.classList.contains('quiz');if(!q){hint.textContent=COMPONENTS.length+' komponen';return}const s=grid.querySelectorAll('.card.shown').length;hint.textContent=`Ketuk kartu untuk melihat nama · ${s}/${COMPONENTS.length} dibuka`}
+const tt=(id,en)=>window.panduanBahasa?window.panduanBahasa.t(id,en):id;
+function updHint(){const q=grid.classList.contains('quiz');if(!q){hint.textContent=COMPONENTS.length+tt(' komponen',' components');return}const s=grid.querySelectorAll('.card.shown').length;hint.textContent=tt(`Ketuk kartu untuk melihat nama · ${s}/${COMPONENTS.length} dibuka`,`Tap a card to see its name · ${s}/${COMPONENTS.length} revealed`)}
+document.addEventListener('panduan:bahasa',updHint);
 quizbtn.addEventListener('click',()=>{const on=!grid.classList.contains('quiz');grid.classList.toggle('quiz',on);quizbtn.setAttribute('aria-pressed',on);grid.querySelectorAll('.card').forEach(c=>c.classList.remove('shown'));updHint()});
 function reveal(c){if(grid.classList.contains('quiz')){c.classList.toggle('shown');updHint()}}
 grid.addEventListener('click',e=>{const c=e.target.closest('.card');if(c)reveal(c)});
@@ -534,11 +536,11 @@ const save=()=>{try{localStorage.setItem('rakit-cuaca',JSON.stringify(store))}ca
 const host=document.getElementById('stages');
 host.style.display='grid';host.style.gap='16px';
 host.innerHTML=STAGES.map(st=>{
-  const steps=st.steps.map((x,i)=>{const id=`s${st.n}-${i}`;return `<li><input type="checkbox" id="${id}" data-stage="${st.n}"${store[id]?' checked':''}><label for="${id}">${x}</label></li>`}).join('');
-  const fig=st.n===0?`<img src="img/esp32.jpg" alt="ESP32 di atas papan ekspansi" style="max-width:340px;border-radius:8px;background:var(--photo)">`:`<div class="figure" role="img" aria-label="Posisi komponen di breadboard untuk tahap ${st.n}">${board(st.n)}</div>`;
-  const tbl=st.table?`<div class="tbl"><table><thead><tr><th>Pin LCD</th><th>Nama</th><th>Sambung ke</th><th>Kabel</th></tr></thead><tbody>${LCDROWS.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="cap">Pin 1 dan 16 ditandai angka di tepi papan LCD.</p>`:'';
+  const steps=st.steps.map((x,i)=>{const id=`s${st.n}-${i}`;return `<li><input type="checkbox" id="${id}" data-stage="${st.n}"${store[id]?' checked':''}><label for="${id}" data-t="js:s${st.n}-${i}">${x}</label></li>`}).join('');
+  const fig=st.n===0?`<img src="img/esp32.jpg" alt="ESP32 di atas papan ekspansi" data-en-alt="ESP32 on the expansion board" style="max-width:340px;border-radius:8px;background:var(--photo)">`:`<div class="figure" role="img" aria-label="Posisi komponen di breadboard untuk tahap ${st.n}" data-en-aria-label="Component positions on the breadboard for stage ${st.n}">${board(st.n)}</div>`;
+  const tbl=st.table?`<div class="tbl"><table><thead><tr><th>Pin LCD</th><th>Nama</th><th>Sambung ke</th><th>Kabel</th></tr></thead><tbody>${LCDROWS.map((r,ri)=>`<tr>${r.map((c,ci)=>ci===2?`<td data-t="js:lcd${ri}">${c}</td>`:`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="cap" data-t="js:lcdcap">Pin 1 dan 16 ditandai angka di tepi papan LCD.</p>`:'';
   const code=st.code?`<div class="code"><button type="button" class="copy">Salin</button><pre><code>${esc(st.code)}</code></pre></div>`:'';
-  return `<article class="stage" id="tahap${st.n}"><div class="stagehead"><div><span class="eyebrow">Tahap ${st.n}</span><h3>${st.t}</h3></div><span class="cap" data-count="${st.n}"></span></div><div class="need">${st.need.map(x=>`<span>${x}</span>`).join('')}</div>${st.pre||''}${fig}<ol class="steps">${steps}</ol>${tbl}${code}${st.learn?`<p class="cap"><b>Kenapa begitu?</b> ${st.learn}</p>`:''}<div class="ok"><b>Berhasil kalau</b><p>${st.ok}</p></div></article>`;
+  return `<article class="stage" id="tahap${st.n}"><div class="stagehead"><div><span class="eyebrow">Tahap ${st.n}</span><h3 data-t="js:t${st.n}">${st.t}</h3></div><span class="cap" data-count="${st.n}"></span></div><div class="need">${st.need.map((x,i)=>`<span data-t="js:n${st.n}-${i}">${x}</span>`).join('')}</div>${st.pre?`<div data-t="js:p${st.n}">${st.pre}</div>`:''}${fig}<ol class="steps">${steps}</ol>${tbl}${code}${st.learn?`<p class="cap"><b>Kenapa begitu?</b> <span data-t="js:l${st.n}">${st.learn}</span></p>`:''}<div class="ok"><b>Berhasil kalau</b><p data-t="js:o${st.n}">${st.ok}</p></div></article>`;
 }).join('');
 
 function refresh(){

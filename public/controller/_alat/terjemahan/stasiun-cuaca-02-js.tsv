@@ -1,0 +1,112 @@
+# Stasiun cuaca: tahap (dibuat JavaScript, kunci js:)
+js:t0	Set up the laptop and test the ESP32
+js:n0-0	ESP32 DevKit
+js:n0-1	Expansion board
+js:n0-2	USB cable
+js:s0-0	Install <b>Arduino IDE 2</b> from arduino.cc.
+js:s0-1	Open <b>Tools → Board → Boards Manager</b>, search for "esp32", install <b>esp32 by Espressif Systems</b>.
+js:s0-2	Move the expansion board jumper to the <b>3.3V–V</b> position (number 1 in the <a href="#ekspansi">expansion board photo</a>).
+js:s0-3	Fit the ESP32 onto the expansion board: the micro-USB port faces the DC jack, the D15 label on the ESP32 lines up with the board's D15 row, and all 30 pins go into the sockets.
+js:s0-4	Plug the USB cable into the micro-USB port <b>on the ESP32 module</b> (between the BOOT and EN buttons), not the port on the expansion board.
+js:s0-5	Choose <b>Tools → Board → ESP32 Dev Module</b>, then <b>Tools → Port</b> → the port that appears.
+js:s0-6	If the ESP32 later keeps restarting (the Serial Monitor full of <code>load:0xffffffff</code>), set: <b>Flash Mode → DIO</b>, <b>Flash Frequency → 40MHz</b>, <b>Erase All Flash Before Sketch Upload → Enabled</b>, <b>Upload Speed → 115200</b>, then upload again. Paste the test code, click <b>Upload</b> (the right-pointing arrow button). If it hangs at "Connecting....", hold the BOOT button until the upload runs.
+js:s0-7	Open the <b>Serial Monitor</b> (the magnifying-glass icon at the top right), set it to <b>115200 baud</b>.
+js:o0	The Serial Monitor shows "ESP32 hidup!" every second. If your board has a small built-in blue LED, it blinks.
+js:t1	Set up the power rails
+js:n1-0	Breadboard
+js:n1-1	2 M-F wires
+js:n1-2	1 M-M wire
+js:s1-0	Make sure the USB is unplugged.
+js:s1-1	Male-female wire: the <b>female</b> end to a <span class="pin">V</span> pin on the expansion board (any row), the <b>male</b> end to a hole along the <span class="r">red</span> line on the row a side.
+js:s1-2	Male-female wire: a <span class="pin">G</span> pin → a hole along the <span class="bl">blue</span> line on the row a side.
+js:s1-3	Male-male wire: from the top <span class="bl">blue</span> line to the bottom <span class="bl">blue</span> line (the row j side). Now both blue rails are GND.
+js:o1	Nothing can be tested at this stage yet. Check again: red is connected to V, blue to G, and no wire goes from red straight to blue.
+js:t2	LED, the first output
+js:n2-0	Red LED
+js:n2-1	220 Ω resistor
+js:n2-2	1 M-F wire
+js:n2-3	1 M-M wire
+js:s2-0	LED: the <b>long leg</b> to <span class="hole">f16</span>, the short leg to <span class="hole">f17</span>.
+js:s2-1	220 Ω resistor: one leg in <span class="hole">g16</span>, the other in <span class="hole">g20</span>. Bend the legs to fit.
+js:s2-2	Male-male wire: <span class="hole">j17</span> → the bottom <span class="bl">blue</span> line.
+js:s2-3	Male-female wire: the male end to <span class="hole">i20</span>, the female end to the <b>S</b> pin in the <span class="pin">D25</span> row.
+js:s2-4	Plug in the USB, upload the test code.
+js:o2	The red LED blinks every half second. Not lighting? Unplug the USB, turn the LED around (swap its legs), try again.
+js:l2	Current flows from D25 → resistor → LED → GND. The resistor limits the current so the LED and the ESP32 pin are not damaged.
+js:t3	Buzzer
+js:n3-0	Buzzer
+js:n3-1	100 Ω resistor
+js:n3-2	1 M-F wire
+js:n3-3	1 M-M wire
+js:s3-0	Buzzer: the leg under the <b>⊕</b> mark on its top to <span class="hole">f24</span>, the other leg to <span class="hole">f27</span>.
+js:s3-1	100 Ω resistor (brown–black–black–black–brown): one leg in <span class="hole">h22</span>, the other in <span class="hole">h24</span>. If you do not have a 100 Ω, use 220 Ω; the sound is quieter.
+js:s3-2	Male-male wire: <span class="hole">j27</span> → the bottom <span class="bl">blue</span> line.
+js:s3-3	Male-female wire: <span class="hole">i22</span> → the S pin in the <span class="pin">D26</span> row.
+js:s3-4	Upload the test code. This code also tells an active buzzer from a passive one.
+js:o3	<b>Active</b> (the most common, and the buzzer in this kit): part A sounds for a long 1 second, part B sounds as choppy "tek-tek". In the final code leave <code>BUZZER_PASSIVE 0</code>. <b>Passive</b>: part A only clicks, part B gives a clear "tiit". In the final code set <code>BUZZER_PASSIVE 1</code>. No sound at all: check the ⊕ leg and the wire to D26.
+js:l3	A passive buzzer contains a small coil that only vibrates when given a fast up-down signal; the frequency decides the note. The 100 Ω resistor limits the current so the ESP32 pin does not work too hard.
+js:t4	LDR, the light sensor
+js:n4-0	LDR
+js:n4-1	10 kΩ resistor
+js:n4-2	1 M-F wire
+js:n4-3	1 M-M wire
+js:s4-0	LDR: its legs to <span class="hole">e10</span> and <span class="hole">e12</span>. Either way round.
+js:s4-1	Male-male wire: <span class="hole">a10</span> → the top <span class="r">red</span> line.
+js:s4-2	10 kΩ resistor: one leg in <span class="hole">a12</span>, the other to the top <span class="bl">blue</span> line.
+js:s4-3	Male-female wire: <span class="hole">c12</span> → the S pin in the <span class="pin">D34</span> row.
+js:s4-4	Upload the test code, open the Serial Monitor.
+js:o4	The number drops when you cover the LDR with a finger and rises when lit with a phone flashlight. Always 0: the wire to D34 or to the red line came loose. Always 4095: the 10 kΩ resistor is not in the blue line.
+js:l4	The LDR and the resistor form a voltage divider. The brighter it is, the smaller the LDR's resistance, the higher the voltage at column 12, and the larger the number the ESP32 reads.
+js:t5	DHT11, temperature and humidity
+js:n5-0	DHT11
+js:n5-1	10 kΩ resistor
+js:n5-2	1 M-F wire
+js:n5-3	2 M-M wires
+js:s5-0	Hold the DHT11 with the perforated side <b>facing you</b>. Push its 4 legs into <span class="hole">e3</span> <span class="hole">e4</span> <span class="hole">e5</span> <span class="hole">e6</span> (the leftmost leg in e3).
+js:s5-1	Male-male wire: <span class="hole">a3</span> → the top <span class="r">red</span> line.
+js:s5-2	Male-male wire: <span class="hole">a6</span> → the top <span class="bl">blue</span> line.
+js:s5-3	10 kΩ resistor: one leg in <span class="hole">a4</span>, the other to the top <span class="r">red</span> line.
+js:s5-4	Male-female wire: <span class="hole">c4</span> → the S pin in the <span class="pin">D4</span> row.
+js:s5-5	In the Arduino IDE: <b>Tools → Manage Libraries</b>, install the <b>DHT sensor library</b> (Adafruit). Choose "Install all" when asked.
+js:s5-6	Upload the test code, open the Serial Monitor.
+js:o5	Temperature and humidity appear every 2 seconds with sensible numbers. Blow your breath on the <b>DHT11</b> (the blue box with holes), not on the LDR: the humidity rises a few percent. "Gagal baca DHT11" all the time: check the leg order and the resistor at a4.
+js:l5	The third leg of the DHT11 really is unused. The 10 kΩ resistor from DATA to + is called a pull-up: it keeps the data line stable while the sensor is idle.
+js:t6	Final code and the Telegram bot
+js:n6-0	The Stage 1–5 circuit
+js:n6-1	A phone with Telegram
+js:s6-0	Install the <b>UniversalTelegramBot</b> library (Brian Lough) and <b>ArduinoJson</b>.
+js:s6-1	In Telegram, chat with <b>@BotFather</b>, send <code>/newbot</code>, follow the instructions, and save its <b>token</b>.
+js:s6-2	Chat with <b>@userinfobot</b>, and save your <b>Id</b> number.
+js:s6-3	Open your new bot and press <b>Start</b>.
+js:s6-4	Open the file <code>stasiun_cuaca.ino</code>, fill in the WiFi name, password, token and chat ID. Make sure <code>USE_LCD</code> is <code>0</code> (it already is by default), and <code>BUZZER_PASSIVE</code> matches the result of Stage 3. The WiFi name must be a <b>2.4 GHz</b> network; the ESP32 cannot do 5 GHz. Fill it in with your own home WiFi, not a made-up name. Enter the token and password only on your own computer; do not upload them to GitHub or share them.
+js:s6-5	Upload. The bot will send "Stasiun cuaca menyala". Send <code>/status</code>. Once it works, the ESP32 no longer needs the IDE: just plug it into a 5V USB adapter and it runs by itself.
+js:o6	The bot replies with temperature, humidity and light. Try <code>/setmax 25</code>: the LED lights, the buzzer sounds, and the bot sends a warning. After that set it back to a sensible number, for example <code>/setmax 31</code>.
+js:t7	LCD (optional, needs soldering)
+js:n7-0	16x2 LCD
+js:n7-1	Pin header
+js:n7-2	Potentiometer
+js:n7-3	6 F-F wires
+js:n7-4	6 M-F wires
+js:n7-5	2 M-M wires
+js:p7	<div class="warn"><b>Before this stage</b><p><b>Pin header:</b> the LCD needs 16 soldered pin headers. If your LCD already has a row of pins along its edge, skip this. If not, solder 16 pins (how to solder is in the <a href="../robot-ai/1-daya/#alat">AI Robot guide, Part 1</a>). A neater alternative: a PCF8574 I2C module for the LCD, so only 4 wires are needed.</p><p><b>5V power:</b> the LCD needs 5V, while the expansion board's V pins are used at 3.3V. The 5V is taken from the <b>power block</b> at the bottom left of the expansion board (the GND column on the left, the column holding the 5V and 3V pins on the right, near the jumper). Plug in the USB, then with a multimeter (V⎓ 20, black probe on a GND pin of that block) find the pin that reads about <b>4.6-5 V</b>. That is the 5V pin. Unplug the USB again before attaching wires.</p></div>
+js:s7-0	Potentiometer: its 3 legs to <span class="hole">f3</span> <span class="hole">f5</span> <span class="hole">f7</span>.
+js:s7-1	Male-male wire: <span class="hole">j3</span> → the bottom <span class="r">red</span> line. Male-male wire: <span class="hole">j7</span> → the bottom <span class="bl">blue</span> line.
+js:s7-2	Male-female wire: the <b>5V</b> pin of the power block (the one you found earlier) → the bottom <span class="r">red</span> line. <b>Never</b> connect the bottom red line to the top red line (3.3V).
+js:s7-3	Male-female wire: <span class="hole">j5</span> → LCD pin 3.
+js:s7-4	Connect the other LCD pins following the table below.
+js:s7-5	Upload the LCD test code, then turn the potentiometer slowly until the text is visible.
+js:s7-6	In the final code, set <code>USE_LCD</code> to <code>1</code> and upload again.
+js:o7	Two lines of text appear. The screen is lit but blank or shows only boxes: turn the potentiometer, it is the contrast control.
+js:lcd0	Bottom <span class="bl">blue</span> line
+js:lcd1	Bottom <span class="r">red</span> line (5V)
+js:lcd2	<span class="hole">j5</span> (the potentiometer's middle leg)
+js:lcd3	S in the <span class="pin">D19</span> row
+js:lcd4	Bottom <span class="bl">blue</span> line
+js:lcd5	S in the <span class="pin">D23</span> row
+js:lcd6	Left empty
+js:lcd7	S in the <span class="pin">D18</span> row
+js:lcd8	S in the <span class="pin">D17</span> row (on the ESP32: TX2)
+js:lcd9	S in the <span class="pin">D16</span> row (on the ESP32: RX2)
+js:lcd10	S in the <span class="pin">D27</span> row
+js:lcd11	Bottom <span class="r">red</span> line
+js:lcd12	Bottom <span class="bl">blue</span> line

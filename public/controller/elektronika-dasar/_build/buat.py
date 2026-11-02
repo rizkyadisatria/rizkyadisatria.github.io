@@ -43,4 +43,6 @@ if __name__ == '__main__':
     open(ROOT + 'img/sampul.svg', 'w', encoding='utf-8').write(g.sampul().replace('class="cover" ', ''))
     sys.path.insert(0, CTRL + '_alat')
     import langkah
+    import terjemah
+    terjemah.tandai_semua(['elektronika-dasar'])   # data-t untuk katalog terjemahan (_alat/terjemah.py)
     print('selesai,', langkah.tulis_langkah('elektronika-dasar', [ROOT + 'index.html']), 'langkah')

@@ -1,0 +1,42 @@
+# Langkah Bagian 4 dan 5
+de4f83b79ea4	Check the camera ribbon on the ESP32-CAM: its end is fully in the socket and the socket's black lock is pressed down. Your camera ribbon is marked <b>OV3660</b> (3 MP); the code already supports it.
+d3cac26b6b97	Plug the ESP32-CAM onto the MB: camera facing up, all 16 pins in the MB's sockets. The 5V and GND labels on the ESP32-CAM line up with the same pins on the MB.
+45814da19be9	Plug the MB's micro-USB into the laptop. Port not showing? The MB uses a CH340 chip: install the CH340 driver.
+88262d0f6a1c	In the Arduino IDE: <b>Board → AI Thinker ESP32-CAM</b>, <b>Partition Scheme → Huge APP</b>, choose the port.
+be2fadec3833	Open <a href="../kode/robot_mata/robot_mata.ino" download>robot_mata.ino</a>. Fill in <code>WIFI_NAMA</code> and <code>WIFI_PASSWORD</code> with your 2.4 GHz home WiFi.
+ae0b5bb2adf2	Upload. If it stops at "Connecting....": hold the <b>IO0</b> button on the MB, press <b>RST</b> once, release IO0 after the upload percentage appears.
+2f5564d14fbc	When done, press <b>RST</b> on the MB. Open the Serial Monitor at 115200 and note the IP address that appears.
+7e55d8307c4b	Open the camera's IP address in a phone or laptop browser (example <code>http://192.168.1.50</code>). A "Mata robot" page with one photo appears.
+d4c67e632bea	Try <code>/stream</code>: the video runs, about 5-15 frames per second.
+d0533f074e84	Try <code>/flash?on=1</code> then <code>/flash?on=0</code>.
+fdeaed5592aa	Image upside down? Change <code>KAMERA_TERBALIK</code> to <code>true</code>, upload again.
+e2b1f95b6cfe	So the camera's address does not change, open the router settings and give a fixed address (DHCP reservation) to the device named esp32-... or robotcam. Note that address for Part 5.
+ffa93556b976	Battery switch OFF. Unplug the ESP32-CAM from the MB.
+c902483355fb	Cut 26 AWG red and black, <b>31 cm (no. 23)</b> each (from LM2596 #2 on level 1 up to the head on level 3, with slack for the head to turn). Solder one end of each to a 3 cm female jumper piece, heat shrink. Red: LM2596 #2 OUT+ → the ESP32-CAM <span class="pin">5V</span> pin. Black: OUT− → the <span class="pin">GND</span> pin beside it. The ends without a jumper are clamped in the screw terminal.
+a0820b133104	<b>Never</b> use the ESP32-CAM's <span class="pin">VCC</span> or <span class="pin">3V3</span> pin to feed in power. VCC is an output, not an input.
+10825f1fcbba	A 1000 µF capacitor near the ESP32-CAM, between 5V and GND: solder its legs to the red and black wires about 3 cm before the female jumper (long leg to red), then insulate. The wire is over 20 cm, so the capacitor must be at the camera end, not at the LM2596.
+c212b7c49598	Switch ON. Wait 10 seconds, then open the camera's IP address in the browser: the photo still shows.
+92e06063dc5a	The ESP32-CAM has no bolt holes, so strap it to the front mount of the pan-tilt head with 2 cable ties: one across the very top edge (above the camera, through the SD slot), one across the ESP32-CAM label area under the ribbon connector. Do not cross the lens, the flash LED or the ribbon connector. Nylon does not disturb the antenna; only metal does. Tighten just enough that it does not wobble.
+e7d346edd2b0	In Telegram, search for <b>@BotFather</b>, send <code>/newbot</code>, give a name (for example Robi Robot) and a username ending in "bot". Save the <b>token</b> you are given.
+e9ac8ea739c7	Search for <b>@userinfobot</b>, press Start, save your <b>Id</b> number. The robot will only obey this ID.
+cb83f7b93161	Open your new bot and press <b>Start</b>.
+f113e919babd	Already made a bot for the weather station? Make a new bot for the robot, so the two do not fight over messages.
+d9ab00ae764b	Install the <b>UniversalTelegramBot</b> (Brian Lough) and <b>ArduinoJson</b> (Benoit Blanchon) libraries.
+3a699b61b054	Fill in the WiFi, token and chat ID in the test code, upload to the S3, then send a message to the bot.
+feb436fa181e	Open <a href="https://platform.claude.com">platform.claude.com</a> (the old address console.anthropic.com points here), sign up or log in.
+decf529721b4	<b>Settings → Billing</b>: add a payment method and top up a small balance (for example $5). Without a balance, the API refuses every request.
+1cf17158b6e4	<b>Settings → Limits</b>: set a monthly spending limit.
+b2c0ea48083b	<b>Settings → API Keys → Create Key</b>. Name it "robot", copy the key (it starts with <code>sk-ant-</code>). The key is shown only once.
+902bfc25c072	Fill in the key in the test code, upload to the S3, type a question in the Serial Monitor.
+f93737ae35a7	Open <a href="https://console.groq.com">console.groq.com</a>, sign up, then <b>API Keys → Create API Key</b>. Copy the key (it starts with <code>gsk_</code>).
+6d1682345f7b	The brain code sends a 4-second recording (WAV 16 kHz) to the <code>whisper-large-v3-turbo</code> model with the language set to Indonesian, and receives the text.
+abae09753df9	Your recording is sent to Groq's servers. Read their privacy policy if that matters to you. Not filling in this key is fine too: only the SPEAK button does not work.
+107252ecd103	The <b>ESP32-audioI2S</b> library is not in the Library Manager. Open <a href="https://github.com/schreibfaul1/ESP32-audioI2S/releases">its releases page</a>, download the ZIP of version <b>4.0.0</b> (Source code zip). In the Arduino IDE: <b>Sketch → Include Library → Add .ZIP Library</b>, choose that ZIP file.
+c3f9b87bdf91	Make sure LovyanGFX, UniversalTelegramBot and ArduinoJson are installed.
+04f1e1343e1c	Open <a href="../kode/robot_otak/robot_otak.ino" download>robot_otak.ino</a>. Fill in the KONFIGURASI section: WiFi, token, chat ID, Claude API key, Groq API key (may be left empty), and <code>KAMERA_ALAMAT</code> with the camera's IP from Part 4.
+c490be0dd308	Change <code>NAMA_ROBOT</code> and <code>NAMA_PEMILIK</code> as you like.
+d37ae9d75100	Set Tools as in Part 3 Stage 1 (<b>PSRAM: OPI PSRAM</b>, <b>Huge APP</b>). Upload. The first compile can take a few minutes.
+7e7163bb7822	After the first power-up, the display asks for touch calibration: touch the tip of the arrow in each corner. The result is saved. To recalibrate, touch the screen just after the S3 is switched on.
+3c2bb4a35a6c	Start with <code>/bantuan</code> in Telegram: the bot sends the list of commands.
+6a0637b44016	Try the features in the table below one by one. The wheels stay lifted until Part 6.
+5d3868de8a8d	Chat freely through Telegram. The AI knows the latest sensor data, so try asking "berapa suhu di sini?" or "baterainya masih cukup?".

@@ -1,0 +1,233 @@
+# Elektronika dasar (bagian 3)
+b5bc4636102d	<b>Boot (strapping) pins</b> are read by the chip at power-up to decide how to boot. On the ESP32: GPIO 0, 2, 5, 12, 15. If GPIO 12 is pulled HIGH at boot, the chip uses the wrong flash voltage and the board fails to boot. Avoid attaching anything that pulls these pins at power-up.
+25278429ae1e	<b>Input-only pins:</b> on the ESP32, GPIO 34-39 can only be inputs and have no internal pull-up.
+8521bf6de94b	<b>Pins used by the flash:</b> on many ESP32 boards, GPIO 6-11 are connected to the flash chip and must not be used.
+83215f2f00a8	<b>UART pins for uploading:</b> TX0/RX0 are used for uploading and the Serial Monitor. Attaching a module there can make uploads fail.
+de3eb61dab29	A button on an input pin with no resistor and no INPUT_PULLUP. What happens when the button is not pressed?
+0b852d8dd1c8	The pin floats and reads HIGH/LOW at random.
+1e5eb788517a	A 5 V sensor outputs a 5 V digital signal. Can it go straight to an ESP32 pin?
+36a0d1740d8e	No. Lower it first with a voltage divider (for example 1 kΩ and 2 kΩ) or a level shifter.
+ed28a4a15b28	The 12-bit ESP32 ADC reads 2048. Roughly what is the voltage if the upper limit is 3.1 V?
+8fa0e3c0e654	About 2048 / 4095 × 3.1 ≈ 1.55 V. Only roughly, because the ESP32 ADC is not fully linear.
+0b9b7e0077ca	Buttons and reading pins
+a3650fc7d48d	PWM, servos and motors
+3d19139ba5e8	How a microcontroller sets brightness, speed and position.
+ffcc05ac04fc	PWM switches a signal on and off very fast. The <b>duty cycle</b> is the percentage of time it is on. An LED looks dimmer because the eye averages its flicker; a motor turns slower because it feels the average. The microcontroller pin only supplies the PWM signal; a big load is switched through a MOSFET or motor driver.
+4162b1d5138f	A 50% duty on 5 V feels like about 2.5 V to the load.
+4812a9f2e9a5	A servo does not read the average, but the <b>pulse width</b> repeated 50 times per second. Inside the servo is a potentiometer that reads the arm's position, and the servo keeps correcting until the position matches the command. If it is commanded to an angle it cannot reach (the arm hits the frame), the servo keeps pushing: vibrating, humming and drawing a large current.
+d42c226bf21d	The wider the pulse, the larger the angle.
+57b086a89446	<b>Servo power from a separate source</b> (5-6 V), not the board's 3V3 pin. A small servo such as the SG90 can draw hundreds of mA when moving or held.
+416a9309e6d4	<b>The servo GND and board GND are joined</b> (Chapter 2), and the board pin goes only to the signal wire (orange or yellow).
+edc00b28496f	DC motors and steppers
+22b908122567	A <b>DC motor</b> turns both ways with an <b>H-bridge</b> (motor driver): four electronic switches that reverse the current direction. Direction from two pins, speed from PWM. Swapping the two motor wires reverses its direction.
+8ef5c1917436	<b>A DC motor draws the most current when it starts turning and when it is stalled</b>, several times its normal current. Choose a driver and source that can handle that current.
+0c8d2c48e016	A <b>stepper</b> moves step by step and needs a dedicated driver (A4988, DRV8825, ULN2003 for the 28BYJ-48).
+f3f5691aaab2	A servo is commanded to 180° and then keeps making small movements at the end, humming, and the power module's light flickers. That servo cannot reach 180° because of its frame, and keeps trying. The fix is an angle limit it can reach without vibration, not more power.
+89baeeae5189	25% duty on 5 V. Roughly what does the motor feel?
+263920db8d60	About 1.25 V on average. A small motor may only hum without turning.
+125ac723c828	A servo sits quietly at 90° but vibrates constantly at 180°. What does it mean?
+60bd42f0583a	At 180° the arm hits a mechanical limit, and the servo keeps trying to reach that angle. Reduce the angle limit in the code.
+e91c9c5f9366	One robot wheel spins the opposite way from what is expected. Two ways to fix it?
+705a0e96a11a	Swap that motor's two wires at the driver, or reverse the direction in the code.
+b4a62584d236	PWM and servos
+b1ff0d47f3dc	Communication and reading module specifications
+e75452e47a7a	How the board talks to sensors and modules, and what to check before connecting.
+b1f9026d83b5	What to remember
+1061854b5a7d	UART (Serial)
+3f27c6f12562	one device's TX to the other's RX (crossed); the speed (baud rate) on both sides must match
+8eb7492f3646	SDA, SCL, GND
+5c319625d2d1	many devices on two wires, told apart by address; needs pull-ups; short wires (tens of cm)
+26abfa8220da	SCK, MOSI, MISO, CS
+335040af32d2	fast; three wires shared, each device has its own CS pin
+f60fe03384f6	DATA, GND (and VCC)
+795c961b78c3	DS18B20 and similar; needs a pull-up of about 4.7 kΩ on DATA
+d0a78be997b6	Dedicated single-wire signals
+1112a253cdc1	DHT11/DHT22 use their own protocol; the module usually already carries a pull-up
+18dbdf076db2	one ADC pin
+5795297dad8c	the voltage directly represents the value; sensitive to noise and long wires
+622a5eec510e	All I2C devices share SDA and SCL. Two devices with the same address cannot be on the same bus without changing an address.
+476aadd7a996	Reading a module's specification before connecting
+c7ec333bbb73	<b>Operating voltage (VCC):</b> 3.3 V only, 5 V only, or 3.3-5 V? A 5 V module given 3.3 V often works half-way; a 3.3 V module given 5 V can be destroyed.
+4bf3dc6bfe7e	<b>Signal logic level:</b> a module given 5 V usually outputs 5 V signals too. For a 3.3 V board, check whether the module has a level shifter.
+624058983a78	<b>Current:</b> how much it draws when active and when idle. This decides the power source and battery life.
+e43b600158a3	<b>Interface and address:</b> what the I2C address is, which CS pin SPI needs, what the default UART baud rate is.
+bd934bcabc64	<b>Pin names:</b> read the labels on the board, do not guess from position. Similar modules from different sellers can have a different pin order.
+f979a360a88f	An I2C OLED display is not detected by the I2C scanner program. The most frequent causes, in order: SDA and SCL swapped, VCC or GND not connected, the I2C pins in the code differ from the pins used, and the wrong address in the code (0x3C and 0x3D are both common). On UART, strange characters in the Serial Monitor almost always mean a different baud rate.
+47c7c09ee793	Two boards are connected over UART but no data arrives. What are the first two things to check?
+7da42ca06fcf	TX to RX crossed (not TX to TX), and the GND of both boards connected. Then the same baud rate.
+1f48d7f609e1	You connect two identical I2C sensors. What is the problem?
+a19deb442a78	The same address. Many sensors have a pin or jumper to select a second address; if not, you need an I2C multiplexer or a second I2C bus.
+44148ddba0ac	A DS18B20 temperature sensor always reads −127 or 85. Which component is often forgotten?
+0ac1d7d33088	A 4.7 kΩ pull-up resistor from DATA to VCC.
+47bb911bf3d7	Communication and modules
+ebd3556f0a31	Multimeter and measuring tools
+14d975b355a0	The most important tool for building. Most misreadings come from the dial and the sockets.
+46c12ba9388b	The dial chooses what is measured, the socket sets the red probe's path.
+6ed40e7a04dc	batteries, regulators, board pins
+8030930e11f6	circuit on, probes on two points
+f0676ee10ad6	household power
+e1bfe08bcd11	not used in low-voltage projects
+52fc7239fb73	resistors, wires, resistive sensors
+81f2f7bc5feb	power OFF, preferably remove the component
+8bec7a9f3154	Beep (continuity)
+878a61e578df	whether two points are connected
+e5609c5b386f	power OFF
+534fbfc9abf9	LEDs, diodes, polarity
+31df713202c6	circuit opened, multimeter inserted in series; the red probe moves to another socket
+446dcf25374f	<b>COM</b> is always for the black probe. <b>VΩmA</b> is for almost every measurement. <b>10A</b> is only for measuring large currents in series.
+bdcf88cbcb38	<b>A minus number</b> means the probes are reversed. The magnitude is still correct.
+81c51871df8c	<b>"OL" or "1" at the left of the display</b> means out of range or not connected.
+eec3435491ad	<b>Manual-range multimeter</b> (with 2, 20, 200 on the dial): choose a range above the number you expect, for example 20 V for a 7.4 V battery.
+5b2608fd9d23	Ω mode on a component that is still installed also measures the other components connected to it, so the result can mislead.
+cee09e42c890	<b>After measuring current, put the red probe back in the VΩ socket.</b> Forgetting this step is the most common way to blow a multimeter's fuse.
+1ae36b1be8d5	In A mode or the 10A socket, the multimeter has almost no resistance. Touching it to the two battery terminals is the same as a short circuit: the multimeter's fuse blows, or worse.
+90bfd720a1db	Other measuring tools
+7ed44faa0230	A cheap <b>logic analyzer</b> (the 8-channel version is easy to find) shows I2C, SPI and UART digital signals on a laptop: very helpful when a module "will not talk".
+6ede8b7ab170	An <b>oscilloscope</b> shows the shape of voltage over time: noise, PWM, and momentary voltage dips (brownouts) that a multimeter does not catch.
+e603d5e2cd7f	A <b>USB meter</b> shows the voltage and current from a USB port: an easy way to measure a board's consumption.
+a2417b3a9170	When measuring a battery, the display stays at 0 even with the switch ON and OFF. It turns out the dial points to 10 A, not V⎓. After turning it to V⎓, the switch ON reads 7.8 V and OFF 0 V.
+e9f9df9710d2	Why must the multimeter not be touched to a battery while the red probe is in the 10A socket?
+b62123017d99	Current mode has almost no resistance, so a short circuit happens through the multimeter.
+ab1206e79ae6	The display shows −3.3 V. What does it mean?
+fb4b5c5f4f61	The red and black probes are reversed. The voltage is still 3.3 V.
+0a112a0ac0c1	Why must the beep test be done with power off?
+d9f40df13883	The beep test pushes a small current from the multimeter's own battery. Voltage from the circuit can make the result wrong or damage the multimeter.
+a1a19521d580	Know your multimeter
+b2e4625a3f01	Breadboards, connectors and soldering
+be05c1c62acd	Many "electronics" problems turn out to be connections that are not tight enough.
+d63c852ab206	Five holes in one column are connected; the center gap separates the two sides; the power rails are connected along the row.
+0aeb84e8074f	<b>The center gap</b> is made for ICs and modules with two rows of legs, so the left and right legs are not connected.
+ea15bc4fc50b	<b>The power rails on a long board</b> are sometimes broken in the middle (see the broken red-blue line). Measure with the beep test if in doubt.
+d7500ce5423d	<b>An ESP32 DevKit board</b> is often too wide for one breadboard: it covers all the holes on one side. Use two breadboards side by side or an expansion board.
+49f18af197e5	<b>A breadboard is not suited to large currents</b> (above about 1 A) and its contacts can wear out. For motor lines, use screw terminals or connectors.
+bf1a85435d20	Used for
+91982de2352a	Dupont jumpers (M-M, M-F, F-F)
+9ea982fdec01	signals on a breadboard and pin headers
+e780e8e8208a	come loose easily; thin wire; can break inside
+04082b756553	LiPo batteries, sensors, modules
+f87e78e41e7b	make sure it is not reversed; check the red-black order, which differs between sellers
+3ada35325af2	Screw terminals
+54295e38e8d2	power lines, motors
+f53fc89f061b	clamp the copper, not the insulation; retighten after a few days
+c983f4e0e6ab	WAGO / lever connectors
+7ed19e0abd72	join several power wires
+727d1fe9e968	all the holes of one connector are connected inside
+46bbffd543bf	A good solder joint wraps the leg and the pad; a cold joint only sits on top.
+e6dc69dc5be1	<b>Heat the thing being soldered, not the solder.</b> Touch the iron tip to the leg and pad together for 1-2 seconds, touch the solder to the joint until it flows, lift away, then do not move it until it sets.
+5783c67fa59d	<b>Wires:</b> strip, twist the strands, coat thinly with solder first (tinning), then join.
+caef0ff454c1	<b>Slide the heat shrink on before soldering</b>, because it cannot be added after both ends are connected.
+b36d400ee0a0	<b>Give every joint a gentle tug when done.</b> A joint that comes off with a gentle tug will certainly come off in use.
+b59b9f953fd9	Two causes are often confused. <b>A loose connection:</b> touching it presses the contact until it connects or breaks. <b>A floating point:</b> GND or an input is not connected, and your hand conducts noise. Tell them apart with the beep test (Chapter 2) and by pressing with a non-conductive object such as a toothpick.
+07abba4fc752	An LED on a breadboard does not light. The LED leg and the resistor are in column 10, rows a and f. What is wrong?
+6045b897587c	Row a is on the upper side of the gap, f on the lower side: not connected. Move them to the same side (a-e).
+d54c5b526a57	The solder joint is a dull ball and the wire wobbles a little. What needs to be done?
+652c5f5f8812	That is a cold joint. Reheat until the solder flows around the leg and pad, adding a little fresh solder if needed.
+1cbeb80a5925	Breadboards and connections
+1e77d5ffbb48	How to find faults
+4016acbc4144	A way of working that finds problems in minutes, not hours.
+b9f6712018ed	<b>Write down the symptom exactly.</b> "The sensor reads 0 constantly since it was moved to battery" is more useful than "the sensor is broken".
+b8a571ecffa7	<b>Measure, do not guess.</b> Measure the voltage at the point of use (the module's VCC pin), not only at the source.
+9f201394a0b0	<b>Isolate.</b> Remove all the modules, power on, then add them one at a time until the problem appears.
+e2c546c5c496	<b>Swap with a known good one.</b> Move the module to another pin or another board; replace the jumper wire.
+15e56337341d	<b>Change one thing at a time.</b> Replacing the capacitor, code and wire all at once leaves you not knowing which was the cause.
+d37b55a1d7d2	The check order that is most often right: <b>power → shared GND → polarity → connections → pins and code → mechanical</b>.
+9781c5cc0df0	Common causes
+977627fd5eb6	Board does not show up on the USB port
+ca609ce0bf32	the USB cable is charge-only, the CH340/CP210x driver is not installed
+e6ea0fb29e68	try another data cable; install the driver
+13860613a0cd	ESP32 upload fails with "Failed to connect"
+d53948b5ed3e	the chip does not enter upload mode, or a module is on the boot/TX0/RX0 pins
+8d24a53d5be7	hold the BOOT button when the upload starts; remove modules from those pins
+776d3870e183	Random restarts, "Brownout detector was triggered"
+4ca1b24ea880	momentary power dips (WiFi, motor, servo)
+4b2094755f8c	better USB cable, stronger source, capacitor, big loads on a separate source
+8127eb5fc059	Bootloop with a flash error message at power-up
+43e73e3948fe	unstable power during boot, or a boot pin pulled
+4c2d604b145d	remove all modules, check GPIO 12, erase the flash and upload again
+7284e0d9f286	I2C sensor not found
+b73a1e542612	SDA/SCL swapped, wrong address, wrong VCC, different pins in the code
+3bca5658eac5	run the I2C scanner, check the wires one by one
+aa3fb3c27de3	Sensor numbers random or changing when touched
+c65d335ac6df	floating input or lost shared GND
+8b07cd490059	beep-test the GND; make sure there is a pull-up
+8bcd37692cb7	Relay does not click
+49e193ad1537	active-LOW module, a 3.3 V signal too weak for a 5 V module, not enough coil power
+d741f878aa0a	invert the logic; measure the module's VCC; try a signal from a transistor
+a11235c3a1ea	LED does not light
+88132c943e11	reversed, resistor too large, wrong breadboard column
+541be0359836	check the long leg; measure the voltage at the LED
+5b64e3bc63ad	Strange characters in the Serial Monitor
+694486fcbc96	different baud rate
+c71e6fac298b	make the number in <code>Serial.begin</code> match the Serial Monitor
+ae1e324f669a	Compile fails: unknown function (for example <code>ledcAttach</code>)
+fbead17db9a0	the board core version differs from the code example
+a1700cc8c366	update the board core in Boards Manager, or use the example for your version
+59060642e345	Module or regulator hot
+a42227c7bb72	voltage too high, short circuit, linear regulator with a large difference
+1a583ab7998d	switch off the power, measure the input voltage, check the wiring
+631f2a8dd760	You replace the capacitor, code and wire all at once, and the problem goes away. What is the drawback?
+be50411a16ec	You do not know which was the cause, and the same problem can return without you knowing where to look.
+acbcbacd326f	A project works while USB is connected but not on battery. What do you measure first?
+c2f24424b5ff	The voltage at the board's and modules' power pins while on battery, especially when WiFi or loads are active. Then the shared GND between the battery and the modules.
+16283ef60ebc	Make your own notes
+defd01bf9ddd	Low voltage is safe if treated correctly. Household power is not.
+9012b45e5f79	<b>220 V household power can kill.</b> Do not connect relays, modules or wires to household power until you really understand insulation, closed enclosures, fuses and the safe spacing between conductors. To control a lamp or appliance, a smart plug or certified module is far safer.
+ff529d3d69c5	<b>Li-ion and LiPo batteries</b>: a short circuit can heat the wires in seconds and set the cell on fire. Fit a fuse near the battery for high-current projects, and always use protection (a BMS or a module with protection).
+e1d89151ffd1	<b>Charge under supervision</b>, on a surface that does not burn easily, with a charger that suits the battery type. Do not charge a cell that is swollen, dented, leaking, or that has sat very empty for a long time.
+b957f95ec8ef	<b>Store batteries about half full</b> for long storage, and remove them from the circuit.
+ba1e9ee156b7	<b>Disconnect power</b> before soldering or moving wires.
+ebedb930d469	<b>Regulators, power resistors and motors can get hot.</b> Touch with the back of a finger first.
+b2c9741aa420	<b>Large electrolytic capacitors</b> still hold charge briefly after power is off. At low voltage this is not dangerous to the body, but it can spark if the legs are shorted.
+b25c2ad985af	<b>Solder and solder wire:</b> work in a ventilated room, and wash your hands afterwards.
+cf0bad775058	Glossary
+c970d7ba7663	the 0 V reference point that is shared
+9c68fa9c0155	the positive power terminal, at a certain voltage
+e15e9b1da154	the board's power input pin, usually to the regulator on the board
+df12f149a38b	the direction of the + and − terminals
+103e54f410b8	+ terminal meeting − with no load; very large current
+886599406561	Floating
+130e655e7f6b	a point not connected to any particular voltage, so its value is random
+72675468f008	Pull-up, pull-down
+77908d2cfa5f	a resistor that pulls an input to HIGH or LOW when there is no signal
+857c51e4287d	ignoring the bounce of button contacts for a few milliseconds
+680ae583e808	PWM, duty cycle
+92843431310c	a fast on-off signal; the percentage of time it is on
+2a44e0d0adfc	converts voltage to a number
+2f39034ae564	a momentary voltage dip until the chip resets
+bb6219f5f585	Linear regulator, LDO
+031f395f44d8	a voltage reducer that throws the excess away as heat
+fb9be7aa3940	Buck, boost
+4b3338e59dbe	switching converters that step voltage down and up
+f47640b5220f	the minimum margin of input above a regulator's output
+6e52d83b380e	Quiescent current
+1989796c4f18	the current a regulator or module uses for itself
+865e588793be	Deep sleep
+379c893a133c	a microcontroller sleep mode with very small current
+d31f0f5a7893	a small capacitor near an IC's power pins to dampen noise
+99581dff5062	the voltage an LED or diode uses when lit
+c3a6800b3bcd	Flyback diode
+bbfee2d8dd16	a diode across a coil to absorb the kick when switched off
+6edb6b212ad4	Logic-level MOSFET
+c21f25c28caf	a MOSFET that turns fully on at a microcontroller pin's voltage
+d381203eb08c	Active LOW
+f12ad6562264	turns on when the signal is LOW
+c7c90f3c6e55	an arrangement of four switches that can reverse a motor's direction
+81eefe033cd8	Level shifter
+9497135792c6	converts signal levels between 3.3 V and 5 V
+a3833ab9bc08	Strapping pin
+e4dbebc5d206	a pin the chip reads at boot
+cf8b433de508	UART, I2C, SPI, 1-Wire
+c301aee212be	ways a microcontroller communicates with other devices
+5a803a316aa6	Baud rate
+5afbb62d04f0	the UART speed; both sides must match
+e1e233dc63fd	Continuity (beep)
+5b359a9c54b0	a test of whether two points are connected
+e23d0465946c	wire gauge; a small number = thick wire
+3b9c017d2ae0	milli (thousandth), micro (millionth), nano (billionth), kilo (thousand)
+6c068b1b7d90	ESP32 pin characteristics (input up to VDD + 0.3 V, pin current 40 mA at maximum drive, pull-up about 45 kΩ): datasheet summary at <a href="https://deneyapkart.org/en/docs/elektriksel-ozellikler-esp32-2">Deneyap Kart, Electrical Specifications (ESP32)</a>.
+b152972c1027	ATmega328P (Arduino Uno) pin current limits: <a href="https://www.arduino.cc/playground/Main/ArduinoPinCurrentLimitations/">Arduino Playground, Arduino Pin Current Limitations</a>.
+b9cd87dc4c4d	ESP32-DevKitC V4 deep sleep current against the datasheet figure: <a href="https://lucidar.me/en/esp32/power-consumption-of-esp32-devkitc-v4/">Lucidar, ESP32-DevKitC V4 real current consumption in deep sleep mode</a>.
+c497d25e4c75	AMS1117 dropout and quiescent current: <a href="https://www.lcsc.com/blog/ams1117-voltage-regulator-complete-guide/">LCSC, AMS1117 Voltage Regulator guide</a>.
+0d6a261b5f15	IRF520 and gate voltage: <a href="https://forum.arduino.cc/t/irf520-mosfet-not-a-good-choice-for-arduino-use/702391">Arduino Forum, IRF520 MOSFET not a good choice for Arduino use</a>.
+76cb4bae22a2	Li-ion storage and voltage limits: <a href="https://forum.digikey.com/t/li-ion-lipo-battery-storage-and-permanent-capacity-loss/19946">DigiKey TechForum, Li-ion / LiPo Battery Storage and Permanent Capacity Loss</a>.
+f84865087021	LED Vf values, diode voltage, servo pulse width and relay current are typical values that differ between products. For your own components, the datasheet or the seller's description is more accurate.

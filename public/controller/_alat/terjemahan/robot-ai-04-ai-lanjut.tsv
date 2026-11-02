@@ -1,0 +1,41 @@
+# Bagian 5: Kecerdasan (lanjutan)
+f1ef693b66dd	Telegram: <code>/kepala 45 90</code>
+2964d13f8962	the head turns
+2e38210fe304	Telegram: <code>/foto</code>
+070ac193b6cf	a photo from the camera
+d5d866aae7f1	Telegram: <code>/lihat ada apa di depanmu?</code>
+218efd969db1	the photo is sent and the AI describes it
+3be60d32c52f	Telegram: a normal message, for example "maju sedikit lalu lihat ke kiri"
+57d9549b1df4	the AI replies and moves the body
+234d2bd5c1fd	Telegram: <code>/lagu</code>, <code>/putar lagu1.mp3</code>, <code>/volume 15</code>, <code>/diam</code>
+4c4f239d9b31	music from the SD card
+d72ed89ffc47	Telegram: <code>/radio</code> + stream address
+dae68ddb7d13	plays internet radio (an MP3/AAC stream address from a radio site)
+9f630e76b290	Telegram: <code>/bilang selamat pagi</code>
+790944e44bc4	the robot speaks the text
+c30714be03dc	Telegram: <code>/ikuti</code>
+dbb5be380d02	the robot keeps 35-70 cm from whatever is in front of it, for example your feet
+5c86a7517e29	Telegram: <code>/jaga</code>
+da6415e93d25	the robot stays still; if the distance in front of it changes a lot, it says "Siapa itu?" and sends a photo
+4426a09e710a	Telegram: <code>/biasa</code>
+9f0f975647d5	leaves follow/guard mode
+ccadb254c96c	<b>Why this way?</b> The AI is asked to answer in JSON format: a sentence to speak, plus a list of actions such as {"m":[150,150,800]} for forward. The brain code runs those actions one by one, and the body still refuses dangerous movements. Follow and guard modes use only the ultrasonic sensors, so the robot cannot tell people from objects; it follows or guards anything that is in front of it.
+4b6cb7cc124b	All direct commands (starting with /) work. The AI chat answers within a few seconds.
+5240191b0af1	<span class="py">OK to lock in</span> All the code is considered final after this stage. Part 6 only adjusts constants (Stage 8).
+8d53b30379a4	<span class="pn">Not yet</span> The wheels stay lifted until Part 6 Stage 7. Do not take apart the table setup before every feature in the table is proven to work, because finding the cause after dismantling is harder.
+1a490acb56ba	The AI answers but the robot does not move: look at the Serial Monitor. If you see "E DITOLAK", there is an obstacle or the STOP button is latched.
+f1ca8a3fc601	Photo fails: is the camera on? Is the IP in KAMERA_ALAMAT correct? Is the /stream tab in the browser closed?
+edd3c74596a2	SPEAK gives "Tidak terdengar jelas": speak closer to the microphone, or GROQ_API_KEY has not been filled in.
+2947cf619107	Security and privacy
+9a6159f38e37	The bot token, Claude API key and Groq API key are the same as passwords. Do not upload them to GitHub or send them to anyone. If they leak, delete the key in the console and create a new one.
+df1a93c4bda9	The robot only obeys your chat ID. Anyone else who finds your bot gets the reply "aku hanya menurut ke pemilikku".
+fc6ec41cd5ec	The camera and microphone can record other people at home. Tell them, and switch the robot off when it is not in use.
+ef111ed5e9d5	Guard mode is not a real security alarm: the ultrasonic sensors can be fooled by a moving curtain, and can miss a person off to the side.
+2490a1dba100	A phone with Telegram
+0b3c7afae171	The UniversalTelegramBot and ArduinoJson libraries
+b12031a9a4de	A Claude Console account
+39d43fcf17d3	A card or payment method to top up credit
+e75c762b5d2a	A Groq account
+93bf19dcf0a3	All the Part 3 circuits
+cb08b09b2f7e	Body and camera powered on
+2a18b9b47d78	The complete robot on the table, wheels lifted

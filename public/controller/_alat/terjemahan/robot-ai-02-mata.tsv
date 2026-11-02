@@ -1,0 +1,44 @@
+# Bagian 4: Mata
+cc35c1b84148	The robot's eyes
+346fff26dc22	The robot's camera runs on its own ESP32-CAM and sends photos over WiFi. This part is short: upload, try it in the browser, then move it onto the robot's head.
+3dc3f67a75ea	Why the camera has its own board
+d94ea013b702	The bare OV2640 camera module you own needs 2.8 V and 1.2 V supplies that the S3 board does not provide. The ESP32-CAM already carries those regulators, the camera and its own WiFi. So the robot's camera becomes the third board, sending photos over WiFi: the brain just requests <code>http://camera-address/capture</code>.
+09cacdbf3a3d	The <b>ESP32-CAM-MB</b> is a downloader board: the ESP32-CAM plugs onto it so it can be uploaded over micro-USB. On the robot, the ESP32-CAM is taken off the MB and powered with 5 V directly.
+d17a6f715af3	Address (replace IP with your camera's address)
+90ab0df5e17b	test page with a photo and buttons
+4523bfed2ac5	<code>http://IP/capture</code>
+10e8ed3afdb7	<code>http://IP/capture?res=qvga</code>
+6551d6575d06	320x240 photo (for the robot's screen)
+947d8c2ad5b7	<code>http://IP/stream</code>
+6f608521e18d	live video
+a802bad60e44	<code>http://IP/flash?on=1</code> / <code>on=0</code>
+dd2f79fb8783	flash LED on / off
+a7b4dd20e5c5	<code>http://IP/status</code>
+bebc7aa667c7	IP, WiFi strength, uptime
+28eb5694db39	While one browser has /stream open, other requests wait. Close the stream tab before the robot asks for a photo.
+6910f7558783	Set up the camera
+ddd5591c8dd2	Upload the camera code through the MB
+d7fc24f097d6	Your ESP32-CAM: 5V and GND pins at the top left, flash LED at the bottom right.
+20dbdee6c0aa	ESP32-CAM-MB: micro-USB port, IO0 button (left) and RST (right).
+365dce65c392	Full code: <a href="../kode/robot_mata/robot_mata.ino" download>download robot_mata.ino</a>. No extra libraries needed.
+f870c8e8ae46	The Serial Monitor prints the sensor type (for your camera: OV3660) and <code>Tersambung. Alamat kamera: http://192.168.x.x</code>.
+8fd33e251235	<span class="py">OK to lock in</span> WIFI_NAMA and WIFI_PASSWORD in robot_mata.ino.
+25f02fccfb5b	<span class="pn">Not yet</span> The ESP32-CAM is still plugged onto the MB board. It must be removed from the MB in Stage 3, because on the robot it is powered from the 5V pin.
+f1d510338011	"Camera failed to start, code 0x105" or 0x20004: the camera ribbon is not seated firmly. Unplug USB, unlock the socket, reinsert the ribbon, and press the lock closed.
+c68d7ad50a6d	"Brownout detector was triggered" and then it keeps restarting: USB power is too weak. Use another USB port on the laptop or a shorter cable.
+27be68ee45b0	WiFi fails: the camera only supports 2.4 GHz WiFi, and its small antenna is weak. Move it close to the router while testing.
+deb55bca9e8a	Try the camera in the browser
+f4c2a58dbb61	The photo and video show up. <code>robotcam.local</code> may also open on a laptop, but on many Android phones it does not; the IP address always works.
+9ef4f3713e4c	<span class="py">OK to lock in</span> The fixed IP address in the router and the KAMERA_TERBALIK value. Write the address down for Part 5.
+c075ba8c8675	<span class="pn">Not yet</span> Close the /stream tab in the browser before Part 5, so the camera can serve the brain.
+3f67a76a4da8	Move to robot power and mount it on the head
+ea085d53bbb3	Seen from above, the positions match the robot exactly (see the layout drawing in Part 6). The numbers in the drawing are the same as in the table and in the steps. Wire 23 (camera 5 V) goes up from LM2596 #2 on level 1 through the HSV hole.
+0729c025755d	<b>Why this way?</b> While WiFi is transmitting, the ESP32-CAM can briefly draw a large current. The 1000 µF capacitor supplies that spike so the voltage does not drop and the camera does not restart. To upload code again later, plug it back onto the MB.
+2b3cc27eb107	The photo opens from the browser even though the ESP32-CAM is powered only from the battery. When the head turns, the camera turns with it.
+ef62377e794d	<span class="py">OK to lock in</span> The camera 5 V wire from LM2596 #2 (female jumper soldered on, heat shrink), the 1000 µF capacitor, and the cable-tie strapping of the ESP32-CAM to the front mount of the head.
+f2d3df1bd3ce	<span class="pn">Not yet</span> The head is not bolted to the third plate yet (Part 6 Stage 4); leave slack in the wires so the head can turn fully. LM2596 #2 is not mounted on the level-1 plate yet.
+f681a5c52351	ESP32-CAM
+5a3976277903	ESP32-CAM-MB
+dcabb52e6fc5	Phone or laptop on the same WiFi
+efb2eb36920f	26 AWG red and black wire
+ae35c7e7593f	2 cable ties

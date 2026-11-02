@@ -1,0 +1,161 @@
+# Bagian 2: Badan
+e57ee7bfa13e	The robot's body
+ffb3b32f5913	The body is the part that touches the real world: wheels, head and sensors. Do the work with the robot lifted, until Stage 8 passes.
+bbe3336d3d1f	What the body does
+dc4ec02d18a9	The robot's body is controlled by an <b>ESP32 DevKit V1</b> on the 30P expansion board. It drives the wheels and head, reads all the sensors, and runs its own safety rules. The brain (ESP32-S3) only sends short commands such as <code>M 150 150 800</code> (forward for 0.8 seconds).
+4d8dd21f8733	ESP32 DevKit V1 (30 pins).
+0ff53fbb84f5	30P expansion board.
+98e0658c4cbe	Two-level 4WD chassis.
+59bb403828f4	DevKit pins (rows on the 30P board)
+e0a6896ee87f	Left motor
+37216eb70a68	<span class="pin">D25</span> PWMA, <span class="pin">D26</span> AIN1, <span class="pin">D27</span> AIN2
+5d432b862553	Right motor
+cc60d5760264	<span class="pin">D13</span> PWMB, <span class="pin">D32</span> BIN1, <span class="pin">D33</span> BIN2
+5ec69f285fee	Pan / tilt servos
+d97d07a6b221	servo orange wire
+fbf8244c8964	Front distance
+7384785248d0	<span class="pin">D18</span> TRIG, <span class="pin">D19</span> ECHO (through a divider)
+13e6ad771527	Rear distance
+87d80fdc71e9	<span class="pin">D14</span> TRIG, <span class="pin">D35</span> ECHO (through a divider)
+86496bfa51a9	<span class="pin">D21</span> SDA, <span class="pin">D22</span> SCL
+b90e70d320eb	MPU6050, BME280
+b6c7a3fbb78d	DHT11 (if no BME280)
+a62e9a4126b4	DHT11 DATA
+f297c3ce6850	button + 10k pull-up
+66a40a4da81c	Battery voltage
+7a0a1c7264b2	To the brain (UART2)
+27b69ffd318f	All signals use the S pin (outermost) in the row with the same name. Power uses the GND / 5V / 3V blocks at the bottom left of the board.
+ef7035bd04a2	Build the body
+a811ff84fcdb	Stages 3 and 4 need the 6 V rail from Part 1. When USB is plugged into the DevKit, the 5 V wire from the LM2596 to the 30P board is unplugged (table mode).
+57ee0769eaf4	Set up the DevKit on the 30P board
+781714aa352a	<b>1</b> Power block: the left column is all <b>GND</b>, the right column holds the <b>5V</b> and <b>3V</b> pins (check in step 3). In run mode, 5 V from the LM2596 goes into one of these 5V pins.
+c5caccaec8bd	<b>2</b> V-pin voltage selector jumper: move it to the <b>3.3V–V</b> position. All the V pins on the board then carry 3.3 V.
+7e2b1631baa5	<b>3</b> and <b>4</b>: the pin rows for each GPIO (S = outermost signal, V, G). The row name is printed beside it: D25, D26, D23, D22, and so on.
+e3a4649ec1d2	<b>5</b> I2C header: D22, D21, VCC, GND. Used by the MPU6050 in Stage 6.
+fb2a11f06720	<b>6</b> DC jack 6.5-16 V: <b>not used</b>. <b>7</b> The board's USB port: power only, not used. Upload through the micro-USB port on the DevKit module.
+3c1ed3f675ca	The blink code runs on the DevKit, and you know which pins in the power block are 5 V and which are 3.3 V.
+fdfc6ac7ff8c	<span class="py">OK to lock in</span> The 3.3V–V jumper position and the notes on the 5V and 3V pins in the power block. The DevKit stays on the 30P board: the two go up to level 2 as one unit.
+d4b61404201f	<span class="pn">Not yet</span> The 30P board is not bolted down yet. On the robot it uses 8 mm nylon standoffs on level 2 (Part 6 Stage 3).
+37adf1bb2fd0	Port does not show up: your USB cable may be charge-only. Try another cable. The USB chip on the DevKit V1 is usually a CP2102: install the CP210x driver if needed.
+0f57381d2e6d	Assemble the chassis and prepare the motors
+a2c4aba55af0	The bottom plate with four TT motors and wheels.
+cfb456acfa89	Pair the 100 nF capacitor on each motor: across the two metal legs, one capacitor leg on each motor leg.
+fb58390d8271	Seen from above, the positions match the robot exactly (see the layout drawing in Part 6). The numbers in the drawing = the numbers in the table and in the steps. Grey wires = motor wires (25, 26) and signal jumper wires (30-32).
+abd08fe0b9b6	WAGO −6 → GND (next to VM) of the TB6612
+95c058d17fcb	WAGO 6V → head (red of both servos)
+dad60c01db0d	black 26 AWG
+cf97fbba35f1	WAGO −6 → head (brown of both servos)
+daa76176aa52	the rear motor's own wires
+dc00ecf9f6ed	rear motor → AO / BO of the TB6612
+c22b4edd2209	the front motor's own wires
+57546639485f	front motor → joined to the rear motor wire passing by
+7fed1f27fa1b	rear HC-SR04 → breadboard 1
+137654692ab2	MPU6050 → I2C header of the 30P board
+7a81f0f77383	TB6612 (PWMA, AIN1, AIN2, PWMB, BIN1, BIN2, STBY, VCC, GND) → 30P board
+3ec124f82fc4	<b>Why this way?</b> TT motors are designed for 3-6 V. Two motors on one side always move together (the robot turns by spinning the left and right sides in different directions), so one driver channel per side is enough.
+3e5604bec022	Four motors firmly attached, and two pairs of wires: one for the left side, one for the right side.
+6002fed4386d	<span class="py">OK to lock in</span> The motors and wheels are mounted on the bottom plate, the 100 nF capacitors are soldered, the left and right wires are joined, and the heat shrink is closed. This part does not change again until the robot is finished.
+b7b12911693b	<span class="pn">Not yet</span> The top plate is not mounted yet (Part 6 Stage 3). The female jumper ends on the motor wires stay plugged into the TB6612; no soldering needed.
+e4ea6f5ef09a	TB6612FNG and motor test
+a8858b2c15c8	The underside of your TB6612: pin names.
+4029278ed8d9	The top: the chip and the capacitor.
+dcedd24bad4a	TB6612 power side (wires 17, 18) and motor wires (25, 26): the level-1 map in Stage 2.
+72508add2b3e	<b>Why this way?</b> PWMA sets the speed (0-255) by switching on and off very fast (20,000 times per second). AIN1 and AIN2 set the direction: one HIGH and one LOW = turning, both the same = stopped.
+a68432608285	The Serial Monitor prints LEFT forward, LEFT backward, RIGHT forward, RIGHT backward, and the matching wheels turn that way. "Forward" = the wheels turn as if the robot were walking forward.
+a997420fba6e	<span class="py">OK to lock in</span> The green and black wires from WAGO 6V and WAGO −6 to VM and GND of the TB6612 (female jumper soldered, heat shrink closed) and the 470 µF capacitor across WAGO 6V and WAGO −6.
+3b0fe961e7de	<span class="pn">Not yet</span> The TB6612 is not strapped to the plate yet (cable ties, Part 6 Stage 2). The nine F-F signal wires to the 30P board are still table wires.
+bb598c838d90	One side spins the wrong way: swap the two motor wires of that side at AO1/AO2 (or BO1/BO2). Or later change MOTOR_KIRI_TERBALIK in the body code.
+0097aa89c453	One wheel on the same side spins opposite to the other: swap only the red-black of that motor.
+b3b4458c2157	No wheel turns: STBY is not at 3V, VM is not getting 6 V, or the DevKit GND is not connected to the TB6612 GND.
+64b1dcf40125	Wheels hum but do not turn: speed 150 is too low for your motors, or the XL4015 is below 6 V.
+5df20e281a7f	The DevKit restarts when the motors start: motor noise. Fit the 100 nF capacitors on the motors and check the shared GND.
+0b650c910f62	Pan-tilt head (MG90S servos)
+977d884c8523	Your assembled pan-tilt. The bottom servo = pan, the top servo = tilt.
+6c9d7794bcc1	Head power joints: the two servo reds joined into one to the green, the two browns joined into one to the black, the 470 µF capacitor across the two joints (long leg + to the red side). The orange wires are not cut and each servo plug stays a single 3-hole block.
+196c238f1ed4	<b>Why this way?</b> A servo reads the pulse width 50 times per second: 0.6 ms = 0°, 1.5 ms = 90°, 2.4 ms = 180°. The tilt angle is limited to 40-150° in the code so the head does not hit the bracket.
+03957347246f	The head looks left, center, right, then nods. Type <code>90 90</code> in the Serial Monitor: the head faces straight ahead.
+b4370100e9d3	<span class="py">OK to lock in</span> The red-green and brown-black solder joints, and the 470 µF capacitor with heat shrink closed. The servo arm screws once the servo is still at 90°.
+732fe7865d05	<span class="pn">Not yet</span> The head is not bolted to the third plate yet (Part 6 Stage 4). The TILT_MIN and TILT_MAX limits are only final once the head is mounted on the robot, because they depend on the bracket and the head position. The orange wires to D23 and D4 are still table wires.
+cad113024e94	A servo moves randomly, one servo stays still, or moves by itself when you touch the power wire: the servo GND is not connected to the DevKit GND. Repeat the beep test in the shared GND step.
+efc9dcd967b0	A servo vibrates or hums constantly: not enough power. Make sure red goes to 6 V (not 3.3 V) and the capacitor is fitted.
+7be371175bc3	A servo vibrates only at the end of its travel: the arm hits the bracket. Reduce the angle limit in the code and do not let the servo hold at the end.
+a78c2c9e3e37	The head hits the bracket at a certain angle: note the angle, then change TILT_MIN and TILT_MAX in the body code later.
+42b35c62647a	Two HC-SR04 distance sensors
+92a8421ecebc	Two HC-SR04: one for the front, one for the rear.
+f8ace098a3d4	Newly added parts appear bright, parts from earlier stages are faded. White dots = leg or wire ends in the holes. Tags on the top/bottom edge = wires going out to a board or sensor.
+6fa2e756ad58	<b>Why this way?</b> The sensor sends an ultrasonic pulse, then the ECHO pin stays high for the round trip of the sound. Sound travels about 1 cm per 29 µs, round trip 58 µs per cm. The two sensors are read in turns so that the echo of one is not read by the other.
+1dd374ed2351	The front and rear numbers change as your hand gets closer. Try a wall: the number comes close to the distance measured with a ruler (a 1-2 cm difference is normal). -1 means no echo (too far, or the sensor is not connected).
+d975dffa41f2	<span class="py">OK to lock in</span> The 1 kΩ and 2 kΩ divider resistors on breadboard 1. This breadboard goes up to level 2 together with the wires already plugged in (Part 6 Stage 3).
+fc3a07e72df4	<span class="pn">Not yet</span> Do not lock in the two sensors: the rear one moves to level 1 and its wiring is rearranged (TRIG through the breadboard), and the front one is mounted at the front edge of level 2.
+774098730c33	Always -1: VCC is not getting 5 V (check a30), or TRIG/ECHO are swapped.
+d38d6f0f5a92	Numbers jump around: slanted or soft surfaces (cloth, sofa) reflect sound badly. That is a property of this sensor.
+0026428d9cbb	Always 0 or a small fixed number: the 2 kΩ resistor is not connected to the blue line.
+4dc027c12f99	MPU6050 (tilt sensor)
+90c2e67c89b7	MPU6050 (GY-521). The pin names are printed beside the holes.
+3bd1ef4b081b	Optional: weather sensor (BME280 or DHT11)
+1b0460cc6e91	Skip this part if you do not use a weather sensor. The robot still runs without one; the temperature and humidity values are just empty.
+f6520c40abe8	Have a BME280: <span class="pin">VIN</span> → V pin of row D21, <span class="pin">GND</span> → G of row D21, <span class="pin">SDA</span> → S of row D21, <span class="pin">SCL</span> → S of row D22. One I2C bus can serve many sensors as long as their addresses differ.
+6063cf9b137b	Or the DHT11 from the weather station kit on the breadboard. The DHT11 legs (the perforated side facing you) go to <span class="pin">f10</span>–<span class="pin">f13</span>. Wire <span class="pin">j10</span> → lower red rail, <span class="pin">j13</span> → lower blue rail, 10 kΩ resistor from <span class="pin">j11</span> to the lower red rail, wire <span class="pin">h11</span> → S of row <span class="pin">D5</span>.
+cdf964bd551f	Test with the code below: besides the MPU6050, it reads the BME280 (address 0x76 or 0x77) or the DHT11 on GPIO 5.
+4f3105e004ae	BME280 not read even though the address is there: your module may be a BMP280 (no humidity). "nan" for the DHT11: check the leg order and the 10 kΩ resistor.
+90c3058ff45e	<b>Why this way?</b> The MPU6050 measures acceleration, including gravity. From the direction of gravity, the code works out how tilted the robot is. The body uses this to stop if the robot is upside down or lifted at a tilt.
+75acb346abe9	The scan finds <code>0x68</code>. When flat, pitch and roll are near 0 and the z acceleration is about 1 g; when tilted, the numbers change too. The gyro is near 0 when still and jumps when rotated.
+a7d0dd167daa	<span class="py">OK to lock in</span> The soldered MPU6050 header pins.
+f8e2a34417a9	<span class="pn">Not yet</span> The MPU6050 is not stuck down yet. On the robot it must lie flat on level 1 with a 6 mm standoff, the writing facing forward (Part 6 Stage 2). If it is tilted, pitch and roll do not start from zero.
+4b0acfb5235b	No address found: SDA and SCL are swapped, VCC or GND is not connected, or an F-F wire is loose.
+88afebc7d47f	Found 0x69, not 0x68: the AD0 pin is connected to VCC. Leave AD0 unconnected.
+afe9d55e1b5a	WHO_AM_I is not 0x68 (for example 0x70 or 0x98): a clone module. As long as pitch and roll make sense, it is still usable.
+72abfc262300	Numbers stuck at the same value or all 0: the module has not woken up or is broken. Unplug and replug the USB, check the header pin solder joints.
+86652c6de23d	Battery gauge and STOP button
+8c8c027952fc	<b>Why this way?</b> GPIO 39 is input only and has no pull-up resistor inside the chip, so we add 10 kΩ to 3.3 V. Not pressed, the pin reads HIGH; pressed, the pin connects to GND and reads LOW. For the finished robot, the 6 mm button is replaced by a 12 mm button on the middle-left wing of level 3, connected with two wires to columns 27 and 29 (lengths in Part 6).
+f4f93eecc280	The battery voltage in the Serial Monitor matches the multimeter (difference under 0.1 V after calibration), and the text changes to DITEKAN when the button is pressed.
+ea3adc9327ec	<span class="py">OK to lock in</span> The 26 AWG battery-gauge wire (blue heat shrink) from LM2596 #1 IN+ to a20, and the 20 kΩ and 10 kΩ divider resistors. The BATERAI_FAKTOR value you calculated.
+41ddf5daea6d	<span class="pn">Not yet</span> The 6 mm button is only for testing: in Part 6 Stage 3 it is removed and replaced by the 12 mm STOP button on level 3. The table GND wire (WAGO − to the G pin) is also only for testing: on the robot the shared GND comes from the LM2596 #1 black wire to the 30P board.
+564dd211916f	Battery reads 0: the BAT+ wire is not in a20, or the switch is OFF.
+2e735b904077	Battery reads 0 even though the multimeter at the WAGO reads 8 V, and a20 to the breadboard GND is also 0 V: the battery GND is not connected to the DevKit GND (shared GND step).
+19b62a2bbd71	The battery number jumps to about 3100 mV or 140 mV by itself, and the button switches between DITEKAN/released untouched: the breadboard's top rail is not getting 3.3 V (the 3V and G pin wires from Stage 5 are not fitted), so the button's pull-up does not work and the input floats.
+ad0796044212	Button always DITEKAN: the button legs used are not diagonal. Rotate the button 90 degrees.
+10a5694bc507	Upload the body code and run the safety test
+e1afeaf6e7f4	Full code: <a href="../kode/robot_badan/robot_badan.ino" download>download robot_badan.ino</a>.
+6676da62427a	<b>Why this way?</b> The D line holds the front distance, rear distance, battery, temperature, humidity, pitch, roll and flags. The brain reads the same line over UART every 250 ms. Every movement stops by itself when its time runs out (max 3 seconds), so if the brain hangs or the UART wire comes loose, the robot does not run away.
+8d8f012e9397	The body obeys commands and refuses dangerous movements. In the Serial Monitor a data line such as <code>D 45 120 7.92 29.5 70 1 -2 0</code> appears every second.
+ad8c68973936	<span class="py">OK to lock in</span> The BATERAI_FAKTOR value and the motor direction choices in robot_badan.ino. This code is used as is on the robot. Uploading the code is required before Part 3.
+19232551e4c6	<span class="pn">Not yet</span> JARAK_STOP_DEPAN, TILT_MIN and TILT_MAX are only tuned after the robot is finished (Part 6 Stage 8). The safety test may be postponed to Part 6, but do not let it be missed.
+4b82352d9422	Body breadboard wiring list
+2c5091eaf828	Component / wire
+a74853557d41	Top red rail
+2743a1a0f8a3	3V pin of the power block
+5cb7c913c681	Top blue rail
+b02037ec27ca	Bottom rails
+5d0cddd1c4a8	joined to the top rails (red-red, blue-blue)
+107ab39e0648	5V pin of the power block, VCC of both HC-SR04
+7eb22c86122f	c7 → blue rail
+257e526b3897	Front ECHO
+07c260b8c067	c16 → blue rail
+322298a17b86	Rear ECHO
+61e0cc3b094a	DHT11 (optional)
+c025678819dd	j10 → lower red, j13 → lower blue, 10 kΩ j11 → lower red, h11 → D5
+741434edad9b	c24 → blue rail
+0122bdd890fd	battery plus rail after the switch
+7fea57ea4b0b	e27 and f29 are used
+a714d44fa6fb	a27 → red rail
+fd02416596cb	Button GND
+9aae7cd5e732	lower blue rail
+0dcbe16b40f1	30P expansion board
+d269a7d2c903	Micro-USB data cable
+8b806934009e	4WD chassis + 4 TT motors
+a284cedd73a0	Motor wires (own or 26 AWG)
+9984cdb262c8	1 F-F jumper wire
+156ff798fbf6	Heat shrink
+067223fddb60	22 AWG green and black wire
+f88f12f4ff47	2 pieces of 3 cm female jumper
+8ca6337c03d9	WAGO 6V and WAGO −6 from Part 1
+17e9005ba52a	Pan-tilt with 2 MG90S
+c70faa489239	WAGO 6V and WAGO −6
+5329a2c734f9	Small breadboard
+bb43583cac4a	20 kΩ and 10 kΩ resistors
+044dcf7b6aa4	10 kΩ resistor for the button
+2533792a2ca9	Push button
+9c94a5753630	M-M and M-F wires
+ecbdf8feaebc	All the circuits from Stages 3-7
+cd9f1fb28e7a	Robot lifted

@@ -1,0 +1,32 @@
+29731b5fc7a5	ESP32 · Project 1
+e0bee15f9f04	0 / 0 steps
+cdb8d8829aa4	Part 1
+5233b8411d9f	Part 2
+4f5b4393aab3	=
+8edd6243563f	Why must it be 3.3V?
+31961cbe5d63	How to put the ESP32 back
+86d92d8366df	<b>10 kΩ (4-band version)</b> · brown, black, orange, gold. Same as 10 kΩ 5-band.
+f64b3c728dfd	<b>10 kΩ (5-band version)</b> · brown, black, black, red, brown. 2 pieces used.
+cafe3b0e65b4	<b>220 Ω</b> · red, red, black, black, brown. For the LED.
+0b5c8e70401a	<b>330 Ω</b> · orange, orange, black, black, brown. Substitute for 220 Ω if you don't have one.
+d496e6c2762b	<b>100 Ω</b> · brown, black, black, black, brown. For the buzzer.
+76d10f9c5731	Part 3
+d95dfe383c0c	Part 4
+0750e291bd60	Component
+9f09aefd0dd4	Note
+e6672b947f39	220 Ω resistor
+6b80b24cf557	=
+0a3135800f9d	100 Ω resistor
+c809b370c6a9	Or 220 Ω
+98df717d49ff	=
+25f94159fca8	=
+184fd2f574c3	Wire
+b7170c965050	From
+fabb2b5c779a	Type
+ee3554218a3f	S in row <span class="pin">D25</span>
+83d596eb1f83	S in row <span class="pin">D26</span>
+f998f0eb29bb	S in row <span class="pin">D34</span>
+f36a4f48f8b1	S in row <span class="pin">D4</span>
+1665d81678eb	Part 5
+719ee5463827	Files
+1b4ac3d41520	Next
