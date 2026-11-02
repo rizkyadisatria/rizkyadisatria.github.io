@@ -56,8 +56,11 @@ Halaman ini tidak mendapat CSP ketat karena memakai script inline.
 
 ## GitHub Pages
 
-Setelah branch ini digabung ke `master`, GitHub Pages akan menyajikan **kode sumber**, bukan hasil build. Nonaktifkan
-Pages (Settings → Pages) atau arahkan domain ke Vercel.
+Situs utama ada di Vercel (`rizkyadisatria.vercel.app`). `index.html` dan `404.html` di akar repo hanya meneruskan
+pengunjung alamat lama `rizkyadisatria.github.io` (termasuk tautan dalam seperti `/controller/...`) ke Vercel.
+Berkas itu tidak ikut build (`dist/` hanya berisi hasil `src/` dan `public/`). Progres panduan `/controller` tersimpan di
+localStorage per alamat; saat perangkat lama membuka alamat github.io, progresnya dibawa sekali ke Vercel lewat
+`/controller/pindah/` (data lama di github.io tidak dihapus).
 
 ---
 
