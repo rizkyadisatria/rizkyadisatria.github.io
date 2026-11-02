@@ -1,7 +1,17 @@
-// TES LAYAR + SENTUHAN: layar menampilkan warna dan tulisan, lalu titik mengikuti jarimu.
-// Library: LovyanGFX
+// TES LAYAR + SENTUHAN (memeriksa dirinya sendiri)
+// Library: LovyanGFX. Board: ESP32S3 Dev Module, pengaturan sama dengan tes_s3.
+// Buka Serial Monitor (115200) SEBELUM atau tepat setelah upload. Tes berjalan 5 langkah,
+// dan setiap langkah memberi tahu kalau ada yang salah serta apa yang harus dicek:
+//   1. WARNA       : merah, hijau, biru, putih, hitam. Nama warna tertulis di tengah layar.
+//   2. ARAH        : pilih arah layar lewat Serial Monitor (ketik angka lalu Enter, y kalau cocok).
+//   3. KABEL SENTUH: diperiksa otomatis.
+//   4. KALIBRASI   : tekan 5 tanda +, lalu 1 tanda uji. Kalau meleset, diulang sendiri.
+//   5. GAMBAR      : coretan harus muncul tepat di bawah stylus.
+// Arah dan kalibrasi disimpan di memori S3 (tidak hilang saat dicabut atau upload ulang),
+// lalu dipakai otomatis oleh tes_sd dan robot_otak.
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
+#include <Preferences.h>
 
 #define TFT_SCK   12
 #define TFT_MOSI  11
@@ -41,33 +51,342 @@ public:
 };
 
 LGFX lcd;
+Preferences pref;
+uint8_t rotasi = 1;   // arah layar, dipilih di langkah 2
+float aff[6];         // hasil kalibrasi: angka mentah sentuhan -> titik layar
+
+// ---------------- bantuan ----------------
+int ketikan() {                          // satu huruf dari Serial Monitor, -1 kalau tidak ada
+  while (Serial.available()) {
+    int c = Serial.read();
+    if (c > ' ') return c;               // abaikan Enter dan spasi
+  }
+  return -1;
+}
+
+void pesan(const char* judul, const char* a, const char* b, uint16_t warna) {
+  int x = lcd.width() / 2, y = lcd.height() / 2;
+  lcd.fillScreen(TFT_BLACK);
+  lcd.setTextDatum(middle_center);
+  lcd.setFont(&fonts::Font4); lcd.setTextColor(warna, TFT_BLACK);
+  lcd.drawString(judul, x, y - 40);
+  lcd.setFont(&fonts::Font2); lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+  lcd.drawString(a, x, y);
+  lcd.drawString(b, x, y + 22);
+}
+
+bool bacaMentah(int32_t &x, int32_t &y) { return lcd.getTouchRaw(&x, &y) > 0; }
+bool bacaLayar(int32_t &x, int32_t &y)  { return lcd.getTouch(&x, &y) > 0; }
+
+void tungguLepas() {                     // tunggu layar tidak disentuh selama 0,2 detik
+  int32_t x, y; unsigned long t = millis();
+  while (millis() - t < 200) { if (bacaMentah(x, y)) t = millis(); delay(10); }
+}
+
+// Tunggu satu tekanan, ambil 15 bacaan selama ditekan, kembalikan nilai tengahnya.
+// false = tekanan terlalu singkat atau goyang (diminta menekan lagi).
+bool ambilTekan(bool angkaLayar, int32_t &hx, int32_t &hy) {
+  int32_t xs[15], ys[15], x, y; int n = 0, luput = 0;
+  while (!(angkaLayar ? bacaLayar(x, y) : bacaMentah(x, y))) delay(5);
+  delay(60);                             // biarkan tekanan mantap dulu
+  unsigned long t0 = millis();
+  while (n < 15 && millis() - t0 < 2000) {
+    if (angkaLayar ? bacaLayar(x, y) : bacaMentah(x, y)) { xs[n] = x; ys[n] = y; n++; luput = 0; }
+    else if (++luput >= 3) break;        // stylus diangkat
+    delay(15);
+  }
+  tungguLepas();
+  if (n < 8) return false;
+  std::sort(xs, xs + n); std::sort(ys, ys + n);
+  int32_t batas = angkaLayar ? 6 : 60;   // 6 piksel, atau 60 angka mentah
+  if (xs[n * 3 / 4] - xs[n / 4] > batas || ys[n * 3 / 4] - ys[n / 4] > batas) return false;
+  hx = xs[n / 2]; hy = ys[n / 2];
+  return true;
+}
+
+void tanda(int x, int y, uint16_t w) {   // tanda + yang harus ditekan
+  lcd.drawCircle(x, y, 12, w);
+  lcd.drawFastHLine(x - 18, y, 37, w);
+  lcd.drawFastVLine(x, y - 18, 37, w);
+  lcd.fillCircle(x, y, 2, TFT_RED);
+}
+
+void simpan() {
+  pref.begin("robot", false);
+  pref.putUChar("rot", rotasi);
+  pref.putBytes("aff", aff, sizeof(aff));
+  if (pref.isKey("cal")) pref.remove("cal");   // kalibrasi cara lama, tidak dipakai lagi
+  pref.end();
+  Serial.printf("TERSIMPAN di memori S3: arah %d dan kalibrasi sentuh. tes_sd dan robot_otak memakainya.\n", rotasi);
+}
+
+// ---------------- langkah 1: warna ----------------
+void tesWarna() {
+  Serial.println("\nLANGKAH 1: WARNA");
+  Serial.println("Layar harus berwarna sama dengan tulisan di tengahnya.");
+  struct { uint16_t isi, huruf; const char* nama; } w[] = {
+    {TFT_RED, TFT_WHITE, "MERAH"}, {TFT_GREEN, TFT_BLACK, "HIJAU"}, {TFT_BLUE, TFT_WHITE, "BIRU"},
+    {TFT_WHITE, TFT_BLACK, "PUTIH"}, {TFT_BLACK, TFT_WHITE, "HITAM"}};
+  for (auto &k : w) {
+    lcd.fillScreen(k.isi);
+    lcd.setTextDatum(middle_center); lcd.setFont(&fonts::Font4); lcd.setTextColor(k.huruf, k.isi);
+    lcd.drawString(k.nama, lcd.width() / 2, lcd.height() / 2);
+    delay(900);
+  }
+  Serial.println("  PUTIH tampil hitam dan HITAM tampil putih: ubah c.invert = false menjadi true.");
+  Serial.println("  MERAH tampil biru dan BIRU tampil merah: ubah c.rgb_order = false menjadi true.");
+}
+
+// ---------------- langkah 2: arah ----------------
+void gambarArah() {
+  lcd.setRotation(rotasi);
+  int w = lcd.width(), h = lcd.height();
+  char s[32];
+  lcd.fillScreen(TFT_BLACK);
+  lcd.drawRect(0, 0, w, h, TFT_WHITE);           // garis tepi 2 piksel
+  lcd.drawRect(1, 1, w - 2, h - 2, TFT_WHITE);
+  lcd.setFont(&fonts::Font2); lcd.setTextColor(TFT_YELLOW, TFT_BLACK);
+  lcd.setTextDatum(top_left);     lcd.drawString("KIRI ATAS", 6, 6);
+  lcd.setTextDatum(top_right);    lcd.drawString("KANAN ATAS", w - 7, 6);
+  lcd.setTextDatum(bottom_left);  lcd.drawString("KIRI BAWAH", 6, h - 7);
+  lcd.setTextDatum(bottom_right); lcd.drawString("KANAN BAWAH", w - 7, h - 7);
+  lcd.fillTriangle(w / 2, 26, w / 2 - 10, 42, w / 2 + 10, 42, TFT_GREEN);   // panah ke atas
+  lcd.setTextDatum(middle_center);
+  lcd.setFont(&fonts::Font4); lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+  snprintf(s, sizeof(s), "ARAH %d", rotasi); lcd.drawString(s, w / 2, h / 2 - 28);
+  snprintf(s, sizeof(s), "%d x %d", w, h);   lcd.drawString(s, w / 2, h / 2 + 2);
+  lcd.setFont(&fonts::Font2); lcd.setTextColor(TFT_CYAN, TFT_BLACK);
+  lcd.drawString(w > h ? "mendatar" : "tegak (bukan untuk robot)", w / 2, h / 2 + 28);
+  lcd.drawString("Pilih di Serial Monitor", w / 2, h / 2 + 48);
+  Serial.printf("  Sekarang ARAH %d (%d x %d, %s)\n", rotasi, w, h, w > h ? "mendatar" : "tegak");
+}
+
+void petunjukArah() {
+  Serial.println("\nLANGKAH 2: ARAH LAYAR");
+  Serial.println("Pegang layar MENDATAR, seperti nanti dilihat di robot. Arah yang benar:");
+  Serial.println("  a. tulisan terbaca biasa, bukan seperti bayangan di cermin,");
+  Serial.println("  b. garis putih utuh di keempat tepi layar,");
+  Serial.println("  c. KIRI ATAS ada di pojok kiri atas, panah hijau menunjuk ke atas.");
+  Serial.println("Ketik 1, 3, 5, atau 7 lalu Enter untuk mencoba arah lain.");
+  Serial.println("Kalau sudah benar, ketik y lalu Enter.");
+}
+
+void pilihArah() {
+  petunjukArah();
+  gambarArah();
+  while (true) {
+    int c = ketikan();
+    if (c >= '0' && c <= '7') { rotasi = c - '0'; gambarArah(); }
+    else if (c == 'y' || c == 'Y') {
+      if (lcd.width() > lcd.height()) break;
+      Serial.println("  Arah ini tegak. Robot memakai layar mendatar: pilih 1, 3, 5, atau 7.");
+    }
+    else if (c != -1) petunjukArah();
+    delay(20);
+  }
+  Serial.printf("  Arah %d dipilih.\n", rotasi);
+}
+
+// ---------------- langkah 3: kabel sentuh ----------------
+void cekKabelSentuh() {
+  int32_t x, y;
+  Serial.println("\nLANGKAH 3: KABEL SENTUH");
+  while (true) {
+    pesan("CEK SENTUH", "Jangan sentuh layar dulu...", "", TFT_WHITE);
+    int kena = 0;
+    for (int i = 0; i < 100; i++) { if (bacaMentah(x, y)) kena++; delay(20); }
+    if (kena <= 5) break;
+    Serial.printf("  GAGAL: layar terbaca disentuh %d dari 100 kali, padahal tidak disentuh.\n", kena);
+    Serial.println("  Pastikan tidak ada yang menekan layar (jari, jepitan, plastik pelindung terlipat),");
+    Serial.println("  lalu cek kabel T_DO ke c8 dan T_CS ke IO14. Diulang otomatis.");
+    pesan("GAGAL", "Layar terbaca disentuh sendiri", "Lihat Serial Monitor. Diulang...", TFT_RED);
+    delay(3000);
+  }
+  pesan("CEK SENTUH", "Tekan dan tahan tengah layar", "pakai stylus atau ujung kuku", TFT_WHITE);
+  unsigned long t0 = millis();
+  while (!bacaMentah(x, y)) {
+    delay(10);
+    if (millis() - t0 > 15000) {
+      t0 = millis();
+      Serial.println("  Belum ada sentuhan terbaca. Kalau sudah ditekan tapi tetap begini, cek kabel:");
+      Serial.println("  T_CLK ke c2, T_DIN ke c5, T_DO ke c8, T_CS ke IO14, dan VCC/GND layar.");
+      lcd.setTextColor(TFT_YELLOW, TFT_BLACK);
+      lcd.drawString("Belum terbaca: lihat Serial Monitor", lcd.width() / 2, lcd.height() / 2 + 50);
+    }
+  }
+  Serial.printf("  OK: sentuhan terbaca (angka mentah x=%d y=%d).\n", (int)x, (int)y);
+  tungguLepas();
+}
+
+// ---------------- langkah 4: kalibrasi ----------------
+// Titik layar pada arah sekarang -> titik layar pada arah 0.
+// Kalibrasi disimpan untuk arah 0 (sama seperti LovyanGFX), jadi tetap benar walau arah diganti.
+void keArah0(float &x, float &y) {
+  uint8_t r = lcd.getRotation();
+  float w = lcd.width(), h = lcd.height();
+  if ((1 << r) & 0b10010110) y = (h - 1) - y;   // arah 1, 2, 4, 7 dibalik atas-bawah
+  if (r & 2) x = (w - 1) - x;
+  if (r & 1) std::swap(x, y);
+}
+
+// Cari a[6] supaya (a0*mx + a1*my + a2, a3*mx + a4*my + a5) sedekat mungkin dengan (tx, ty).
+bool hitungKalibrasi(const float *mx, const float *my, const float *tx, const float *ty, int n, float *a) {
+  double rx = 0, ry = 0, ax = 0, ay = 0;
+  for (int i = 0; i < n; i++) { rx += mx[i]; ry += my[i]; ax += tx[i]; ay += ty[i]; }
+  rx /= n; ry /= n; ax /= n; ay /= n;
+  double uu = 0, uv = 0, vv = 0, ux = 0, vx = 0, uy = 0, vy = 0;
+  for (int i = 0; i < n; i++) {
+    double u = mx[i] - rx, v = my[i] - ry, X = tx[i] - ax, Y = ty[i] - ay;
+    uu += u * u; uv += u * v; vv += v * v; ux += u * X; vx += v * X; uy += u * Y; vy += v * Y;
+  }
+  double det = uu * vv - uv * uv;
+  if (uu <= 0 || vv <= 0 || det < 0.01 * uu * vv) return false;   // titik-titiknya segaris
+  a[0] = (ux * vv - vx * uv) / det; a[1] = (vx * uu - ux * uv) / det; a[2] = ax - a[0] * rx - a[1] * ry;
+  a[3] = (uy * vv - vy * uv) / det; a[4] = (vy * uu - uy * uv) / det; a[5] = ay - a[3] * rx - a[4] * ry;
+  return true;
+}
+
+void gagalKalibrasi(const char* a, const char* b) {
+  Serial.printf("  ULANGI KALIBRASI: %s. %s\n", a, b);
+  pesan("ULANGI", a, b, TFT_RED);
+  delay(3500);
+}
+
+void kalibrasi() {
+  int w = lcd.width(), h = lcd.height(), m = 25;
+  const int px[5] = {m, w - 1 - m, w - 1 - m, m, w / 2};
+  const int py[5] = {m, m, h - 1 - m, h - 1 - m, h / 2};
+  float mx[5], my[5], tx[5], ty[5];
+  int32_t x, y;
+  char s[48];
+  Serial.println("\nLANGKAH 4: KALIBRASI SENTUH");
+  Serial.println("Tekan TEPAT di tengah tiap tanda + dengan stylus, tahan 1 detik, lalu angkat.");
+  while (true) {
+    for (int i = 0; i < 5; i++) {
+      while (true) {
+        lcd.fillScreen(TFT_BLACK);
+        lcd.setTextDatum(middle_center); lcd.setFont(&fonts::Font2); lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+        snprintf(s, sizeof(s), "KALIBRASI titik %d dari 5", i + 1);
+        lcd.drawString(s, w / 2, h / 2 - 50);
+        lcd.drawString("Tekan tepat di tengah tanda +", w / 2, h / 2 + 40);
+        lcd.drawString("tahan 1 detik, lalu angkat", w / 2, h / 2 + 60);
+        tanda(px[i], py[i], TFT_WHITE);
+        if (ambilTekan(false, x, y)) break;
+        Serial.println("  Tekanan terlalu singkat atau goyang. Tekan lagi lebih mantap, jangan digeser.");
+        pesan("TEKAN LAGI", "Tahan 1 detik, jangan digeser", "", TFT_YELLOW);
+        delay(1200);
+      }
+      tanda(px[i], py[i], TFT_GREEN); delay(250);
+      mx[i] = x; my[i] = y;
+      float a = px[i], b = py[i]; keArah0(a, b); tx[i] = a; ty[i] = b;
+      Serial.printf("  titik %d: mentah x=%d y=%d\n", i + 1, (int)x, (int)y);
+    }
+
+    // Cek 1: kelima tekanan harus tersebar, bukan di satu tempat
+    float x0 = mx[0], x1 = mx[0], y0 = my[0], y1 = my[0];
+    for (int i = 1; i < 5; i++) { x0 = min(x0, mx[i]); x1 = max(x1, mx[i]); y0 = min(y0, my[i]); y1 = max(y1, my[i]); }
+    if (x1 - x0 < 800 || y1 - y0 < 800) { gagalKalibrasi("Tekanan terbaca di tempat sama", "Cek kabel T_DIN (c5) dan T_DO (c8)"); continue; }
+    if (!hitungKalibrasi(mx, my, tx, ty, 5, aff)) { gagalKalibrasi("Titik-titiknya segaris", "Tekan tanda yang ditunjuk saja"); continue; }
+
+    // Cek 2: setiap titik harus pas dengan hitungan (sisa meleset kecil)
+    float terburuk = 0; int iBuruk = 0;
+    for (int i = 0; i < 5; i++) {
+      float ex = aff[0] * mx[i] + aff[1] * my[i] + aff[2] - tx[i];
+      float ey = aff[3] * mx[i] + aff[4] * my[i] + aff[5] - ty[i];
+      float e = sqrtf(ex * ex + ey * ey);
+      if (e > terburuk) { terburuk = e; iBuruk = i; }
+    }
+    Serial.printf("  meleset terbesar %.1f piksel (titik %d)\n", terburuk, iBuruk + 1);
+    if (terburuk > 12) {
+      snprintf(s, sizeof(s), "Titik %d meleset %d piksel", iBuruk + 1, (int)terburuk);
+      gagalKalibrasi(s, "Tekan tepat di tengah tanda +");
+      continue;
+    }
+    lcd.panel()->setCalibrateAffine(aff);
+
+    // Cek 3: titik uji, dibaca dengan cara yang sama seperti robot membaca sentuhan
+    int qx = w * 3 / 4, qy = h / 3;
+    while (true) {
+      lcd.fillScreen(TFT_BLACK);
+      lcd.setTextDatum(middle_center); lcd.setFont(&fonts::Font2); lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+      lcd.drawString("UJI: tekan tanda + ini", w / 2, h * 2 / 3);
+      tanda(qx, qy, TFT_CYAN);
+      if (ambilTekan(true, x, y)) break;
+      pesan("TEKAN LAGI", "Tahan 1 detik, jangan digeser", "", TFT_YELLOW);
+      delay(1200);
+    }
+    float e = sqrtf((float)(x - qx) * (x - qx) + (float)(y - qy) * (y - qy));
+    Serial.printf("  titik uji terbaca x=%d y=%d, seharusnya x=%d y=%d, meleset %.1f piksel\n", (int)x, (int)y, qx, qy, e);
+    if (e > 15) {
+      snprintf(s, sizeof(s), "Titik uji meleset %d piksel", (int)e);
+      gagalKalibrasi(s, "Kalibrasi diulang dari titik 1");
+      continue;
+    }
+    Serial.println("  LULUS: kalibrasi tepat.");
+    simpan();
+    pesan("KALIBRASI LULUS", "Sentuhan sudah tepat", "", TFT_GREEN);
+    delay(1500);
+    return;
+  }
+}
+
+// ---------------- langkah 5: gambar ----------------
+const int TOMBOL_W = 70, TOMBOL_H = 28;   // tombol HAPUS di kanan atas
+
+void layarGambar() {
+  int w = lcd.width(), h = lcd.height();
+  lcd.fillScreen(TFT_BLACK);
+  lcd.setFont(&fonts::Font2); lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+  lcd.setTextDatum(top_left); lcd.drawString("Coret, atau ketuk lingkaran", 4, 6);
+  lcd.fillRoundRect(w - TOMBOL_W, 0, TOMBOL_W, TOMBOL_H, 4, TFT_DARKGREY);
+  lcd.setTextDatum(middle_center); lcd.setTextColor(TFT_WHITE, TFT_DARKGREY);
+  lcd.drawString("HAPUS", w - TOMBOL_W / 2, TOMBOL_H / 2);
+  const int cx[5] = {25, w - 26, w - 26, 25, w / 2}, cy[5] = {55, 55, h - 26, h - 26, h / 2};
+  for (int i = 0; i < 5; i++) lcd.drawCircle(cx[i], cy[i], 8, TFT_DARKGREY);
+}
 
 void setup() {
   Serial.begin(115200);
   delay(1500);   // beri waktu Serial Monitor tersambung
-  Serial.println("\n=== TES LAYAR ===");
+  Serial.println("\n=== TES LAYAR + SENTUHAN ===");
   lcd.init();
-  lcd.setRotation(1);                       // mendatar, 320 x 240
-  lcd.fillScreen(TFT_RED);   delay(400);
-  lcd.fillScreen(TFT_GREEN); delay(400);
-  lcd.fillScreen(TFT_BLUE);  delay(400);
-  lcd.fillScreen(TFT_BLACK);
-  lcd.setTextColor(TFT_WHITE);
-  lcd.setFont(&fonts::Font4);
-  lcd.drawString("Layar berhasil!", 20, 20);
-  lcd.setFont(&fonts::Font2);
-  lcd.drawString("Sentuh 4 ujung panah untuk kalibrasi", 20, 70);
-  delay(1500);
-  uint16_t cal[8];
-  lcd.calibrateTouch(cal, TFT_WHITE, TFT_BLACK, 15);
-  lcd.fillScreen(TFT_BLACK);
-  lcd.drawString("Gambar dengan jarimu", 20, 10);
+  lcd.setBrightness(255);
+  pref.begin("robot", false);
+  rotasi = pref.getUChar("rot", 1);   // arah tersimpan dari tes sebelumnya, awalnya 1
+  pref.end();
+  if (rotasi > 7) rotasi = 1;
+  lcd.setRotation(rotasi);
+
+  tesWarna();
+  pilihArah();
+  cekKabelSentuh();
+  kalibrasi();
+
+  Serial.println("\nLANGKAH 5: GAMBAR");
+  Serial.println("Coret layar: garis kuning harus muncul tepat di bawah stylus.");
+  Serial.println("Ketuk 5 lingkaran abu-abu: titik kuning harus jatuh di dalamnya.");
+  Serial.println("Ketik k = kalibrasi ulang, a = ganti arah (kalibrasi tidak perlu diulang).");
+  layarGambar();
 }
 
 void loop() {
-  int32_t x, y;
-  if (lcd.getTouch(&x, &y)) {
-    lcd.fillCircle(x, y, 4, TFT_YELLOW);
-    Serial.printf("sentuh x=%d y=%d\n", (int)x, (int)y);
-  }
+  int c = ketikan();
+  if (c == 'k') { kalibrasi(); layarGambar(); }
+  if (c == 'a') { pilihArah(); simpan(); layarGambar(); }
+
+  static bool lalu = false;
+  static int32_t lx, ly;
+  static unsigned long tLalu = 0, tCetak = 0;
+  int32_t x1, y1, x2, y2;
+  bool ada = bacaLayar(x1, y1);
+  if (ada) { delay(4); ada = bacaLayar(x2, y2) && abs(x1 - x2) < 10 && abs(y1 - y2) < 10; }   // dua bacaan harus sepakat
+  if (ada) {
+    int32_t x = (x1 + x2) / 2, y = (y1 + y2) / 2;
+    if (!lalu && x >= lcd.width() - TOMBOL_W && y < TOMBOL_H) { layarGambar(); tungguLepas(); return; }
+    if (lalu && abs(x - lx) < 40 && abs(y - ly) < 40) lcd.drawWideLine(lx, ly, x, y, 2.5f, TFT_YELLOW);
+    else lcd.fillCircle(x, y, 3, TFT_YELLOW);
+    lx = x; ly = y; tLalu = millis(); lalu = true;
+    if (millis() - tCetak > 150) { tCetak = millis(); Serial.printf("sentuh x=%d y=%d\n", (int)x, (int)y); }
+  } else if (millis() - tLalu > 60) lalu = false;
+  delay(5);
 }

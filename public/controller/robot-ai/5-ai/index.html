@@ -116,7 +116,8 @@ void loop() {
     Flash Size       : 16MB (128Mb)
     PSRAM            : OPI PSRAM            &lt;- wajib, tanpa ini audio dan foto gagal
     Partition Scheme : Huge APP (3MB No OTA/1MB SPIFFS)
-    USB CDC On Boot  : Disabled  (colok kabel ke port USB-C bertulisan COM/UART)
+    USB CDC On Boot  : Enabled kalau log upload menulis &quot;USB mode: USB-Serial/JTAG&quot; (port USB bawaan chip),
+                       Disabled kalau menulis &quot;USB mode: UART&quot;
   LIBRARY (Tools &gt; Manage Libraries):
     LovyanGFX (lovyan03), UniversalTelegramBot (Brian Lough), ArduinoJson (Benoit Blanchon)
     ESP32-audioI2S (schreibfaul1) -&gt; tidak ada di Library Manager, pasang dari ZIP GitHub (lihat panduan)

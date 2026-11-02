@@ -4,6 +4,7 @@
 #include <LovyanGFX.hpp>
 #include <SPI.h>
 #include <SD.h>
+#include <Preferences.h>
 
 #define TFT_SCK   12
 #define TFT_MOSI  11
@@ -50,7 +51,10 @@ void setup() {
   Serial.begin(115200);
   delay(1500);   // beri waktu Serial Monitor tersambung
   Serial.println("\n=== TES SD ===");
-  lcd.init(); lcd.setRotation(1); lcd.fillScreen(TFT_BLACK);   // layar dulu, baru SD
+  Preferences pref; pref.begin("robot", false);
+  uint8_t arah = pref.getUChar("rot", 1); pref.end();           // arah layar yang dipilih di tes_layar
+  if (arah > 7) arah = 1;
+  lcd.init(); lcd.setRotation(arah); lcd.fillScreen(TFT_BLACK);   // layar dulu, baru SD
   lcd.setTextColor(TFT_WHITE); lcd.setFont(&fonts::Font2);
   SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI);
   if (!SD.begin(SD_CS, SPI, 20000000)) {

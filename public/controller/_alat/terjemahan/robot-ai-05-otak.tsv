@@ -39,15 +39,12 @@ b431cecf4e08	Upload succeeds but the Serial Monitor is empty: look at the upload
 5e58954cde56	TFT display and touch
 0505b293a7ba	The front of your display: 14 pins on the left, 4 SD holes on the right.
 e6c472440cb3	The back: pin names from T_IRQ (top) to VCC (bottom), full-size SD slot.
-1583a757be32	Pins marked ✕ (SDO(MISO) and T_IRQ) are left without wires.
 c2d0885c1e5c	<b>Why this way?</b> The display, touch and SD share the same three wires (SCK, MOSI, MISO). The ESP32 chooses which one to talk to by pulling that device's CS pin low. That is why every device has its own CS wire.
-05ee924f23a4	The display shows "Layar berhasil!", and after calibration, a yellow dot follows your finger.
 bb6d8f179b52	<span class="py">OK to lock in</span> The wiring layout on breadboard 2 (SPI bus in columns 2, 5, 8 and the display pins). This breadboard goes up to level 3 together with its wires.
 8cc4e3688ae1	<span class="pn">Not yet</span> The display is not bolted down yet. On the robot it lies facing up on 20 mm standoffs, and the wires going to its pins are under the display, so they must already be plugged in before the display is bolted down.
 16ffc0cefcbf	Display is only white: RESET, DC or CS is not connected, or SCK/MOSI are swapped.
 fa528dd0b685	Inverted colors (black becomes white): in the code, change <code>c.invert = false</code> to <code>true</code>. Red and blue swapped: change <code>c.rgb_order</code>.
 119ccbe8fd61	Picture shifted or streaked: the SPI wires are too long. Use 10-20 cm wires, or lower <code>freq_write</code> to 20000000.
-aa7ad3946cd9	Touch does not respond: check T_CS to IO14 and T_DO to column 8.
 bd442d7aadb1	The SD card on the back of the display
 36c37a919771	The Serial Monitor prints the SD size and the file list, and the display shows the file names.
 a6fd5a44491f	<span class="py">OK to lock in</span> The four soldered SD header pins, the FAT32 format and the songs on the card.
@@ -105,3 +102,8 @@ ec7e78e01964	MAX98357A (pin headers and terminal already attached)
 3c13a415d053	F-M and F-F wires
 095cd9e19da0	Pin header + solder
 902490b0f3c7	The body already has robot_badan.ino
+e969a3adba1a	Pins marked ✕ (SDO(MISO) and T_IRQ) are left without wires. The red and blue lines of breadboard 2 are themselves powered by the 3V3 and G pins of the S3 expansion board (step 2).
+25213bf69935	The Serial Monitor prints <code>LULUS: kalibrasi tepat.</code> (calibration passed) and <code>TERSIMPAN</code> (saved). The yellow stroke appears right under the stylus, and tapped dots land inside all five circles.
+750660e81378	Text looks mirrored, or the border is incomplete: in step 2 try all four numbers 1, 3, 5, and 7. If none is complete, take a photo of the screen with its ARAH number visible.
+721e7e90f1f4	Strokes appear somewhere else or slanted: type <code>k</code> and Enter to recalibrate, and press the exact center point of the + mark, not the end of its lines.
+dab866a7d78c	Touch does not respond: test step 3 shows which wire to check. Usually T_CS to IO14 or T_DO to column 8.

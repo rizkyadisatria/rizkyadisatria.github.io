@@ -10,7 +10,8 @@
     Flash Size       : 16MB (128Mb)
     PSRAM            : OPI PSRAM            <- wajib, tanpa ini audio dan foto gagal
     Partition Scheme : Huge APP (3MB No OTA/1MB SPIFFS)
-    USB CDC On Boot  : Disabled  (colok kabel ke port USB-C bertulisan COM/UART)
+    USB CDC On Boot  : Enabled kalau log upload menulis "USB mode: USB-Serial/JTAG" (port USB bawaan chip),
+                       Disabled kalau menulis "USB mode: UART"
   LIBRARY (Tools > Manage Libraries):
     LovyanGFX (lovyan03), UniversalTelegramBot (Brian Lough), ArduinoJson (Benoit Blanchon)
     ESP32-audioI2S (schreibfaul1) -> tidak ada di Library Manager, pasang dari ZIP GitHub (lihat panduan)
@@ -679,16 +680,128 @@ void lihatKameraDiLayar() {                       // ketuk wajah = lihat kamera 
   setStatus("Siap");
 }
 
-void kalibrasiSentuh(bool paksa) {
-  uint16_t cal[8];
-  pref.begin("robot", false);
-  if (!paksa && pref.getBytesLength("cal") == sizeof(cal)) {
-    pref.getBytes("cal", cal, sizeof(cal)); lcd.setTouchCalibrate(cal); pref.end(); return;
+// ---- kalibrasi sentuh: sama dengan tes_layar (5 titik + 1 titik uji, diulang sendiri kalau meleset) ----
+bool sentuhMentah(int32_t &x, int32_t &y) { return lcd.getTouchRaw(&x, &y) > 0; }
+
+void tungguLepasLayar() {
+  int32_t x, y; unsigned long t = millis();
+  while (millis() - t < 200) { if (sentuhMentah(x, y)) t = millis(); delay(10); }
+}
+
+// Tunggu satu tekanan, ambil 15 bacaan, kembalikan nilai tengahnya. false = terlalu singkat atau goyang.
+bool ambilTekanStabil(bool angkaLayar, int32_t &hx, int32_t &hy) {
+  int32_t xs[15], ys[15], x, y; int n = 0, luput = 0;
+  while (!(angkaLayar ? lcd.getTouch(&x, &y) : lcd.getTouchRaw(&x, &y))) delay(5);
+  delay(60);
+  unsigned long t0 = millis();
+  while (n < 15 && millis() - t0 < 2000) {
+    if (angkaLayar ? lcd.getTouch(&x, &y) : lcd.getTouchRaw(&x, &y)) { xs[n] = x; ys[n] = y; n++; luput = 0; }
+    else if (++luput >= 3) break;
+    delay(15);
   }
-  lcd.fillScreen(TFT_BLACK); lcd.setTextColor(TFT_WHITE); lcd.setTextDatum(middle_center); lcd.setFont(&fonts::Font2);
-  lcd.drawString("Kalibrasi: sentuh ujung tiap panah", 160, 110);
-  lcd.calibrateTouch(cal, TFT_WHITE, TFT_BLACK, 15);
-  pref.putBytes("cal", cal, sizeof(cal)); pref.end();
+  tungguLepasLayar();
+  if (n < 8) return false;
+  std::sort(xs, xs + n); std::sort(ys, ys + n);
+  int32_t batas = angkaLayar ? 6 : 60;
+  if (xs[n * 3 / 4] - xs[n / 4] > batas || ys[n * 3 / 4] - ys[n / 4] > batas) return false;
+  hx = xs[n / 2]; hy = ys[n / 2];
+  return true;
+}
+
+void tandaKalibrasi(int x, int y, uint16_t w) {
+  lcd.drawCircle(x, y, 12, w);
+  lcd.drawFastHLine(x - 18, y, 37, w);
+  lcd.drawFastVLine(x, y - 18, 37, w);
+  lcd.fillCircle(x, y, 2, TFT_RED);
+}
+
+void keArah0(float &x, float &y) {          // titik arah sekarang -> titik arah 0 (cara LovyanGFX)
+  uint8_t r = lcd.getRotation();
+  float w = lcd.width(), h = lcd.height();
+  if ((1 << r) & 0b10010110) y = (h - 1) - y;
+  if (r & 2) x = (w - 1) - x;
+  if (r & 1) std::swap(x, y);
+}
+
+bool hitungKalibrasi(const float *mx, const float *my, const float *tx, const float *ty, int n, float *a) {
+  double rx = 0, ry = 0, ax = 0, ay = 0;
+  for (int i = 0; i < n; i++) { rx += mx[i]; ry += my[i]; ax += tx[i]; ay += ty[i]; }
+  rx /= n; ry /= n; ax /= n; ay /= n;
+  double uu = 0, uv = 0, vv = 0, ux = 0, vx = 0, uy = 0, vy = 0;
+  for (int i = 0; i < n; i++) {
+    double u = mx[i] - rx, v = my[i] - ry, X = tx[i] - ax, Y = ty[i] - ay;
+    uu += u * u; uv += u * v; vv += v * v; ux += u * X; vx += v * X; uy += u * Y; vy += v * Y;
+  }
+  double det = uu * vv - uv * uv;
+  if (uu <= 0 || vv <= 0 || det < 0.01 * uu * vv) return false;
+  a[0] = (ux * vv - vx * uv) / det; a[1] = (vx * uu - ux * uv) / det; a[2] = ax - a[0] * rx - a[1] * ry;
+  a[3] = (uy * vv - vy * uv) / det; a[4] = (vy * uu - uy * uv) / det; a[5] = ay - a[3] * rx - a[4] * ry;
+  return true;
+}
+
+void tulisKalibrasi(const char* a, const char* b, uint16_t warna) {
+  lcd.fillScreen(TFT_BLACK); lcd.setTextDatum(middle_center); lcd.setFont(&fonts::Font2);
+  lcd.setTextColor(warna, TFT_BLACK); lcd.drawString(a, lcd.width() / 2, lcd.height() / 2 - 10);
+  lcd.setTextColor(TFT_WHITE, TFT_BLACK); lcd.drawString(b, lcd.width() / 2, lcd.height() / 2 + 12);
+}
+
+void kalibrasiSentuh(bool paksa) {
+  float aff[6];
+  pref.begin("robot", false);
+  if (!paksa && pref.getBytesLength("aff") == sizeof(aff)) {     // hasil tes_layar atau kalibrasi sebelumnya
+    pref.getBytes("aff", aff, sizeof(aff)); lcd.panel()->setCalibrateAffine(aff); pref.end(); return;
+  }
+  int w = lcd.width(), h = lcd.height(), m = 25;
+  const int px[5] = {m, w - 1 - m, w - 1 - m, m, w / 2};
+  const int py[5] = {m, m, h - 1 - m, h - 1 - m, h / 2};
+  float mx[5], my[5], tx[5], ty[5];
+  int32_t x, y;
+  char s[48];
+  while (true) {
+    for (int i = 0; i < 5; i++) {
+      while (true) {
+        lcd.fillScreen(TFT_BLACK); lcd.setTextDatum(middle_center); lcd.setFont(&fonts::Font2); lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+        snprintf(s, sizeof(s), "KALIBRASI titik %d dari 5", i + 1);
+        lcd.drawString(s, w / 2, h / 2 - 50);
+        lcd.drawString("Tekan tepat di tengah tanda +, tahan 1 detik", w / 2, h / 2 + 40);
+        tandaKalibrasi(px[i], py[i], TFT_WHITE);
+        if (ambilTekanStabil(false, x, y)) break;
+        tulisKalibrasi("TEKAN LAGI", "Tahan 1 detik, jangan digeser", TFT_YELLOW); delay(1200);
+      }
+      tandaKalibrasi(px[i], py[i], TFT_GREEN); delay(250);
+      mx[i] = x; my[i] = y;
+      float a = px[i], b = py[i]; keArah0(a, b); tx[i] = a; ty[i] = b;
+    }
+    float x0 = mx[0], x1 = mx[0], y0 = my[0], y1 = my[0];
+    for (int i = 1; i < 5; i++) { x0 = min(x0, mx[i]); x1 = max(x1, mx[i]); y0 = min(y0, my[i]); y1 = max(y1, my[i]); }
+    if (x1 - x0 < 800 || y1 - y0 < 800 || !hitungKalibrasi(mx, my, tx, ty, 5, aff)) {
+      tulisKalibrasi("ULANGI KALIBRASI", "Tekanan tidak terbaca benar. Cek kabel T_", TFT_RED); delay(3000); continue;
+    }
+    float terburuk = 0;
+    for (int i = 0; i < 5; i++) {
+      float ex = aff[0] * mx[i] + aff[1] * my[i] + aff[2] - tx[i];
+      float ey = aff[3] * mx[i] + aff[4] * my[i] + aff[5] - ty[i];
+      terburuk = max(terburuk, sqrtf(ex * ex + ey * ey));
+    }
+    if (terburuk > 12) { tulisKalibrasi("ULANGI KALIBRASI", "Tekan tepat di tengah tanda +", TFT_RED); delay(3000); continue; }
+    lcd.panel()->setCalibrateAffine(aff);
+    int qx = w * 3 / 4, qy = h / 3;                                  // titik uji
+    while (true) {
+      lcd.fillScreen(TFT_BLACK); lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+      lcd.drawString("UJI: tekan tanda + ini", w / 2, h * 2 / 3);
+      tandaKalibrasi(qx, qy, TFT_CYAN);
+      if (ambilTekanStabil(true, x, y)) break;
+      tulisKalibrasi("TEKAN LAGI", "Tahan 1 detik, jangan digeser", TFT_YELLOW); delay(1200);
+    }
+    if (sqrtf((float)(x - qx) * (x - qx) + (float)(y - qy) * (y - qy)) > 15) {
+      tulisKalibrasi("ULANGI KALIBRASI", "Titik uji meleset", TFT_RED); delay(3000); continue;
+    }
+    break;
+  }
+  pref.putBytes("aff", aff, sizeof(aff));
+  if (pref.isKey("cal")) pref.remove("cal");
+  pref.end();
+  Serial.println("Kalibrasi sentuh lulus dan disimpan");
   lcd.fillScreen(TFT_BLACK);
 }
 
@@ -726,8 +839,12 @@ void setup() {
   antrianAudio = xQueueCreate(12, sizeof(PerintahAudio));
   antrianTugas = xQueueCreate(2, sizeof(Tugas));
 
-  lcd.init(); lcd.setRotation(1); lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
-  int32_t tx, ty; bool paksa = lcd.getTouch(&tx, &ty);       // sentuh layar saat menyala = kalibrasi ulang
+  pref.begin("robot", false);
+  uint8_t arah = pref.getUChar("rot", 1);                     // arah layar yang dipilih di tes_layar
+  pref.end();
+  if (arah > 7 || !(arah & 1)) arah = 1;                       // robot memakai layar mendatar (1, 3, 5, 7)
+  lcd.init(); lcd.setRotation(arah); lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
+  int32_t tx, ty; bool paksa = lcd.getTouchRaw(&tx, &ty);    // sentuh layar saat menyala = kalibrasi ulang
   kalibrasiSentuh(paksa);
   wajah.setPsram(true); wajah.setColorDepth(16); wajah.createSprite(320, 186);
   gambarTombol();

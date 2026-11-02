@@ -99,7 +99,6 @@ e9dc2fd7dee2	volume 0, MAX98357A Vin came off, Google TTS refuses
 b7a9f1224973	/volume 15; tes_speaker; the answer is still in Telegram
 c715ec549b19	Touch is off target
 ebca00834498	old calibration
-8da00094525f	touch the screen while the S3 starts to recalibrate
 ba1ef1e61799	BMS gives no power after the fuse blew or a short circuit
 03b808b08cf4	protection is latched
 59ed362b0f7a	remove both cells, wait, reinsert in the order 0V → 4.2V → 8.4V
@@ -128,3 +127,4 @@ f1f9ec8a2504	M3 bolts + nylon standoff kit
 ab07cde6ccbe	26 AWG wire
 3739cd6d2f13	2x2 m of clear space
 b2d90e4fb2c5	Fully charged battery
+62a72cca88e5	keep a finger on the screen while switching on to recalibrate, or run tes_layar again
