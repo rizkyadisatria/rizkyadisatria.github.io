@@ -63,7 +63,7 @@ public:
 
 LGFX lcd;
 Preferences pref;
-uint8_t rotasi = 6;   // arah layar, dipilih di langkah 2 (modul merahmu: 6)
+uint8_t rotasi = 4;   // arah layar, dipilih di langkah 2 (modul merahmu: 4-7 normal, 0-3 tercermin)
 uint8_t geo = 1;      // jenis panel: 1 = 320 x 240 (modul merahmu), 0 = 240 x 320
 uint8_t rgb = 1;      // urutan warna: 1 = RGB (modul merahmu), 0 = BGR
 float aff[6];         // hasil kalibrasi: angka mentah sentuhan -> titik layar
@@ -383,11 +383,11 @@ void setup() {
   pref.begin("robot", false);
   geo = pref.getUChar("geo", 1);      // tersimpan dari tes sebelumnya; awalnya setelan modul merahmu
   rgb = pref.getUChar("rgb", 1);
-  rotasi = pref.getUChar("rot", 6);
+  rotasi = pref.getUChar("rot", 4);
   pref.end();
   if (geo > 1) geo = 1;
   if (rgb > 1) rgb = 1;
-  if (rotasi > 7) rotasi = 6;
+  if (rotasi > 7) rotasi = 4;
   lcd.aturPanel(geo, rgb);
   lcd.init();
   lcd.setBrightness(255);

@@ -63,9 +63,9 @@ void setup() {
   delay(1500);   // beri waktu Serial Monitor tersambung
   Serial.println("\n=== TES SD ===");
   Preferences pref; pref.begin("robot", false);
-  uint8_t arah = pref.getUChar("rot", 6), geo = pref.getUChar("geo", 1), rgb = pref.getUChar("rgb", 1);
+  uint8_t arah = pref.getUChar("rot", 4), geo = pref.getUChar("geo", 1), rgb = pref.getUChar("rgb", 1);
   pref.end();                                                     // pilihan di tes_layar
-  if (arah > 7) arah = 6;
+  if (arah > 7) arah = 4;
   lcd.aturPanel(geo != 0, rgb != 0);
   lcd.init(); lcd.setRotation(arah); lcd.fillScreen(TFT_BLACK);   // layar dulu, baru SD
   lcd.setTextColor(TFT_WHITE); lcd.setFont(&fonts::Font2);
