@@ -7,7 +7,7 @@
    (lihat _alat/langkah.py), jadi tidak perlu ditulis di sini. */
 window.SITE = {
   judul: "Panduan Elektronika",
-  repo: "https://github.com/rizkyadisatria/rizkyadisatria.github.io/tree/master/controller"
+  repo: "https://github.com/rizkyadisatria/rizkyadisatria.github.io/tree/master/public/controller"
 };
 
 window.GUIDES = [
