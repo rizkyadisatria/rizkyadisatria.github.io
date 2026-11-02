@@ -32,13 +32,13 @@ def halaman():
         'Upload kode tes. Serial Monitor 115200.',
         'Ukur blok 3V3 (nomor 2) ke GND: harus sekitar 3,3 V.',
     ], after=table(['Menu Tools', 'Pilihan'], [['Board', 'ESP32S3 Dev Module'], ['Flash Size', '16MB (128Mb)'], ['PSRAM', '<b>OPI PSRAM</b>'],
-                                              ['Partition Scheme', 'Huge APP (3MB No OTA/1MB SPIFFS)'], ['USB CDC On Boot', 'Disabled (port COM). Kalau memakai port USB native: Enabled']],
+                                              ['Partition Scheme', 'Huge APP (3MB No OTA/1MB SPIFFS)'], ['USB CDC On Boot', '<b>Enabled</b> kalau kabel di port USB bawaan chip (log upload menulis <code>USB mode: USB-Serial/JTAG</code>); Disabled kalau di port UART/COM (log menulis <code>USB mode: UART</code>)']],
                    'Salah memilih PSRAM adalah penyebab paling umum kode otak gagal nanti.'),
         figs=photo(IMG + 'esp32s3.jpg', 'ESP32-S3 N16R8 dengan dua port USB-C', 'ESP32-S3 N16R8 milikmu. Dua port USB-C: satu lewat chip USB-serial (COM), satu USB bawaan chip.', 360),
         code=kode_tes('tes_s3'),
         ok_='Muncul <code>Flash: 16 MB</code> dan <code>PSRAM: 8388608 byte</code> (sekitar 8 juta).',
         gagal=['PSRAM 0: menu PSRAM belum OPI PSRAM.', 'Upload gagal "Connecting...": tahan tombol BOOT di S3, tekan RST sekali, lepas BOOT, lalu upload lagi.',
-               'Upload berhasil tapi Serial Monitor kosong: coba port USB-C yang satunya, atau ubah USB CDC On Boot.'])
+               'Upload berhasil tapi Serial Monitor kosong: lihat log upload di tab Output. Kalau tertulis <code>USB mode: USB-Serial/JTAG</code>, kamu memakai port USB bawaan chip: ubah <b>USB CDC On Boot ke Enabled</b>, upload ulang, buka lagi Serial Monitor. Kalau tertulis <code>USB mode: UART</code>, biarkan Disabled. Port yang satunya tidak muncul di komputer: coba kabel data lain, atau pasang driver chip UART-nya.'])
 
     pins_tft = ['VCC', 'GND', 'CS', 'RESET', 'DC', 'SDI(MOSI)', 'SCK', 'LED', 'SDO(MISO) ✕', 'T_CLK', 'T_CS', 'T_DIN', 'T_DO', 'T_IRQ ✕']
     tujuan = [('#grup', 'breadboard 2 (400 lubang)'), 'rel merah (3V3)', 'rel biru (GND)', 'kolom 5 (MOSI)', 'kolom 2 (SCK)', 'kolom 8 (MISO)', ('#grup', 'papan ekspansi S3 (pin S)'), 'IO10', 'IO8', 'IO9', 'IO14']
