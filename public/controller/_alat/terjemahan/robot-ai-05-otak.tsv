@@ -104,6 +104,6 @@ ec7e78e01964	MAX98357A (pin headers and terminal already attached)
 902490b0f3c7	The body already has robot_badan.ino
 e969a3adba1a	Pins marked ✕ (SDO(MISO) and T_IRQ) are left without wires. The red and blue lines of breadboard 2 are themselves powered by the 3V3 and G pins of the S3 expansion board (step 2).
 25213bf69935	The Serial Monitor prints <code>LULUS: kalibrasi tepat.</code> (calibration passed) and <code>TERSIMPAN</code> (saved). The yellow stroke appears right under the stylus, and tapped dots land inside all five circles.
-750660e81378	Text looks mirrored, or the border is incomplete: in step 2 try all four numbers 1, 3, 5, and 7. If none is complete, take a photo of the screen with its ARAH number visible.
+27071f6dd479	Text looks mirrored: in step 2 try another number from 0 to 7. Only part of the screen is drawn (a full color only covers about ¾ of the screen, text is cut off): wrong panel type, type <code>g</code> in step 2.
 721e7e90f1f4	Strokes appear somewhere else or slanted: type <code>k</code> and Enter to recalibrate, and press the exact center point of the + mark, not the end of its lines.
 dab866a7d78c	Touch does not respond: test step 3 shows which wire to check. Usually T_CS to IO14 or T_DO to column 8.

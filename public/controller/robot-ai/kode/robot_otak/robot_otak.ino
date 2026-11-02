@@ -92,6 +92,14 @@ public:
       _touch.config(c); _panel.setTouch(&_touch); }
     setPanel(&_panel);
   }
+  // Jenis panel. Modul merahmu ternyata panel MENDATAR asli (320 x 240): dengan setelan 240 x 320
+  // hanya 240 x 240 piksel yang tergambar. lebar320 = true untuk modul seperti itu.
+  void aturGeometri(bool lebar320) {
+    auto c = _panel.config();
+    c.panel_width  = c.memory_width  = lebar320 ? 320 : 240;
+    c.panel_height = c.memory_height = lebar320 ? 240 : 320;
+    _panel.config(c);
+  }
 };
 
 LGFX lcd;
@@ -840,10 +848,12 @@ void setup() {
   antrianTugas = xQueueCreate(2, sizeof(Tugas));
 
   pref.begin("robot", false);
-  uint8_t arah = pref.getUChar("rot", 1);                     // arah layar yang dipilih di tes_layar
+  uint8_t arah = pref.getUChar("rot", 0), geo = pref.getUChar("geo", 1);   // pilihan di tes_layar
   pref.end();
-  if (arah > 7 || !(arah & 1)) arah = 1;                       // robot memakai layar mendatar (1, 3, 5, 7)
-  lcd.init(); lcd.setRotation(arah); lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
+  lcd.aturGeometri(geo != 0);
+  lcd.init(); lcd.setRotation(arah > 7 ? 0 : arah);
+  if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 0 : 1);   // robot memakai layar mendatar 320 x 240
+  lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
   int32_t tx, ty; bool paksa = lcd.getTouchRaw(&tx, &ty);    // sentuh layar saat menyala = kalibrasi ulang
   kalibrasiSentuh(paksa);
   wajah.setPsram(true); wajah.setColorDepth(16); wajah.createSprite(320, 186);

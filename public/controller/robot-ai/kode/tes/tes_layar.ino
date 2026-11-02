@@ -48,11 +48,20 @@ public:
       _touch.config(c); _panel.setTouch(&_touch); }
     setPanel(&_panel);
   }
+  // Jenis panel. Modul merahmu ternyata panel MENDATAR asli (320 x 240): dengan setelan 240 x 320
+  // hanya 240 x 240 piksel yang tergambar. lebar320 = true untuk modul seperti itu.
+  void aturGeometri(bool lebar320) {
+    auto c = _panel.config();
+    c.panel_width  = c.memory_width  = lebar320 ? 320 : 240;
+    c.panel_height = c.memory_height = lebar320 ? 240 : 320;
+    _panel.config(c);
+  }
 };
 
 LGFX lcd;
 Preferences pref;
-uint8_t rotasi = 1;   // arah layar, dipilih di langkah 2
+uint8_t rotasi = 0;   // arah layar, dipilih di langkah 2
+uint8_t geo = 1;      // jenis panel: 1 = 320 x 240 (modul merahmu), 0 = 240 x 320
 float aff[6];         // hasil kalibrasi: angka mentah sentuhan -> titik layar
 
 // ---------------- bantuan ----------------
@@ -114,6 +123,7 @@ void tanda(int x, int y, uint16_t w) {   // tanda + yang harus ditekan
 void simpan() {
   pref.begin("robot", false);
   pref.putUChar("rot", rotasi);
+  pref.putUChar("geo", geo);
   pref.putBytes("aff", aff, sizeof(aff));
   if (pref.isKey("cal")) pref.remove("cal");   // kalibrasi cara lama, tidak dipakai lagi
   pref.end();
@@ -157,8 +167,10 @@ void gambarArah() {
   snprintf(s, sizeof(s), "%d x %d", w, h);   lcd.drawString(s, w / 2, h / 2 + 2);
   lcd.setFont(&fonts::Font2); lcd.setTextColor(TFT_CYAN, TFT_BLACK);
   lcd.drawString(w > h ? "mendatar" : "tegak (bukan untuk robot)", w / 2, h / 2 + 28);
-  lcd.drawString("Pilih di Serial Monitor", w / 2, h / 2 + 48);
-  Serial.printf("  Sekarang ARAH %d (%d x %d, %s)\n", rotasi, w, h, w > h ? "mendatar" : "tegak");
+  lcd.drawString(geo ? "panel 320 x 240" : "panel 240 x 320", w / 2, h / 2 + 48);
+  lcd.drawString("Pilih di Serial Monitor", w / 2, h / 2 + 68);
+  Serial.printf("  Sekarang ARAH %d (%d x %d, %s), panel %s\n", rotasi, w, h, w > h ? "mendatar" : "tegak",
+                geo ? "320 x 240" : "240 x 320");
 }
 
 void petunjukArah() {
@@ -167,7 +179,9 @@ void petunjukArah() {
   Serial.println("  a. tulisan terbaca biasa, bukan seperti bayangan di cermin,");
   Serial.println("  b. garis putih utuh di keempat tepi layar,");
   Serial.println("  c. KIRI ATAS ada di pojok kiri atas, panah hijau menunjuk ke atas.");
-  Serial.println("Ketik 1, 3, 5, atau 7 lalu Enter untuk mencoba arah lain.");
+  Serial.println("Ketik angka 0 sampai 7 lalu Enter untuk mencoba arah lain.");
+  Serial.println("Kalau di SEMUA angka garis tepinya tidak utuh (sebagian layar tidak terhapus),");
+  Serial.println("ketik g lalu Enter untuk ganti jenis panel, lalu coba lagi angkanya.");
   Serial.println("Kalau sudah benar, ketik y lalu Enter.");
 }
 
@@ -177,14 +191,15 @@ void pilihArah() {
   while (true) {
     int c = ketikan();
     if (c >= '0' && c <= '7') { rotasi = c - '0'; gambarArah(); }
+    else if (c == 'g' || c == 'G') { geo ^= 1; lcd.aturGeometri(geo); gambarArah(); }
     else if (c == 'y' || c == 'Y') {
       if (lcd.width() > lcd.height()) break;
-      Serial.println("  Arah ini tegak. Robot memakai layar mendatar: pilih 1, 3, 5, atau 7.");
+      Serial.println("  Arah ini tegak. Robot memakai layar mendatar: pilih angka yang menulis mendatar.");
     }
     else if (c != -1) petunjukArah();
     delay(20);
   }
-  Serial.printf("  Arah %d dipilih.\n", rotasi);
+  Serial.printf("  Arah %d dipilih, panel %s.\n", rotasi, geo ? "320 x 240" : "240 x 320");
 }
 
 // ---------------- langkah 3: kabel sentuh ----------------
@@ -349,12 +364,15 @@ void setup() {
   Serial.begin(115200);
   delay(1500);   // beri waktu Serial Monitor tersambung
   Serial.println("\n=== TES LAYAR + SENTUHAN ===");
+  pref.begin("robot", false);
+  geo = pref.getUChar("geo", 1);      // tersimpan dari tes sebelumnya; awalnya panel 320 x 240
+  rotasi = pref.getUChar("rot", 0);
+  pref.end();
+  if (geo > 1) geo = 1;
+  if (rotasi > 7) rotasi = 0;
+  lcd.aturGeometri(geo);
   lcd.init();
   lcd.setBrightness(255);
-  pref.begin("robot", false);
-  rotasi = pref.getUChar("rot", 1);   // arah tersimpan dari tes sebelumnya, awalnya 1
-  pref.end();
-  if (rotasi > 7) rotasi = 1;
   lcd.setRotation(rotasi);
 
   tesWarna();
@@ -365,14 +383,19 @@ void setup() {
   Serial.println("\nLANGKAH 5: GAMBAR");
   Serial.println("Coret layar: garis kuning harus muncul tepat di bawah stylus.");
   Serial.println("Ketuk 5 lingkaran abu-abu: titik kuning harus jatuh di dalamnya.");
-  Serial.println("Ketik k = kalibrasi ulang, a = ganti arah (kalibrasi tidak perlu diulang).");
+  Serial.println("Ketik k = kalibrasi ulang, a = ganti arah (kalibrasi tidak perlu diulang kecuali jenis panel diganti).");
   layarGambar();
 }
 
 void loop() {
   int c = ketikan();
   if (c == 'k') { kalibrasi(); layarGambar(); }
-  if (c == 'a') { pilihArah(); simpan(); layarGambar(); }
+  if (c == 'a') {
+    uint8_t g0 = geo;
+    pilihArah();
+    if (geo != g0) kalibrasi(); else simpan();   // jenis panel berubah = kalibrasi harus diulang
+    layarGambar();
+  }
 
   static bool lalu = false;
   static int32_t lx, ly;

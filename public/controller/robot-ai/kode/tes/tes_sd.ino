@@ -41,6 +41,14 @@ public:
       _touch.config(c); _panel.setTouch(&_touch); }
     setPanel(&_panel);
   }
+  // Jenis panel. Modul merahmu ternyata panel MENDATAR asli (320 x 240): dengan setelan 240 x 320
+  // hanya 240 x 240 piksel yang tergambar. lebar320 = true untuk modul seperti itu.
+  void aturGeometri(bool lebar320) {
+    auto c = _panel.config();
+    c.panel_width  = c.memory_width  = lebar320 ? 320 : 240;
+    c.panel_height = c.memory_height = lebar320 ? 240 : 320;
+    _panel.config(c);
+  }
 };
 
 LGFX lcd;
@@ -52,8 +60,9 @@ void setup() {
   delay(1500);   // beri waktu Serial Monitor tersambung
   Serial.println("\n=== TES SD ===");
   Preferences pref; pref.begin("robot", false);
-  uint8_t arah = pref.getUChar("rot", 1); pref.end();           // arah layar yang dipilih di tes_layar
-  if (arah > 7) arah = 1;
+  uint8_t arah = pref.getUChar("rot", 0), geo = pref.getUChar("geo", 1); pref.end();   // pilihan di tes_layar
+  if (arah > 7) arah = 0;
+  lcd.aturGeometri(geo != 0);
   lcd.init(); lcd.setRotation(arah); lcd.fillScreen(TFT_BLACK);   // layar dulu, baru SD
   lcd.setTextColor(TFT_WHITE); lcd.setFont(&fonts::Font2);
   SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI);
