@@ -94,10 +94,13 @@ public:
   }
   // Jenis panel. Modul merahmu ternyata panel MENDATAR asli (320 x 240): dengan setelan 240 x 320
   // hanya 240 x 240 piksel yang tergambar. lebar320 = true untuk modul seperti itu.
-  void aturGeometri(bool lebar320) {
+  // rgb = urutan warna; modul merahmu butuh true (kalau false, merah dan biru tertukar).
+  // Berlaku setelah setRotation() berikutnya.
+  void aturPanel(bool lebar320, bool rgb) {
     auto c = _panel.config();
     c.panel_width  = c.memory_width  = lebar320 ? 320 : 240;
     c.panel_height = c.memory_height = lebar320 ? 240 : 320;
+    c.rgb_order = rgb;
     _panel.config(c);
   }
 };
@@ -848,11 +851,11 @@ void setup() {
   antrianTugas = xQueueCreate(2, sizeof(Tugas));
 
   pref.begin("robot", false);
-  uint8_t arah = pref.getUChar("rot", 0), geo = pref.getUChar("geo", 1);   // pilihan di tes_layar
+  uint8_t arah = pref.getUChar("rot", 6), geo = pref.getUChar("geo", 1), rgb = pref.getUChar("rgb", 1);   // pilihan di tes_layar
   pref.end();
-  lcd.aturGeometri(geo != 0);
-  lcd.init(); lcd.setRotation(arah > 7 ? 0 : arah);
-  if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 0 : 1);   // robot memakai layar mendatar 320 x 240
+  lcd.aturPanel(geo != 0, rgb != 0);
+  lcd.init(); lcd.setRotation(arah > 7 ? 6 : arah);
+  if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 6 : 1);   // robot memakai layar mendatar 320 x 240
   lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
   int32_t tx, ty; bool paksa = lcd.getTouchRaw(&tx, &ty);    // sentuh layar saat menyala = kalibrasi ulang
   kalibrasiSentuh(paksa);

@@ -43,7 +43,7 @@ c2d0885c1e5c	<b>Why this way?</b> The display, touch and SD share the same three
 bb6d8f179b52	<span class="py">OK to lock in</span> The wiring layout on breadboard 2 (SPI bus in columns 2, 5, 8 and the display pins). This breadboard goes up to level 3 together with its wires.
 8cc4e3688ae1	<span class="pn">Not yet</span> The display is not bolted down yet. On the robot it lies facing up on 20 mm standoffs, and the wires going to its pins are under the display, so they must already be plugged in before the display is bolted down.
 16ffc0cefcbf	Display is only white: RESET, DC or CS is not connected, or SCK/MOSI are swapped.
-fa528dd0b685	Inverted colors (black becomes white): in the code, change <code>c.invert = false</code> to <code>true</code>. Red and blue swapped: change <code>c.rgb_order</code>.
+2be17d4fcf78	Inverted colors (black becomes white): in the code, change <code>c.invert = false</code> to <code>true</code>. Red and blue swapped: type <code>w</code> in step 2.
 119ccbe8fd61	Picture shifted or streaked: the SPI wires are too long. Use 10-20 cm wires, or lower <code>freq_write</code> to 20000000.
 bd442d7aadb1	The SD card on the back of the display
 36c37a919771	The Serial Monitor prints the SD size and the file list, and the display shows the file names.
