@@ -71,7 +71,7 @@ const int KEPALA_H = 26;
 const int BARIS_Y = 28, BARIS_H = 30, BARIS_N = 5;      // 5 baris lagu terlihat
 const int DAFTAR_W = 262;                               // lebar daftar; di kanannya tombol geser
 const int NAMA_Y = 181, BAR_Y = 200, BAR_H = 6;
-const int TOMBOL_Y = 210, TOMBOL_H = 28, TOMBOL_W = 64;
+const int TOMBOL_Y = 208, TOMBOL_H = 32, TOMBOL_W = 64;
 #define RGB565(r, g, b) ((uint16_t)((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3)))
 const uint16_t C_KEPALA = RGB565(0, 40, 110), C_BARIS = RGB565(32, 32, 36), C_MAIN = RGB565(0, 110, 50);
 const uint16_t C_TOMBOL = RGB565(50, 60, 90), C_BAR = RGB565(60, 60, 60), C_ISI = RGB565(0, 220, 90);
@@ -206,7 +206,7 @@ bool aksiSentuh(int x, int y) {
     else geser(BARIS_N);
     return false;
   }
-  if (y >= TOMBOL_Y) {
+  if (y >= TOMBOL_Y - 4) {                              // zona tombol sedikit lebih tinggi dari gambarnya
     switch (constrain(x / TOMBOL_W, 0, 4)) {
       case 0: putar(now - 1); break;
       case 1: jedaLanjut(); break;
@@ -218,18 +218,27 @@ bool aksiSentuh(int x, int y) {
   return false;
 }
 
+void titikSentuh(bool nyala) {            // titik kuning di header: tanda bahwa sentuhan terbaca
+  static bool lalu = false;
+  if (nyala == lalu) return;
+  lalu = nyala;
+  lcd.fillCircle(W / 2, KEPALA_H / 2, 6, nyala ? TFT_YELLOW : C_KEPALA);
+}
+
 void tanganiSentuh() {
   static bool tekan = false, ulang = false;
   static unsigned long tTekan = 0, tUlang = 0, tLepas = 0;
-  int32_t x1, y1, x2, y2;
-  bool ada = lcd.getTouch(&x1, &y1) > 0;
-  if (ada) { delay(3); ada = lcd.getTouch(&x2, &y2) > 0 && abs(x1 - x2) < 10 && abs(y1 - y2) < 10; }   // dua bacaan harus sepakat
+  int32_t x, y;
+  bool ada = lcd.getTouch(&x, &y) > 0;                // LovyanGFX sudah mengambil nilai tengah dari 7 bacaan
   if (ada) {
     tLepas = millis();
-    int x = (x1 + x2) / 2, y = (y1 + y2) / 2;
-    if (!tekan) { tekan = true; tTekan = tUlang = millis(); ulang = aksiSentuh(x, y); }
-    else if (ulang && millis() - tTekan > 400 && millis() - tUlang > 150) { tUlang = millis(); aksiSentuh(x, y); }
-  } else if (tekan && millis() - tLepas > 60) tekan = false;     // jari sudah diangkat
+    titikSentuh(true);
+    if (!tekan) {
+      tekan = true; tTekan = tUlang = millis();
+      Serial.printf("sentuh x=%d y=%d\n", (int)x, (int)y);
+      ulang = aksiSentuh(x, y);
+    } else if (ulang && millis() - tTekan > 400 && millis() - tUlang > 150) { tUlang = millis(); aksiSentuh(x, y); }
+  } else if (tekan && millis() - tLepas > 150) { tekan = false; titikSentuh(false); }   // 0,15 detik tanpa sentuhan = jari diangkat
 }
 
 void setup() {
@@ -291,7 +300,7 @@ void loop() {
 
   static unsigned long tWaktu = 0, tSentuh = 0;
   if (millis() - tWaktu > 1000) { tWaktu = millis(); gambarWaktu(); }
-  if (millis() - tSentuh >= 25) { tSentuh = millis(); tanganiSentuh(); }
+  if (millis() - tSentuh >= 10) { tSentuh = millis(); tanganiSentuh(); }
 
   while (Serial.available()) {
     int c = Serial.read();
