@@ -226,6 +226,15 @@ void titikSentuh(bool nyala) {            // titik kuning di header: tanda bahwa
 }
 
 void tanganiSentuh() {
+  static unsigned long tPanggil = 0, tCetak = 0, terlama = 0;   // ukur: seberapa jarang sentuhan dicek
+  unsigned long kini = millis();
+  if (tPanggil && kini - tPanggil > terlama) terlama = kini - tPanggil;
+  tPanggil = kini;
+  if (kini - tCetak > 5000) {
+    tCetak = kini;
+    if (terlama > 60) Serial.printf("info: jeda terpanjang antar cek sentuh %lu ms (ketukan lebih singkat dari ini bisa terlewat)\n", terlama);
+    terlama = 0;
+  }
   static bool tekan = false, ulang = false;
   static unsigned long tTekan = 0, tUlang = 0, tLepas = 0;
   int32_t x, y;
@@ -300,7 +309,7 @@ void loop() {
 
   static unsigned long tWaktu = 0, tSentuh = 0;
   if (millis() - tWaktu > 1000) { tWaktu = millis(); gambarWaktu(); }
-  if (millis() - tSentuh >= 10) { tSentuh = millis(); tanganiSentuh(); }
+  if (millis() - tSentuh >= 4) { tSentuh = millis(); tanganiSentuh(); }
 
   while (Serial.available()) {
     int c = Serial.read();
