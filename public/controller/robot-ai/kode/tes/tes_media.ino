@@ -32,7 +32,7 @@
 // ILI9341 kalau kita pilih panel ILI9341, dan itu membuat warna pucat. Panel ini mengirim pengaturan ILI9342C.
 // ic = true: pengaturan ILI9342C, ic = false: pengaturan ILI9341 asli. Arah layar dan sentuhan tidak berubah.
 struct PanelKu : public lgfx::Panel_ILI9341 {
-  bool ic = true;
+  bool ic = true, fh = true, fv = false;   // ic: chip ILI9342C; fh/fv: balik layar kiri-kanan / atas-bawah
 protected:
   const uint8_t* getInitCommands(uint8_t listno) const override {
     if (!ic) return lgfx::Panel_ILI9341::getInitCommands(listno);
@@ -53,14 +53,13 @@ protected:
     };
     return listno == 0 ? list0 : nullptr;
   }
-  // Chip ILI9342C membaca perintah arah dengan kiri-kanan terbalik dan merah-biru tertukar dibanding ILI9341.
-  // Di sini keduanya dibalik lagi, jadi nomor arah (rotasi) dan sentuhan tetap sama seperti dengan ILI9341.
+  // Pembalikan arah dan urutan warna diatur di sini, supaya nomor arah (rotasi) dan sentuhan tidak ikut berubah.
   void update_madctl(void) override {
-    if (!ic) { lgfx::Panel_ILI9341::update_madctl(); return; }
     if (_bus == nullptr) return;
     uint8_t m = getMadCtl(_internal_rotation);
-    m ^= (m & MAD_MV) ? (MAD_MY | MAD_ML) : (MAD_MX | MAD_MH);   // balik kiri-kanan layar
-    m |= _cfg.rgb_order ? MAD_BGR : MAD_RGB;                     // urutan warna kebalikan dari ILI9341
+    if (fh) m ^= (m & MAD_MV) ? (MAD_MY | MAD_ML) : (MAD_MX | MAD_MH);   // balik kiri-kanan layar
+    if (fv) m ^= (m & MAD_MV) ? (MAD_MX | MAD_MH) : (MAD_MY | MAD_ML);   // balik atas-bawah layar
+    m |= (_cfg.rgb_order == ic) ? MAD_BGR : MAD_RGB;                     // ILI9342C: urutan warna kebalikan dari ILI9341
     startWrite();
     write_command(CMD_COLMOD); writeData(getColMod(_write_bits), 1);
     write_command(CMD_MADCTL); writeData(m, 1);
@@ -95,7 +94,8 @@ public:
       _touch.config(c); _panel.setTouch(&_touch); }
     setPanel(&_panel);
   }
-  void pakaiIC(bool v) { _panel.ic = v; }
+  void pakaiLayar(bool ic, bool fh, bool fv) { _panel.ic = ic; _panel.fh = fh; _panel.fv = fv; }
+  void balikInvert(bool v) { auto c = _panel.config(); c.invert = v; _panel.config(c); }
   // lebar320 = true untuk panel mendatar 320 x 240 (modul merahmu). rgb = urutan warna.
   void aturPanel(bool lebar320, bool rgb) {
     auto c = _panel.config();
@@ -479,11 +479,14 @@ void titikSentuh(bool nyala) {            // titik kuning di header: tanda bahwa
   lcd.fillCircle(W / 2, KEPALA_H / 2, 6, nyala ? TFT_YELLOW : C_KEPALA);
 }
 
+bool tFlipX = false, tFlipY = false;
+
 void tanganiSentuh() {
   static bool tekan = false, ulang = false;
   static unsigned long tTekan = 0, tUlang = 0, tLepas = 0;
   int32_t x, y;
   bool ada = lcd.getTouch(&x, &y) > 0;                // LovyanGFX sudah mengambil nilai tengah dari 7 bacaan
+  if (ada) { if (tFlipX) x = W - 1 - x; if (tFlipY) y = H - 1 - y; }
   if (ada) {
     tLepas = millis();
     titikSentuh(true);
@@ -520,13 +523,16 @@ void layarUji() {
     lcd.fillRect(8 + k * 4, 166, 4, 18, lcd.color565(0, v, 0));
     lcd.fillRect(8 + k * 4, 186, 4, 18, lcd.color565(0, 0, v));
   }
-  lcd.setCursor(8, 212); lcd.print("Serial: c = tukar chip, i = invert, m = menu");
+  lcd.setCursor(8, 212); lcd.print("h/v balik layar  w merah-biru  i negatif  x/y sentuh  c chip");
 }
 
 void setup() {
   Serial.begin(115200);
   delay(1500);   // beri waktu Serial Monitor tersambung
   Serial.println("\n=== TES MEDIA ===");
+  Serial.println("Kalau layar atau sentuhan masih terbalik, ketik di Serial Monitor (tiap tombol membalik satu hal, disimpan, layar mulai ulang):");
+  Serial.println("  h = balik layar kiri-kanan   v = balik layar atas-bawah   w = tukar merah-biru   i = warna negatif");
+  Serial.println("  x = balik sentuhan kiri-kanan   y = balik sentuhan atas-bawah   c = ganti chip ILI9342C/ILI9341   t = layar uji warna");
 
   // layar: arah, jenis panel, dan kalibrasi sentuh dari tes_layar
   Preferences pref; pref.begin("robot", false);
@@ -534,9 +540,13 @@ void setup() {
   float aff[6]; bool adaKal = pref.getBytesLength("aff") == sizeof(aff);
   if (adaKal) pref.getBytes("aff", aff, sizeof(aff));
   bool icSimpan = pref.getUChar("ic", 1) != 0;       // 1 = pengaturan ILI9342C (bawaan), 0 = ILI9341
+  bool fhSimpan = pref.getUChar("fh", icSimpan ? 1 : 0) != 0, fvSimpan = pref.getUChar("fv", 0) != 0;   // balik layar kiri-kanan / atas-bawah
+  bool invSimpan = pref.getUChar("inv", 0) != 0;                                                     // warna terbalik (negatif)
+  tFlipX = pref.getUChar("tfx", 0) != 0; tFlipY = pref.getUChar("tfy", 0) != 0;                      // balik arah sentuhan
   pref.end();
   lcd.aturPanel(geo != 0, rgb != 0);
-  lcd.pakaiIC(icSimpan);
+  lcd.pakaiLayar(icSimpan, fhSimpan, fvSimpan);
+  lcd.balikInvert(invSimpan);
   lcd.init(); lcd.setRotation(arah > 7 ? 4 : arah);
   if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 4 : 1);    // program ini untuk layar mendatar 320 x 240
   lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
@@ -595,14 +605,20 @@ void loop() {
     else if (c == '-') ubahVolume(-2);
     else if (c == 'l') daftar();
     else if (c == 't') layarUji();
-    else if (c == 'c') {                                  // tukar jenis chip lalu mulai ulang
+    else if (c == 'c' || c == 'h' || c == 'v' || c == 'i' || c == 'w' || c == 'x' || c == 'y') {
+      // pengaturan layar: tiap tombol membalik satu hal, disimpan, lalu layar mulai ulang
       Preferences pr; pr.begin("robot", false);
-      uint8_t baru = pr.getUChar("ic", 1) ? 0 : 1; pr.putUChar("ic", baru); pr.end();
-      Serial.printf("Pengaturan layar: %s. Mulai ulang...\n", baru ? "ILI9342C" : "ILI9341"); delay(300); ESP.restart();
-    }
-    else if (c == 'i') {
-      static bool terbalik = false; terbalik = !terbalik; lcd.invertDisplay(terbalik);
-      Serial.printf("invert layar: %s\n", terbalik ? "AKTIF" : "mati");
+      bool ic = pr.getUChar("ic", 1) != 0;
+      if (c == 'c') { ic = !ic; pr.putUChar("ic", ic); pr.putUChar("fh", ic ? 1 : 0); pr.putUChar("fv", 0); pr.putUChar("rgb", 1);
+                      Serial.printf("chip: %s (arah dan warna kembali ke bawaan chip itu)\n", ic ? "ILI9342C" : "ILI9341"); }
+      else {
+        const char* kunci = c == 'h' ? "fh" : c == 'v' ? "fv" : c == 'i' ? "inv" : c == 'w' ? "rgb" : c == 'x' ? "tfx" : "tfy";
+        uint8_t awal = c == 'h' ? (ic ? 1 : 0) : c == 'w' ? 1 : 0;
+        uint8_t baru = pr.getUChar(kunci, awal) ? 0 : 1; pr.putUChar(kunci, baru);
+        Serial.printf("%s: %s\n", c == 'h' ? "balik kiri-kanan layar" : c == 'v' ? "balik atas-bawah layar" : c == 'i' ? "warna negatif (invert)" :
+                      c == 'w' ? "tukar merah-biru" : c == 'x' ? "balik sentuhan kiri-kanan" : "balik sentuhan atas-bawah", baru ? "AKTIF" : "mati");
+      }
+      pr.end(); Serial.println("Mulai ulang..."); delay(300); ESP.restart();
     }
   }
 }
