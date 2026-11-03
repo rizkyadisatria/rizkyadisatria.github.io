@@ -53,6 +53,20 @@ protected:
     };
     return listno == 0 ? list0 : nullptr;
   }
+  // Chip ILI9342C membaca perintah arah dengan kiri-kanan terbalik dan merah-biru tertukar dibanding ILI9341.
+  // Di sini keduanya dibalik lagi, jadi nomor arah (rotasi) dan sentuhan tetap sama seperti dengan ILI9341.
+  void update_madctl(void) override {
+    if (!ic) { lgfx::Panel_ILI9341::update_madctl(); return; }
+    if (_bus == nullptr) return;
+    uint8_t m = getMadCtl(_internal_rotation);
+    m ^= (m & MAD_MV) ? (MAD_MY | MAD_ML) : (MAD_MX | MAD_MH);   // balik kiri-kanan layar
+    m |= _cfg.rgb_order ? MAD_BGR : MAD_RGB;                     // urutan warna kebalikan dari ILI9341
+    startWrite();
+    write_command(CMD_COLMOD); writeData(getColMod(_write_bits), 1);
+    write_command(CMD_MADCTL); writeData(m, 1);
+    _bus->flush();
+    endWrite();
+  }
 };
 
 class LGFX : public lgfx::LGFX_Device {
