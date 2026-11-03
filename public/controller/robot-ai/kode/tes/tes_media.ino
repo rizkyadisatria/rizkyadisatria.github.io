@@ -28,8 +28,35 @@
 #define AMP_LRC    5
 #define AMP_DIN    7
 
+// Modul merah 320 x 240 biasanya memakai chip ILI9342C. Library mengirim pengaturan daya dan gamma
+// ILI9341 kalau kita pilih panel ILI9341, dan itu membuat warna pucat. Panel ini mengirim pengaturan ILI9342C.
+// ic = true: pengaturan ILI9342C, ic = false: pengaturan ILI9341 asli. Arah layar dan sentuhan tidak berubah.
+struct PanelKu : public lgfx::Panel_ILI9341 {
+  bool ic = true;
+protected:
+  const uint8_t* getInitCommands(uint8_t listno) const override {
+    if (!ic) return lgfx::Panel_ILI9341::getInitCommands(listno);
+    static constexpr uint8_t list0[] = {
+      0xC8, 3, 0xFF,0x93,0x42,
+      0xC0, 2, 0x12,0x12,
+      0xC1, 1, 0x03,
+      0xC5, 1, 0xF2,
+      0xB0, 1, 0xE0,
+      0xF6, 3, 0x01,0x00,0x00,
+      0xE0,15, 0x00,0x0C,0x11,0x04,0x11,0x08,0x37,0x89,0x4C,0x06,0x0C,0x0A,0x2E,0x34,0x0F,
+      0xE1,15, 0x00,0x0B,0x11,0x05,0x13,0x09,0x33,0x67,0x48,0x07,0x0E,0x0B,0x2E,0x33,0x0F,
+      0xB6, 4, 0x08,0x82,0x1D,0x04,
+      0x38, 0,
+      0x29, 0,
+      0x11, 0 + CMD_INIT_DELAY, 120,
+      0xFF,0xFF,
+    };
+    return listno == 0 ? list0 : nullptr;
+  }
+};
+
 class LGFX : public lgfx::LGFX_Device {
-  lgfx::Panel_ILI9341 _panel;
+  PanelKu _panel;
   lgfx::Bus_SPI _bus;
   lgfx::Touch_XPT2046 _touch;
 public:
@@ -54,6 +81,7 @@ public:
       _touch.config(c); _panel.setTouch(&_touch); }
     setPanel(&_panel);
   }
+  void pakaiIC(bool v) { _panel.ic = v; }
   // lebar320 = true untuk panel mendatar 320 x 240 (modul merahmu). rgb = urutan warna.
   void aturPanel(bool lebar320, bool rgb) {
     auto c = _panel.config();
@@ -478,7 +506,7 @@ void layarUji() {
     lcd.fillRect(8 + k * 4, 166, 4, 18, lcd.color565(0, v, 0));
     lcd.fillRect(8 + k * 4, 186, 4, 18, lcd.color565(0, 0, v));
   }
-  lcd.setCursor(8, 212); lcd.print("Serial: i = balik invert, m = menu");
+  lcd.setCursor(8, 212); lcd.print("Serial: c = tukar chip, i = invert, m = menu");
 }
 
 void setup() {
@@ -491,8 +519,10 @@ void setup() {
   uint8_t arah = pref.getUChar("rot", 4), geo = pref.getUChar("geo", 1), rgb = pref.getUChar("rgb", 1);
   float aff[6]; bool adaKal = pref.getBytesLength("aff") == sizeof(aff);
   if (adaKal) pref.getBytes("aff", aff, sizeof(aff));
+  bool icSimpan = pref.getUChar("ic", 1) != 0;       // 1 = pengaturan ILI9342C (bawaan), 0 = ILI9341
   pref.end();
   lcd.aturPanel(geo != 0, rgb != 0);
+  lcd.pakaiIC(icSimpan);
   lcd.init(); lcd.setRotation(arah > 7 ? 4 : arah);
   if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 4 : 1);    // program ini untuk layar mendatar 320 x 240
   lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
@@ -551,6 +581,11 @@ void loop() {
     else if (c == '-') ubahVolume(-2);
     else if (c == 'l') daftar();
     else if (c == 't') layarUji();
+    else if (c == 'c') {                                  // tukar jenis chip lalu mulai ulang
+      Preferences pr; pr.begin("robot", false);
+      uint8_t baru = pr.getUChar("ic", 1) ? 0 : 1; pr.putUChar("ic", baru); pr.end();
+      Serial.printf("Pengaturan layar: %s. Mulai ulang...\n", baru ? "ILI9342C" : "ILI9341"); delay(300); ESP.restart();
+    }
     else if (c == 'i') {
       static bool terbalik = false; terbalik = !terbalik; lcd.invertDisplay(terbalik);
       Serial.printf("invert layar: %s\n", terbalik ? "AKTIF" : "mati");
