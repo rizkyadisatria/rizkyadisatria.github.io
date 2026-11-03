@@ -1,6 +1,6 @@
 // TES MUSIK: memutar lagu dari SD card lewat MAX98357A dan speaker.
 // Library: ESP32-audioI2S (schreibfaul1), pasang dari ZIP GitHub seperti di panduan.
-// Siapkan: SD card FAT32 berisi file .mp3 atau .wav di folder utama (nama pendek tanpa spasi, mis. lagu1.mp3).
+// Siapkan: SD card FAT32 berisi file .mp3, .wav, atau .flac di folder utama (nama pendek tanpa spasi, mis. lagu1.mp3).
 // Perintah di Serial Monitor (115200), ketik huruf lalu Enter:
 //   n = lagu berikutnya   b = lagu sebelumnya   p = jeda / lanjut
 //   + = volume naik       - = volume turun      l = daftar lagu
@@ -28,7 +28,7 @@ bool siap = false, jeda = false;
 bool lagunya(const String& n) {           // true kalau nama file seperti lagu
   String k = n; k.toLowerCase();
   if (n.startsWith(".") || n.startsWith("_")) return false;                  // file sampah dari Mac/Windows
-  return k.endsWith(".mp3") || k.endsWith(".wav");
+  return k.endsWith(".mp3") || k.endsWith(".wav") || k.endsWith(".flac");
 }
 
 void daftar() {
@@ -44,7 +44,7 @@ void putar(int i) {
   if (audio.connecttoFS(SD, ("/" + lagu[now]).c_str())) {
     gagalBeruntun = 0;
   } else {
-    Serial.println("  GAGAL membuka file ini. Coba format lain (mp3 128 kbps paling aman), atau salin ulang filenya.");
+    Serial.println("  GAGAL membuka file ini. FLAC hi-res (di atas 48 kHz atau 24 bit) sering terlalu berat: ubah ke mp3 atau FLAC 16 bit 44,1 kHz. Atau salin ulang filenya.");
     gagalBeruntun++;
   }
 }
@@ -71,7 +71,7 @@ void setup() {
     if (!f.isDirectory() && lagunya(String(f.name()))) lagu[jumlah++] = String(f.name());
   }
   if (jumlah == 0)
-    berhenti("Tidak ada file .mp3 atau .wav di folder utama SD. Salin satu lagu (mis. lagu1.mp3) ke kartu, lalu tekan RST.");
+    berhenti("Tidak ada file .mp3, .wav, atau .flac di folder utama SD. Salin satu lagu (mis. lagu1.mp3) ke kartu, lalu tekan RST.");
   daftar();
 
   if (!audio.setPinout(AMP_BCLK, AMP_LRC, AMP_DIN))
