@@ -135,15 +135,6 @@ public:
 
 LGFX lcd;
 
-// Baca pilihan layar tersimpan: jenis chip, balik layar kiri-kanan / atas-bawah, dan warna negatif (invert).
-// Bawaan untuk modul merahmu (ILI9342C): layar dibalik atas-bawah dan invert aktif. Ubah lewat tombol Serial di tes_media.
-void muatLayar() {
-  Preferences p; p.begin(&quot;robot&quot;, true);
-  bool ic = p.getUChar(&quot;ic&quot;, 1) != 0;
-  lcd.pakaiLayar(ic, p.getUChar(&quot;fh&quot;, 0) != 0, p.getUChar(&quot;fv&quot;, ic ? 1 : 0) != 0);
-  lcd.balikInvert(p.getUChar(&quot;inv&quot;, ic ? 1 : 0) != 0);
-  p.end();
-}
 Preferences pref;
 uint8_t rotasi = 4;   // arah layar, dipilih di langkah 2 (modul merahmu: 4-7 normal, 0-3 tercermin)
 uint8_t geo = 1;      // jenis panel: 1 = 320 x 240 (modul merahmu), 0 = 240 x 320
@@ -458,6 +449,16 @@ void layarGambar() {
   for (int i = 0; i &lt; 5; i++) lcd.drawCircle(cx[i], cy[i], 8, TFT_DARKGREY);
 }
 
+// Baca pilihan layar tersimpan: jenis chip, balik layar kiri-kanan / atas-bawah, dan warna negatif (invert).
+// Bawaan untuk modul merahmu (ILI9342C): layar dibalik atas-bawah dan invert aktif. Ubah lewat tombol Serial di tes_media.
+void muatLayar() {
+  Preferences p; p.begin(&quot;robot&quot;, true);
+  bool ic = p.getUChar(&quot;ic&quot;, 1) != 0;
+  lcd.pakaiLayar(ic, p.getUChar(&quot;fh&quot;, 0) != 0, p.getUChar(&quot;fv&quot;, ic ? 1 : 0) != 0);
+  lcd.balikInvert(p.getUChar(&quot;inv&quot;, ic ? 1 : 0) != 0);
+  p.end();
+}
+
 void setup() {
   Serial.begin(115200);
   delay(1500);   // beri waktu Serial Monitor tersambung
@@ -614,6 +615,9 @@ public:
 
 LGFX lcd;
 
+
+bool sdOk = false;
+
 // Baca pilihan layar tersimpan: jenis chip, balik layar kiri-kanan / atas-bawah, dan warna negatif (invert).
 // Bawaan untuk modul merahmu (ILI9342C): layar dibalik atas-bawah dan invert aktif. Ubah lewat tombol Serial di tes_media.
 void muatLayar() {
@@ -623,8 +627,6 @@ void muatLayar() {
   lcd.balikInvert(p.getUChar(&quot;inv&quot;, ic ? 1 : 0) != 0);
   p.end();
 }
-
-bool sdOk = false;
 
 void setup() {
   Serial.begin(115200);

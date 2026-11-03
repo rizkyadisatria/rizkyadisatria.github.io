@@ -98,6 +98,9 @@ public:
 
 LGFX lcd;
 
+
+bool sdOk = false;
+
 // Baca pilihan layar tersimpan: jenis chip, balik layar kiri-kanan / atas-bawah, dan warna negatif (invert).
 // Bawaan untuk modul merahmu (ILI9342C): layar dibalik atas-bawah dan invert aktif. Ubah lewat tombol Serial di tes_media.
 void muatLayar() {
@@ -107,8 +110,6 @@ void muatLayar() {
   lcd.balikInvert(p.getUChar("inv", ic ? 1 : 0) != 0);
   p.end();
 }
-
-bool sdOk = false;
 
 void setup() {
   Serial.begin(115200);

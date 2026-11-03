@@ -105,15 +105,6 @@ public:
 
 LGFX lcd;
 
-// Baca pilihan layar tersimpan: jenis chip, balik layar kiri-kanan / atas-bawah, dan warna negatif (invert).
-// Bawaan untuk modul merahmu (ILI9342C): layar dibalik atas-bawah dan invert aktif. Ubah lewat tombol Serial di tes_media.
-void muatLayar() {
-  Preferences p; p.begin("robot", true);
-  bool ic = p.getUChar("ic", 1) != 0;
-  lcd.pakaiLayar(ic, p.getUChar("fh", 0) != 0, p.getUChar("fv", ic ? 1 : 0) != 0);
-  lcd.balikInvert(p.getUChar("inv", ic ? 1 : 0) != 0);
-  p.end();
-}
 Preferences pref;
 uint8_t rotasi = 4;   // arah layar, dipilih di langkah 2 (modul merahmu: 4-7 normal, 0-3 tercermin)
 uint8_t geo = 1;      // jenis panel: 1 = 320 x 240 (modul merahmu), 0 = 240 x 320
@@ -426,6 +417,16 @@ void layarGambar() {
   lcd.drawString("HAPUS", w - TOMBOL_W / 2, TOMBOL_H / 2);
   const int cx[5] = {25, w - 26, w - 26, 25, w / 2}, cy[5] = {55, 55, h - 26, h - 26, h / 2};
   for (int i = 0; i < 5; i++) lcd.drawCircle(cx[i], cy[i], 8, TFT_DARKGREY);
+}
+
+// Baca pilihan layar tersimpan: jenis chip, balik layar kiri-kanan / atas-bawah, dan warna negatif (invert).
+// Bawaan untuk modul merahmu (ILI9342C): layar dibalik atas-bawah dan invert aktif. Ubah lewat tombol Serial di tes_media.
+void muatLayar() {
+  Preferences p; p.begin("robot", true);
+  bool ic = p.getUChar("ic", 1) != 0;
+  lcd.pakaiLayar(ic, p.getUChar("fh", 0) != 0, p.getUChar("fv", ic ? 1 : 0) != 0);
+  lcd.balikInvert(p.getUChar("inv", ic ? 1 : 0) != 0);
+  p.end();
 }
 
 void setup() {

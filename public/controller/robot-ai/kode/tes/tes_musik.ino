@@ -106,15 +106,6 @@ public:
 
 LGFX lcd;
 
-// Baca pilihan layar tersimpan: jenis chip, balik layar kiri-kanan / atas-bawah, dan warna negatif (invert).
-// Bawaan untuk modul merahmu (ILI9342C): layar dibalik atas-bawah dan invert aktif. Ubah lewat tombol Serial di tes_media.
-void muatLayar() {
-  Preferences p; p.begin("robot", true);
-  bool ic = p.getUChar("ic", 1) != 0;
-  lcd.pakaiLayar(ic, p.getUChar("fh", 0) != 0, p.getUChar("fv", ic ? 1 : 0) != 0);
-  lcd.balikInvert(p.getUChar("inv", ic ? 1 : 0) != 0);
-  p.end();
-}
 Audio audio;
 
 // ---------------- tata letak layar 320 x 240 ----------------
@@ -300,6 +291,16 @@ void tanganiSentuh() {
       ulang = aksiSentuh(x, y);
     } else if (ulang && millis() - tTekan > 400 && millis() - tUlang > 150) { tUlang = millis(); aksiSentuh(x, y); }
   } else if (tekan && millis() - tLepas > 150) { tekan = false; titikSentuh(false); }   // 0,15 detik tanpa sentuhan = jari diangkat
+}
+
+// Baca pilihan layar tersimpan: jenis chip, balik layar kiri-kanan / atas-bawah, dan warna negatif (invert).
+// Bawaan untuk modul merahmu (ILI9342C): layar dibalik atas-bawah dan invert aktif. Ubah lewat tombol Serial di tes_media.
+void muatLayar() {
+  Preferences p; p.begin("robot", true);
+  bool ic = p.getUChar("ic", 1) != 0;
+  lcd.pakaiLayar(ic, p.getUChar("fh", 0) != 0, p.getUChar("fv", ic ? 1 : 0) != 0);
+  lcd.balikInvert(p.getUChar("inv", ic ? 1 : 0) != 0);
+  p.end();
 }
 
 void setup() {

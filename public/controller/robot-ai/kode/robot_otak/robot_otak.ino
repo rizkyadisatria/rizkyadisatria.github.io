@@ -149,15 +149,6 @@ public:
 
 LGFX lcd;
 
-// Baca pilihan layar tersimpan: jenis chip, balik layar kiri-kanan / atas-bawah, dan warna negatif (invert).
-// Bawaan untuk modul merahmu (ILI9342C): layar dibalik atas-bawah dan invert aktif. Ubah lewat tombol Serial di tes_media.
-void muatLayar() {
-  Preferences p; p.begin("robot", true);
-  bool ic = p.getUChar("ic", 1) != 0;
-  lcd.pakaiLayar(ic, p.getUChar("fh", 0) != 0, p.getUChar("fv", ic ? 1 : 0) != 0);
-  lcd.balikInvert(p.getUChar("inv", ic ? 1 : 0) != 0);
-  p.end();
-}
 LGFX_Sprite wajah(&lcd);
 Audio audio;                 // memakai I2S_NUM_0 untuk speaker
 I2SClass mic;                // otomatis memakai I2S_NUM_1
@@ -183,13 +174,17 @@ enum Mode { M_BIASA, M_IKUTI, M_JAGA };
 volatile Mode mode = M_BIASA;
 volatile bool alarmJaga = false;    // diisi mode jaga, dikirim ke Telegram oleh tugas jaringan
 
-void setStatus(const String& s) { strlcpy(teksStatus, s.c_str(), sizeof(teksStatus)); Serial.println("[status] " + s); }
-
 // ======================= AUDIO (task sendiri) =======================
 enum JenisAudio { A_FILE, A_URL, A_TTS, A_STOP, A_VOL };
 struct PerintahAudio { JenisAudio jenis; char isi[200]; };
 
-void kirimAudio(JenisAudio j, const String& isi = "") {
+// Semua jenis data (enum/struct) harus dibuat sebelum fungsi pertama: Arduino IDE menaruh deklarasi
+// fungsi otomatis tepat sebelum fungsi pertama. Fungsi dengan nilai bawaan dideklarasikan sendiri di sini.
+void kirimAudio(JenisAudio j, const String& isi = "");
+
+void setStatus(const String& s) { strlcpy(teksStatus, s.c_str(), sizeof(teksStatus)); Serial.println("[status] " + s); }
+
+void kirimAudio(JenisAudio j, const String& isi) {
   PerintahAudio p; p.jenis = j; strlcpy(p.isi, isi.c_str(), sizeof(p.isi));
   xQueueSend(antrianAudio, &p, pdMS_TO_TICKS(100));
 }
@@ -892,6 +887,16 @@ void tanganiSentuh() {
 }
 
 // ======================= SETUP & LOOP =======================
+// Baca pilihan layar tersimpan: jenis chip, balik layar kiri-kanan / atas-bawah, dan warna negatif (invert).
+// Bawaan untuk modul merahmu (ILI9342C): layar dibalik atas-bawah dan invert aktif. Ubah lewat tombol Serial di tes_media.
+void muatLayar() {
+  Preferences p; p.begin("robot", true);
+  bool ic = p.getUChar("ic", 1) != 0;
+  lcd.pakaiLayar(ic, p.getUChar("fh", 0) != 0, p.getUChar("fv", ic ? 1 : 0) != 0);
+  lcd.balikInvert(p.getUChar("inv", ic ? 1 : 0) != 0);
+  p.end();
+}
+
 void setup() {
   Serial.begin(115200);
   delay(300);
