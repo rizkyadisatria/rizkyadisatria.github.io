@@ -22,6 +22,7 @@
 .kalk{display:grid;gap:12px;padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
 .kalk .baris{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .kalk label{display:grid;gap:6px;font-size:.84rem;font-weight:500;color:var(--muted)}
+.kalk .baris label{grid-template-rows:1fr auto;line-height:1.3}
 .kalk label[hidden]{display:none}
 .kalk .baris.sempit{grid-template-columns:minmax(150px,240px)}
 .kalk input{appearance:none;-webkit-appearance:none;width:100%;height:42px;margin:0;display:block;padding:0 12px;border:1px solid var(--line-2);border-radius:10px;background:var(--surface-2);color:var(--ink);font:500 1rem var(--mono);cursor:text}
