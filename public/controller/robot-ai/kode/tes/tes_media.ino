@@ -455,6 +455,32 @@ void tanganiSentuh() {
   } else if (tekan && millis() - tLepas > 150) { tekan = false; titikSentuh(false); }   // 0,15 detik tanpa sentuhan = jari diangkat
 }
 
+// Layar uji warna (Serial 't'): petak warna yang kamu tahu seharusnya seperti apa, plus gradasi abu-abu dan merah/hijau/biru.
+// Bandingkan dengan keterangan di layar. Serial 'i' membalik pengaturan invert panel, 'm' kembali ke menu.
+void layarUji() {
+  lcd.fillScreen(TFT_BLACK);
+  lcd.setTextColor(TFT_WHITE, TFT_BLACK); lcd.setTextSize(1);
+  struct P { uint8_t r, g, b; const char* nama; };
+  const P petak[8] = {
+    {230, 120, 40, "ORANYE"}, {224, 172, 140, "KULIT"}, {70, 150, 50, "HIJAU RUMPUT"}, {100, 160, 230, "BIRU LANGIT"},
+    {120, 70, 40, "COKELAT"}, {255, 220, 0, "KUNING"}, {160, 60, 160, "UNGU"}, {128, 128, 128, "ABU 50%"} };
+  for (int k = 0; k < 8; k++) {
+    int x = 8 + (k % 4) * 78, y = 6 + (k / 4) * 50;
+    lcd.fillRect(x, y, 72, 36, lcd.color565(petak[k].r, petak[k].g, petak[k].b));
+    lcd.setCursor(x, y + 39); lcd.print(petak[k].nama);
+  }
+  for (int k = 0; k < 16; k++) {                       // gradasi abu-abu: 16 langkah hitam ke putih
+    uint8_t v = k * 17; lcd.fillRect(8 + k * 19, 112, 19, 28, lcd.color565(v, v, v));
+  }
+  for (int k = 0; k < 64; k++) {                       // gradasi merah, hijau, biru
+    uint8_t v = k * 4 + 3;
+    lcd.fillRect(8 + k * 4, 146, 4, 18, lcd.color565(v, 0, 0));
+    lcd.fillRect(8 + k * 4, 166, 4, 18, lcd.color565(0, v, 0));
+    lcd.fillRect(8 + k * 4, 186, 4, 18, lcd.color565(0, 0, v));
+  }
+  lcd.setCursor(8, 212); lcd.print("Serial: i = balik invert, m = menu");
+}
+
 void setup() {
   Serial.begin(115200);
   delay(1500);   // beri waktu Serial Monitor tersambung
@@ -524,5 +550,10 @@ void loop() {
     else if (c == '+') ubahVolume(+2);
     else if (c == '-') ubahVolume(-2);
     else if (c == 'l') daftar();
+    else if (c == 't') layarUji();
+    else if (c == 'i') {
+      static bool terbalik = false; terbalik = !terbalik; lcd.invertDisplay(terbalik);
+      Serial.printf("invert layar: %s\n", terbalik ? "AKTIF" : "mati");
+    }
   }
 }
