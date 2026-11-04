@@ -382,7 +382,7 @@ bool rekam(int detik) {
   size_t n = 0;
   while (n < sampel) {
     size_t b = mic.readBytes((char*)blok, sizeof(blok));
-    for (size_t i = 0; i < b / 4 && n < sampel; i++) {
+    for (size_t i = 0; i + 1 < b / 4 && n < sampel; i += 2) {   // data stereo: kiri, kanan, kiri, ... ambil kiri saja
       int32_t v = blok[i] >> 14;                            // 24 bit -> 16 bit, dengan sedikit penguatan
       out[n++] = (int16_t)constrain(v, -32768, 32767);
     }
@@ -927,7 +927,8 @@ void setup() {
   audio.setPinout(AMP_BCLK, AMP_LRC, AMP_DIN);
   audio.setVolume(VOLUME_AWAL);
   mic.setPins(MIC_SCK, MIC_WS, -1, MIC_SD);
-  if (!mic.begin(I2S_MODE_STD, MIC_RATE, I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_MONO, I2S_STD_SLOT_LEFT))
+  // Mode STEREO, bukan MONO: di ESP32-S3 mode mono memberi data rusak (sebagian besar nol). Jalur kiri diambil di rekam().
+  if (!mic.begin(I2S_MODE_STD, MIC_RATE, I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO))
     Serial.println("Mikrofon gagal mulai");
 
   setStatus("Menyambung WiFi...");
