@@ -1,4 +1,4 @@
-// TES MEDIA: menu utama di layar sentuh dengan dua pilihan, PUTAR MUSIK dan LIHAT GAMBAR.
+// TES MEDIA: menu utama di layar sentuh dengan tiga pilihan, PUTAR MUSIK, LIHAT GAMBAR, dan MIK KE SPEAKER.
 // Semua file dibaca dari SD card (folder utama). Suara lewat MAX98357A dan speaker.
 // Library: LovyanGFX dan ESP32-audioI2S (schreibfaul1, pasang dari ZIP GitHub seperti di panduan).
 // Siapkan SD card FAT32: lagu .mp3 / .wav / .flac dan gambar .jpg / .jpeg / .png / .bmp, nama pendek tanpa spasi.
@@ -8,12 +8,15 @@
 //          Tombol MENU di pojok kiri atas kembali ke menu; lagu tetap berjalan.
 // GAMBAR : SEBELUM, BERIKUT, OTOMATIS (ganti gambar tiap 5 detik), MENU. Ketuk sisi kiri atau kanan gambar = sebelum/berikut.
 //          Musik berhenti saat masuk ke gambar (membuka gambar besar menahan pemutar suara beberapa detik).
+// MIK    : MULAI / BERHENTI, KUAT - / KUAT +. Suaramu dari mikrofon INMP441 langsung keluar di speaker.
+//          Jauhkan mikrofon dari speaker; kalau berdenging (umpan balik), kecilkan KUAT atau jauhkan lagi.
 // Serial Monitor (115200), ketik huruf lalu Enter: n = berikutnya, b = sebelumnya, p = jeda, + / - = volume, m = menu.
 #include <SPI.h>
 #include <SD.h>                            // SD.h harus dipasang SEBELUM LovyanGFX supaya gambar bisa dibaca dari SD
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 #include <Audio.h>
+#include <ESP_I2S.h>
 #include <Preferences.h>
 
 #define TFT_SCK   12
@@ -27,6 +30,9 @@
 #define AMP_BCLK   4
 #define AMP_LRC    5
 #define AMP_DIN    7
+#define MIC_SCK   15
+#define MIC_WS    16
+#define MIC_SD     6
 
 // Modul merah 320 x 240 biasanya memakai chip ILI9342C. Library mengirim pengaturan daya dan gamma
 // ILI9341 kalau kita pilih panel ILI9341, dan itu membuat warna pucat. Panel ini mengirim pengaturan ILI9342C.
@@ -108,7 +114,9 @@ public:
 
 LGFX lcd;
 
-Audio audio;
+// Pemutar musik dibuat dan dilepas saat program berjalan: menu MIK butuh jalur I2S speaker yang dikunci pemutar.
+Audio* audio = nullptr;
+I2SClass mic, amp;                       // dipakai menu MIK saja
 
 // ---------------- tata letak layar 320 x 240 ----------------
 const int W = 320, H = 240;
@@ -124,7 +132,7 @@ const uint16_t C_KEPALA = RGB565(0, 40, 110), C_BARIS = RGB565(32, 32, 36), C_MA
 const uint16_t C_TOMBOL = RGB565(50, 60, 90), C_BAR = RGB565(60, 60, 60), C_ISI = RGB565(0, 220, 90);
 const uint16_t C_AKTIF = RGB565(160, 90, 0), C_MATI = RGB565(40, 40, 44);
 
-enum Layar { L_MENU, L_MUSIK, L_GAMBAR };
+enum Layar { L_MENU, L_MUSIK, L_GAMBAR, L_MIK };
 Layar layar = L_MENU;
 
 const int MAKS_LAGU = 40, MAKS_GAMBAR = 60;
@@ -181,30 +189,34 @@ void tombolBawah(int n, const char* const* nama, int aktif = -1) {
 }
 
 // ---------------- MENU ----------------
-const int MENU_X = 16, MENU_W = 288, MENU_H = 80, MENU_Y1 = 40, MENU_Y2 = 132;
+const int MENU_X = 16, MENU_W = 288, MENU_H = 60, MENU_Y1 = 32, MENU_Y2 = 100, MENU_Y3 = 168;
 
 void gambarIkonMusik(int x, int y) {
-  lcd.fillCircle(x + 24, y + 54, 10, TFT_WHITE);
-  lcd.fillRect(x + 32, y + 12, 5, 42, TFT_WHITE);
-  lcd.fillRect(x + 32, y + 12, 22, 7, TFT_WHITE);
+  lcd.fillCircle(x + 20, y + 42, 9, TFT_WHITE);
+  lcd.fillRect(x + 25, y + 8, 5, 34, TFT_WHITE);
+  lcd.fillRect(x + 25, y + 8, 20, 7, TFT_WHITE);
 }
 void gambarIkonGambar(int x, int y) {
-  lcd.drawRect(x + 6, y + 14, 56, 46, TFT_WHITE); lcd.drawRect(x + 7, y + 15, 54, 44, TFT_WHITE);
-  lcd.fillCircle(x + 48, y + 28, 5, TFT_YELLOW);
-  lcd.fillTriangle(x + 10, y + 56, x + 28, y + 32, x + 46, y + 56, TFT_WHITE);
-  lcd.fillTriangle(x + 34, y + 56, x + 46, y + 42, x + 58, y + 56, TFT_LIGHTGREY);
+  lcd.drawRect(x + 2, y + 8, 50, 42, TFT_WHITE); lcd.drawRect(x + 3, y + 9, 48, 40, TFT_WHITE);
+  lcd.fillCircle(x + 40, y + 20, 5, TFT_YELLOW);
+  lcd.fillTriangle(x + 6, y + 46, x + 22, y + 26, x + 38, y + 46, TFT_WHITE);
+  lcd.fillTriangle(x + 28, y + 46, x + 38, y + 34, x + 48, y + 46, TFT_LIGHTGREY);
+}
+void gambarIkonMik(int x, int y) {
+  lcd.fillRoundRect(x + 19, y + 4, 16, 28, 8, TFT_WHITE);
+  lcd.fillArc(x + 27, y + 24, 15, 13, 0, 180, TFT_WHITE);       // lengkung penyangga di bawah kepala mik
+  lcd.fillRect(x + 26, y + 39, 3, 9, TFT_WHITE);
+  lcd.fillRect(x + 17, y + 47, 21, 3, TFT_WHITE);
 }
 
-void gambarMenuTombol(int y, bool ada, const char* judul, int jml, const char* satuan, bool musik) {
+// ikon: 0 = musik, 1 = gambar, 2 = mik
+void gambarMenuTombol(int y, bool ada, const char* judul, const char* ket, int ikon) {
   uint16_t c = ada ? C_TOMBOL : C_MATI;
-  char s[40];
   lcd.fillRoundRect(MENU_X, y, MENU_W, MENU_H, 10, c);
-  if (musik) gambarIkonMusik(MENU_X + 10, y + 6); else gambarIkonGambar(MENU_X + 10, y + 6);
+  if (ikon == 0) gambarIkonMusik(MENU_X + 10, y + 2); else if (ikon == 1) gambarIkonGambar(MENU_X + 10, y + 2); else gambarIkonMik(MENU_X + 10, y + 2);
   lcd.setTextDatum(middle_left); lcd.setTextColor(ada ? TFT_WHITE : TFT_DARKGREY, c);
-  lcd.setFont(&fonts::Font4); lcd.drawString(judul, MENU_X + 84, y + 28);
-  lcd.setFont(&fonts::Font2);
-  if (ada) snprintf(s, sizeof(s), "%d %s di SD", jml, satuan); else snprintf(s, sizeof(s), "tidak ada %s di SD", satuan);
-  lcd.drawString(s, MENU_X + 84, y + 56);
+  lcd.setFont(&fonts::Font4); lcd.drawString(judul, MENU_X + 74, y + 21);
+  lcd.setFont(&fonts::Font2); lcd.drawString(ket, MENU_X + 74, y + 45);
 }
 
 void tampilkanMenu() {
@@ -212,8 +224,12 @@ void tampilkanMenu() {
   lcd.fillRect(0, 0, W, KEPALA_H, C_KEPALA);
   lcd.setFont(&fonts::Font2); lcd.setTextColor(TFT_WHITE, C_KEPALA); lcd.setTextDatum(middle_left);
   lcd.drawString("MENU UTAMA", 8, KEPALA_H / 2);
-  gambarMenuTombol(MENU_Y1, jumlah > 0, "PUTAR MUSIK", jumlah, "lagu", true);
-  gambarMenuTombol(MENU_Y2, nGambar > 0, "LIHAT GAMBAR", nGambar, "gambar", false);
+  char s1[32], s2[32];
+  if (jumlah) snprintf(s1, sizeof(s1), "%d lagu di SD", jumlah); else snprintf(s1, sizeof(s1), "tidak ada lagu di SD");
+  if (nGambar) snprintf(s2, sizeof(s2), "%d gambar di SD", nGambar); else snprintf(s2, sizeof(s2), "tidak ada gambar di SD");
+  gambarMenuTombol(MENU_Y1, jumlah > 0, "PUTAR MUSIK", s1, 0);
+  gambarMenuTombol(MENU_Y2, nGambar > 0, "LIHAT GAMBAR", s2, 1);
+  gambarMenuTombol(MENU_Y3, true, "MIK KE SPEAKER", "bicara, suara keluar di speaker", 2);
 }
 
 // ---------------- MUSIK ----------------
@@ -257,7 +273,8 @@ void gambarTombolMusik() {
 }
 
 void gambarWaktu() {                      // nama lagu, waktu, dan garis kemajuan
-  uint32_t t = audio.getAudioCurrentTime(), d = audio.getAudioFileDuration();
+  if (!audio) return;
+  uint32_t t = audio->getAudioCurrentTime(), d = audio->getAudioFileDuration();
   char s[40];
   lcd.fillRect(0, NAMA_Y - 1, W, 18, TFT_BLACK);
   lcd.setFont(&fonts::Font2); lcd.setTextColor(TFT_WHITE, TFT_BLACK);
@@ -276,11 +293,12 @@ void tampilkanMusik() {
 }
 
 void putar(int i) {
+  if (!audio || jumlah == 0) return;
   now = (i % jumlah + jumlah) % jumlah;
   jeda = false;
-  audio.stopSong();
+  audio->stopSong();
   Serial.printf("\nMemutar %d/%d: %s\n", now + 1, jumlah, lagu[now].c_str());
-  sedangMain = audio.connecttoFS(SD, ("/" + lagu[now]).c_str());
+  sedangMain = audio->connecttoFS(SD, ("/" + lagu[now]).c_str());
   if (sedangMain) gagalBeruntun = 0;
   else {
     Serial.println("  GAGAL membuka file ini. FLAC hi-res (di atas 48 kHz atau 24 bit) sering terlalu berat: ubah ke mp3 atau FLAC 16 bit 44,1 kHz. Atau salin ulang filenya.");
@@ -291,7 +309,8 @@ void putar(int i) {
 }
 
 void jedaLanjut() {
-  if (audio.pauseResume()) {
+  if (!audio) return;
+  if (audio->pauseResume()) {
     jeda = !jeda; Serial.println(jeda ? "Jeda" : "Lanjut");
     if (layar == L_MUSIK) { gambarTombolMusik(); gambarWaktu(); }
   }
@@ -299,7 +318,8 @@ void jedaLanjut() {
 
 void ubahVolume(int d) {
   volume = constrain(volume + d, 0, 21);
-  audio.setVolume(volume);
+  if (!audio) return;
+  audio->setVolume(volume);
   Serial.printf("Volume %d\n", volume);
   if (layar == L_MUSIK) gambarKepalaMusik();
 }
@@ -414,16 +434,158 @@ void tampilkanGambar() {
   tampilGambar(noGambar);
 }
 
+// ---------------- MIK KE SPEAKER ----------------
+// Suara mikrofon dibaca dan dikirim ke speaker oleh tugas tersendiri di inti 0, supaya tidak putus-putus
+// saat layar sedang digambar. Jeda mikrofon ke speaker sekitar 20 milidetik.
+const int MIK_RATE = 16000;
+const int AMBANG = 400;                  // di bawah ini dianggap diam: speaker dibisukan supaya tidak berdesis
+volatile bool mikJalan = false, mikSelesai = true, gerbangBuka = false;
+volatile int mikLevel = 0, kuat = 4;     // kuat 1 sampai 10
+bool mikAktif = false;
+
+void tugasSuara(void*) {
+  static int32_t masuk[256];             // 128 pasang kiri-kanan dari mikrofon (32 bit)
+  static int16_t keluar[256];            // 128 pasang kiri-kanan ke speaker (16 bit)
+  static float bersih[128];
+  float hpX = 0, hpY = 0, fade = 0;
+  unsigned long tSuara = 0;
+  while (mikJalan) {
+    size_t n = mic.readBytes((char*)masuk, sizeof(masuk)) / 8;
+    if (n == 0) { vTaskDelay(1); continue; }
+    double jum = 0;
+    for (size_t i = 0; i < n; i++) {
+      float x = masuk[2 * i] >> 14;                      // jalur kiri (L/R ke GND)
+      float y = x - hpX + 0.995f * hpY;                  // buang geseran nol dan dengung rendah
+      hpX = x; hpY = y; bersih[i] = y; jum += (double)y * y;
+    }
+    int rms = sqrt(jum / n);
+    mikLevel = rms;
+    if (rms > AMBANG) tSuara = millis();
+    bool buka = millis() - tSuara < 400;                 // tetap terbuka 0,4 detik sesudah suara terakhir
+    gerbangBuka = buka;
+    float g = kuat * 0.5f;
+    for (size_t i = 0; i < n; i++) {
+      fade += ((buka ? 1.0f : 0.0f) - fade) * 0.005f;    // naik-turun halus, tanpa bunyi klik
+      float v = bersih[i] * g * fade;
+      int16_t o = (int16_t)constrain((int)v, -32767, 32767);
+      keluar[2 * i] = o; keluar[2 * i + 1] = o;
+    }
+    amp.write((uint8_t*)keluar, n * 4);
+  }
+  mikSelesai = true;
+  vTaskDelete(NULL);
+}
+
+void lepasAudio() {                      // matikan pemutar musik supaya jalur speaker bebas
+  if (!audio) return;
+  audio->stopSong(); delete audio; audio = nullptr;
+  sedangMain = false; jeda = false;
+}
+
+void buatAudio() {                       // pasang lagi pemutar musik
+  if (audio) return;
+  audio = new Audio();
+  if (!audio->setPinout(AMP_BCLK, AMP_LRC, AMP_DIN)) Serial.println("Pin speaker gagal dipasang. Cek BCLK=IO4, LRC=IO5, DIN=IO7.");
+  audio->setVolume(volume);
+}
+
+void gambarKepalaMik() {
+  char s[24];
+  lcd.fillRect(0, 0, W, KEPALA_H, C_KEPALA);
+  lcd.fillRoundRect(3, 3, 56, KEPALA_H - 6, 5, C_TOMBOL);
+  lcd.setFont(&fonts::Font2); lcd.setTextColor(TFT_WHITE, C_TOMBOL); lcd.setTextDatum(middle_center);
+  lcd.drawString("MENU", 31, KEPALA_H / 2);
+  lcd.setTextColor(TFT_WHITE, C_KEPALA); lcd.setTextDatum(middle_left);
+  lcd.drawString("MIK KE SPEAKER", 68, KEPALA_H / 2);
+  lcd.setTextDatum(middle_right);
+  snprintf(s, sizeof(s), "KUAT %d / 10", kuat); lcd.drawString(s, W - 8, KEPALA_H / 2);
+}
+
+void gambarTombolMik() {
+  const char* nama[3] = {mikAktif ? "BERHENTI" : "MULAI", "KUAT -", "KUAT +"};
+  tombolBawah(3, nama, mikAktif ? 0 : -1);
+}
+
+const int METER_X = 16, METER_Y = 74, METER_W = 288, METER_H = 34;
+
+void gambarMeter(bool paksa = false) {
+  static int lalu = -1; static int bukaLalu = -1; static int aktifLalu = -1;
+  if (paksa) lalu = -1;
+  int lv = mikAktif ? mikLevel : 0;
+  int isi = constrain((int)(sqrtf((float)lv / 8000.0f) * METER_W), 0, METER_W);   // skala akar: suara pelan tetap terlihat
+  int batas = (int)(sqrtf((float)AMBANG / 8000.0f) * METER_W);
+  int buka = mikAktif && gerbangBuka;
+  if (isi == lalu && buka == bukaLalu && (int)mikAktif == aktifLalu) return;
+  lalu = isi; bukaLalu = buka; aktifLalu = mikAktif;
+  uint16_t warna = isi > METER_W * 85 / 100 ? TFT_RED : isi > METER_W * 60 / 100 ? TFT_YELLOW : C_ISI;
+  lcd.fillRect(METER_X, METER_Y, isi, METER_H, warna);
+  lcd.fillRect(METER_X + isi, METER_Y, METER_W - isi, METER_H, C_BAR);
+  lcd.drawFastVLine(METER_X + batas, METER_Y - 4, METER_H + 8, TFT_WHITE);         // garis ambang diam
+  lcd.setFont(&fonts::Font4); lcd.setTextDatum(middle_center);
+  lcd.fillRect(0, 118, W, 30, TFT_BLACK);
+  if (!mikAktif)  { lcd.setTextColor(TFT_DARKGREY, TFT_BLACK); lcd.drawString("tekan MULAI", W / 2, 133); }
+  else if (buka)  { lcd.setTextColor(C_ISI, TFT_BLACK);        lcd.drawString("SUARA KELUAR", W / 2, 133); }
+  else            { lcd.setTextColor(TFT_LIGHTGREY, TFT_BLACK); lcd.drawString("diam", W / 2, 133); }
+}
+
+void tampilkanMik() {
+  lcd.fillScreen(TFT_BLACK);
+  gambarKepalaMik();
+  lcd.setFont(&fonts::Font2); lcd.setTextColor(TFT_WHITE, TFT_BLACK); lcd.setTextDatum(middle_center);
+  lcd.drawString("Bicara di depan mikrofon. Garis putih = batas diam.", W / 2, 50);
+  lcd.setTextColor(TFT_YELLOW, TFT_BLACK);
+  lcd.drawString("Jauhkan mik dari speaker. Berdenging?", W / 2, 166);
+  lcd.drawString("Kecilkan KUAT atau jauhkan lagi.", W / 2, 184);
+  gambarTombolMik(); gambarMeter(true);
+}
+
+bool mulaiMik() {
+  if (mikAktif) return true;
+  lepasAudio();
+  amp.setPins(AMP_BCLK, AMP_LRC, AMP_DIN);
+  if (!amp.begin(I2S_MODE_STD, MIK_RATE, I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO)) {
+    Serial.println("Speaker gagal mulai (I2S). Cek BCLK=IO4, LRC=IO5, DIN=IO7."); return false;
+  }
+  mic.setPins(MIC_SCK, MIC_WS, -1, MIC_SD);
+  // STEREO, bukan MONO: di ESP32-S3 mode mono memberi data rusak. Jalur kiri dipakai di tugasSuara.
+  if (!mic.begin(I2S_MODE_STD, MIK_RATE, I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO)) {
+    amp.end(); Serial.println("Mikrofon gagal mulai (I2S). Cek SCK=IO15, WS=IO16, SD=IO6."); return false;
+  }
+  mikJalan = true; mikSelesai = false; mikAktif = true;
+  xTaskCreatePinnedToCore(tugasSuara, "suara", 4096, nullptr, 5, nullptr, 0);
+  Serial.println("Mik ke speaker: MULAI");
+  return true;
+}
+
+void hentikanMik() {
+  if (!mikAktif) return;
+  mikJalan = false;
+  unsigned long t = millis();
+  while (!mikSelesai && millis() - t < 500) delay(5);   // tunggu tugas suara selesai
+  mic.end(); amp.end();
+  mikAktif = false; mikLevel = 0; gerbangBuka = false;
+  Serial.println("Mik ke speaker: BERHENTI");
+}
+
+void ubahKuat(int d) {
+  kuat = constrain(kuat + d, 1, 10);
+  Serial.printf("Kuat %d\n", kuat);
+  if (layar == L_MIK) gambarKepalaMik();
+}
+
 // ---------------- pindah layar ----------------
 void keLayar(Layar baru) {
   if (baru == L_MUSIK && jumlah == 0) { Serial.println("Tidak ada lagu di SD."); return; }
   if (baru == L_GAMBAR && nGambar == 0) { Serial.println("Tidak ada gambar di SD."); return; }
-  if (baru == L_GAMBAR && layar != L_GAMBAR) {                         // musik berhenti saat melihat gambar
-    audio.stopSong(); sedangMain = false; jeda = false;
+  if (layar == L_MIK && baru != L_MIK) { hentikanMik(); buatAudio(); }   // keluar dari MIK: pemutar musik dipasang lagi
+  if (baru == L_MIK && layar != L_MIK) lepasAudio();                     // masuk MIK: jalur speaker dibebaskan
+  if (baru == L_GAMBAR && layar != L_GAMBAR && audio) {                  // musik berhenti saat melihat gambar
+    audio->stopSong(); sedangMain = false; jeda = false;
   }
   layar = baru;
   if (layar == L_MENU) tampilkanMenu();
   else if (layar == L_MUSIK) { tampilkanMusik(); if (!sedangMain && !jeda) putar(now); }
+  else if (layar == L_MIK) tampilkanMik();
   else { otomatis = false; tampilkanGambar(); }
 }
 
@@ -432,6 +594,7 @@ bool aksiMenu(int x, int y) {
   if (x >= MENU_X && x < MENU_X + MENU_W) {
     if (y >= MENU_Y1 && y < MENU_Y1 + MENU_H) keLayar(L_MUSIK);
     else if (y >= MENU_Y2 && y < MENU_Y2 + MENU_H) keLayar(L_GAMBAR);
+    else if (y >= MENU_Y3 && y < MENU_Y3 + MENU_H) keLayar(L_MIK);
   }
   return false;
 }
@@ -452,6 +615,18 @@ bool aksiMusik(int x, int y) {
       case 2: putar(now + 1); break;
       case 3: ubahVolume(-1); return true;
       case 4: ubahVolume(+1); return true;
+    }
+  }
+  return false;
+}
+
+bool aksiMik(int x, int y) {
+  if (y < KEPALA_H + 4) { if (x < 64) keLayar(L_MENU); return false; }
+  if (y >= TOMBOL_Y - 4) {
+    switch (constrain(x / (W / 3), 0, 2)) {
+      case 0: if (mikAktif) hentikanMik(); else mulaiMik(); gambarTombolMik(); gambarMeter(true); break;
+      case 1: ubahKuat(-1); return true;
+      case 2: ubahKuat(+1); return true;
     }
   }
   return false;
@@ -496,8 +671,12 @@ void tanganiSentuh() {
       Serial.printf("sentuh x=%d y=%d\n", (int)x, (int)y);
       if (layar == L_MENU) ulang = aksiMenu(x, y);
       else if (layar == L_MUSIK) ulang = aksiMusik(x, y);
+      else if (layar == L_MIK) ulang = aksiMik(x, y);
       else ulang = aksiGambar(x, y);
-    } else if (ulang && layar == L_MUSIK && millis() - tTekan > 400 && millis() - tUlang > 150) { tUlang = millis(); aksiMusik(x, y); }
+    } else if (ulang && millis() - tTekan > 400 && millis() - tUlang > 150) {
+      tUlang = millis();
+      if (layar == L_MUSIK) aksiMusik(x, y); else if (layar == L_MIK) aksiMik(x, y);
+    }
   } else if (tekan && millis() - tLepas > 150) { tekan = false; titikSentuh(false); }   // 0,15 detik tanpa sentuhan = jari diangkat
 }
 
@@ -576,21 +755,20 @@ void setup() {
   urut(lagu, jumlah); urut(gambar, nGambar);
   daftar();
   if (jumlah == 0 && nGambar == 0)
-    berhenti("Tidak ada lagu (.mp3 .wav .flac) maupun gambar (.jpg .png .bmp) di folder utama SD. Salin beberapa file ke kartu, lalu tekan RST.");
+    Serial.println("Tidak ada lagu (.mp3 .wav .flac) maupun gambar (.jpg .png .bmp) di folder utama SD. Menu MIK tetap bisa dipakai.");
 
-  if (!audio.setPinout(AMP_BCLK, AMP_LRC, AMP_DIN))
-    berhenti("Pin speaker gagal dipasang. Cek BCLK=IO4, LRC=IO5, DIN=IO7 ke MAX98357A.");
-  audio.setVolume(volume);                 // 0 sampai 21
+  buatAudio();                              // pemutar musik, volume 0 sampai 21
   siap = true;
   tampilkanMenu();
 }
 
 void loop() {
-  audio.loop();                            // harus dipanggil sesering mungkin
+  if (audio) audio->loop();                 // harus dipanggil sesering mungkin
   if (!siap) return;
 
   static bool pernahJalan = false;
-  if (audio.isRunning()) pernahJalan = true;
+  if (!audio) pernahJalan = false;
+  else if (audio->isRunning()) pernahJalan = true;
   else if (pernahJalan && !jeda) {         // lagu habis: lanjut ke berikutnya
     pernahJalan = false; sedangMain = false;
     if (gagalBeruntun >= jumlah) { Serial.println("Semua file lagu gagal dibuka."); gagalBeruntun = 0; }
@@ -599,6 +777,8 @@ void loop() {
 
   static unsigned long tWaktu = 0, tSentuh = 0;
   if (layar == L_MUSIK && millis() - tWaktu > 1000) { tWaktu = millis(); gambarWaktu(); }
+  static unsigned long tMeter = 0;
+  if (layar == L_MIK && millis() - tMeter > 60) { tMeter = millis(); gambarMeter(); }
   if (millis() - tSentuh >= 4) { tSentuh = millis(); tanganiSentuh(); }
   if (layar == L_GAMBAR && otomatis && millis() - tGeserGambar > 5000) { tGeserGambar = millis(); tampilGambar(noGambar + 1); }
 
