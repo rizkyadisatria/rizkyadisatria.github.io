@@ -310,14 +310,14 @@ void setup() {
 
   // layar: arah, jenis panel, dan kalibrasi sentuh dari tes_layar
   Preferences pref; pref.begin("robot", false);
-  uint8_t arah = pref.getUChar("rot", 4), geo = pref.getUChar("geo", 1), rgb = pref.getUChar("rgb", 1);
+  uint8_t arah = pref.getUChar("rot", 6), geo = pref.getUChar("geo", 1), rgb = pref.getUChar("rgb", 1);
   float aff[6]; bool adaKal = pref.getBytesLength("aff") == sizeof(aff);
   if (adaKal) pref.getBytes("aff", aff, sizeof(aff));
   pref.end();
   lcd.aturPanel(geo != 0, rgb != 0);
   muatLayar();
-  lcd.init(); lcd.setRotation(arah > 7 ? 4 : arah);
-  if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 4 : 1);    // pemutar ini untuk layar mendatar 320 x 240
+  lcd.init(); lcd.setRotation(arah > 7 ? 6 : arah);
+  if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 6 : 1);    // pemutar ini untuk layar mendatar 320 x 240
   lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
   if (adaKal) lcd.panel()->setCalibrateAffine(aff);
   else Serial.println("PERINGATAN: kalibrasi sentuh belum ada. Jalankan tes_layar dulu, kalau tidak ketukan bisa meleset.");

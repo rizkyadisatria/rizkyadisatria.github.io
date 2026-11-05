@@ -908,12 +908,12 @@ void setup() {
   antrianTugas = xQueueCreate(2, sizeof(Tugas));
 
   pref.begin("robot", false);
-  uint8_t arah = pref.getUChar("rot", 4), geo = pref.getUChar("geo", 1), rgb = pref.getUChar("rgb", 1);   // pilihan di tes_layar
+  uint8_t arah = pref.getUChar("rot", 6), geo = pref.getUChar("geo", 1), rgb = pref.getUChar("rgb", 1);   // pilihan di tes_layar
   pref.end();
   lcd.aturPanel(geo != 0, rgb != 0);
   muatLayar();
-  lcd.init(); lcd.setRotation(arah > 7 ? 4 : arah);
-  if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 4 : 1);   // robot memakai layar mendatar 320 x 240
+  lcd.init(); lcd.setRotation(arah > 7 ? 6 : arah);
+  if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 6 : 1);   // robot memakai layar mendatar 320 x 240
   lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
   int32_t tx, ty; bool paksa = lcd.getTouchRaw(&tx, &ty);    // sentuh layar saat menyala = kalibrasi ulang
   kalibrasiSentuh(paksa);
