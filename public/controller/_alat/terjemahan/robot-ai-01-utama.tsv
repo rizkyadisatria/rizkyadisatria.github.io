@@ -18,7 +18,6 @@ ffea3b04f3ca	Battery, BMS, fuse, switch and three voltage converters. Measured w
 b36fa10a2fdb	Chassis, 4 motors through the TB6612, pan-tilt head, distance, tilt and weather sensors, STOP button, and the body code.
 001c583862a7	ESP32-S3 with a touch screen, SD card, speaker and microphone, then connected to the body over UART.
 f79177a8ed8c	ESP32-CAM: upload through the MB board, view the photo in the browser, then move it to robot power and the pan-tilt head.
-39d9c79c4c27	Telegram bot, Claude AI, speech to text, then the full brain code: face, chatting, seeing, follow and guard modes.
 105afb09e53b	Final assembly
 ac4dc94d6fce	Layout on the three-level chassis, switching to battery power, testing on the floor, calibration, and a list of common problems.
 634aeb4cdcf8	Rules that apply in every part

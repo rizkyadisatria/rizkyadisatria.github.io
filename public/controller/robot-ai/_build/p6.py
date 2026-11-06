@@ -125,7 +125,7 @@ def halaman():
         ['Selalu "E DITOLAK" padahal tidak ada halangan', 'sensor depan melihat lantai atau bodi robot', 'pasang HC-SR04 lebih tinggi dan lurus'],
         ['Layar putih setelah dirakit', 'kabel SPI atau CS lepas', 'Bagian 3 Tahap 2'],
         ['Foto gagal', 'IP kamera berubah, kamera kurang daya', 'DHCP reservation di router; kapasitor 1000 µF'],
-        ['AI tidak menjawab (kode 401/400/429)', 'kunci salah / saldo habis / terlalu sering', 'cek di platform.claude.com'],
+        ['AI tidak menjawab (kode 400/403/404/429)', 'kunci salah / nama model salah / jatah gratis habis', 'cek kunci dan batas di aistudio.google.com; isi GROQ_API_KEY sebagai cadangan'],
         ['Robot tidak bersuara', 'volume 0, Vin MAX98357A lepas, Google TTS menolak', '/volume 15; tes_speaker; jawaban tetap ada di Telegram'],
         ['Sentuhan meleset', 'kalibrasi lama', 'tahan jari di layar saat saklar dinyalakan untuk kalibrasi ulang, atau jalankan tes_layar lagi'],
         ['BMS tidak mengeluarkan daya setelah sekring putus atau korsleting', 'proteksi terkunci', 'lepas kedua sel, tunggu, pasang lagi dengan urutan 0V → 4.2V → 8.4V'],

@@ -1,24 +1,14 @@
 # Bagian 5: Kecerdasan (bagian pertama)
-afd9f6f3f5e9	This part switches on the robot's intelligence: Telegram for commands from your phone, Claude for thinking and seeing, Groq for hearing. Each service is tested on its own before the full brain code is uploaded.
 18497263f3b2	The three internet services used
 b427846beb8f	What it is for
 e19460fe6d17	Telegram bot
 c3a0536bce56	commands and photos from your phone
-269bb44bc334	Claude API (Anthropic)
 25cc67caac3e	the AI brain: chats, decides movements, looks at photos
-d78c06093c52	paid per use, top up credit first
 bd26ad0aeac5	no, without it the robot can still be controlled with commands
-eff0fc7be7fb	Groq (Whisper)
-684088692bb5	turns your voice into text
-8200cc4b3588	has a free tier with usage limits
-fca0f6d2fa45	no, only for the SPEAK button
 4b98a15f84f5	Google TTS (through the audio library)
 db286f29d76b	the robot speaks
 0f7d5c512c70	free, but not an official service
 86ab5ae747e8	no; if it stops working, the robot still answers through Telegram
-60c5fd1078b6	Estimated Claude cost
-cb22c6e1fcea	The default model in the code is <code>claude-haiku-5-5</code>, the cheapest Claude model. Anthropic's model page lists prices starting at $0.10 per million input tokens and $0.50 per million output tokens. One robot chat uses about 1,000-1,500 input tokens (robot rules + history + sensor data) and about 100 tokens of answer, so roughly $0.0002 or about Rp3 per chat at an exchange rate around Rp16,000. A 640x480 photo adds about 400 tokens. Prices and exchange rates can change; check the <a href="https://platform.claude.com/docs/en/about-claude/pricing">pricing page</a>.
-59d47f273771	Required: set a <b>monthly spending limit</b> in the console (Settings → Limits), for example $5, so code stuck in a loop cannot drain your balance.
 e4121cba1e75	Install the intelligence
 ed64973b6d1f	Create the Telegram bot
 ddbc66829551	The bot sends "Halo dari ESP32-S3!" and replies to every message you send.
@@ -26,12 +16,6 @@ afd9df3d7f04	<span class="py">OK to lock in</span> The bot token and chat ID.
 8467a6439a04	<span class="pn">Not yet</span> Do not upload them to GitHub or send them to anyone. If they leak, create a new bot.
 91e9c4e63988	"GAGAL kirim": the token was mistyped (it must be complete, with the numbers and the colon), the chat ID is wrong, or you have not pressed Start in the bot.
 fc7e22eb8f90	WiFi does not connect: the ESP32 only supports 2.4 GHz.
-0422c432afc3	Claude API key
-f36a35359aad	<b>Why this way?</b> This code sends the question in JSON format to <code>api.anthropic.com/v1/messages</code> over HTTPS. The connection is encrypted, but for simplicity the server certificate is not checked (<code>setInsecure</code>). That is fine for this home project; do not use this pattern for sensitive data.
-a97773494c82	The AI answer appears within a few seconds. Code 401 = wrong key, 400 with a balance message = empty balance, 429 = too many requests.
-6c15f7392a36	<span class="py">OK to lock in</span> The Claude API key and the monthly spending limit.
-9c3c28f3e10b	<span class="pn">Not yet</span> The key is shown only once. Do not put it in a file that will be uploaded.
-98297d5a2514	Speech to text with Groq (optional)
 1659b9d4b6f6	You have a gsk_ key ready to fill into the brain code.
 f5cbcf348305	<span class="py">OK to lock in</span> The Groq key (may be left empty).
 e37ff5517d31	<span class="pn">Not yet</span> Voice recordings are sent to Groq's servers. If you object, leave the key empty.

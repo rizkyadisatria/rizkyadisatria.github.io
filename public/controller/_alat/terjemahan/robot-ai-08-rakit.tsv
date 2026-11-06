@@ -91,9 +91,6 @@ f6c494941615	SPI or CS wire came loose
 532159bc2ea9	Photo fails
 2b31e2606e5e	camera IP changed, camera has too little power
 c1496a370169	DHCP reservation in the router; 1000 µF capacitor
-1461e8092184	AI does not answer (code 401/400/429)
-00f1fe75404e	wrong key / balance used up / too frequent
-442863ab005a	check at platform.claude.com
 aa3a0f64a5f5	Robot makes no sound
 e9dc2fd7dee2	volume 0, MAX98357A Vin came off, Google TTS refuses
 b7a9f1224973	/volume 15; tes_speaker; the answer is still in Telegram

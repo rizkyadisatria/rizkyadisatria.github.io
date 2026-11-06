@@ -2,7 +2,7 @@
   ROBOT AI 4WD - OTAK (ESP32-S3 N16R8)
   -------------------------------------
   Layar sentuh + wajah robot, speaker, mikrofon, SD card, bot Telegram,
-  AI Claude (ngobrol, menggerakkan badan, melihat lewat kamera), dan perintah suara.
+  AI Gemini dengan cadangan Groq (ngobrol, menggerakkan badan, melihat lewat kamera), dan perintah suara.
   Badan (DevKit V1) dikendalikan lewat UART. Kamera (ESP32-CAM) diambil lewat WiFi.
 
   PENGATURAN BOARD di Arduino IDE (Tools):
@@ -39,9 +39,10 @@ const char* WIFI_NAMA       = "NAMA_WIFI";            // WiFi 2.4 GHz
 const char* WIFI_PASSWORD   = "PASSWORD_WIFI";
 const char* TELEGRAM_TOKEN  = "ISI_TOKEN_DARI_BOTFATHER";
 const char* TELEGRAM_CHATID = "ISI_ANGKA_ID_KAMU";    // dari @userinfobot. Bot hanya menurut ke ID ini
-const char* CLAUDE_API_KEY  = "";                     // sk-ant-... (kosongkan dulu kalau belum punya)
-const char* CLAUDE_MODEL    = "claude-haiku-5-5";     // model paling murah dan cepat
-const char* GROQ_API_KEY    = "";                     // untuk suara ke teks (opsional), gsk_...
+const char* GEMINI_API_KEY  = "";                     // dari aistudio.google.com (gratis), diawali AIza...
+const char* GEMINI_MODEL    = "gemini-2.5-flash-lite"; // bisa melihat foto; cek batas gratis tiap model di AI Studio
+const char* GROQ_API_KEY    = "";                     // gsk_...: suara ke teks, dan cadangan AI kalau jatah Gemini habis
+const char* GROQ_MODEL      = "qwen/qwen3.8-27b";     // model Groq yang bisa melihat foto (cadangan)
 const char* KAMERA_ALAMAT   = "";                     // contoh "192.168.1.50". Kosong = cari robotcam.local
 const char* NAMA_ROBOT      = "Robi";
 const char* NAMA_PEMILIK    = "Rizky";
@@ -420,7 +421,7 @@ String suaraKeTeks() {
   return hasil;
 }
 
-// ======================= CLAUDE =======================
+// ======================= AI (Gemini, cadangan Groq) =======================
 String riwayatPeran[6], riwayatIsi[6]; int riwayatN = 0;
 
 void ingat(const String& peran, const String& isi) {
@@ -444,24 +445,70 @@ String promptSistem() {
     "Data sensor terbaru: " + ringkasSensor() + ".";
 }
 
-// fotoBase64 kosong = hanya teks
-String tanyaClaude(const String& pertanyaan, const String& fotoBase64 = "") {
-  if (strlen(CLAUDE_API_KEY) == 0) return "{\"bicara\":\"API key Claude belum diisi di kode.\",\"aksi\":[]}";
+// Buang bagian "berpikir" <think>...</think> yang kadang ditulis model cadangan, lalu rapikan.
+String bersihkan(String t) {
+  int a = t.indexOf("<think>"), b = t.indexOf("</think>");
+  if (a >= 0 && b > a) t.remove(a, b + 8 - a);
+  t.trim();
+  return t;
+}
+
+// Gemini (Google AI Studio). kode: 200 = berhasil, 429 = jatah habis atau terlalu sering.
+String tanyaGemini(const String& pertanyaan, const String& fotoBase64, int& kode) {
   JsonDocument doc;
-  doc["model"] = CLAUDE_MODEL;
-  doc["max_tokens"] = 300;
-  doc["system"] = promptSistem();
+  doc["system_instruction"]["parts"][0]["text"] = promptSistem();
+  JsonArray isi = doc["contents"].to<JsonArray>();
+  for (int i = 0; i < riwayatN; i++) {
+    JsonObject m = isi.add<JsonObject>();
+    m["role"] = riwayatPeran[i] == "user" ? "user" : "model";
+    m["parts"][0]["text"] = riwayatIsi[i];
+  }
+  JsonObject u = isi.add<JsonObject>();
+  u["role"] = "user";
+  JsonArray bagian = u["parts"].to<JsonArray>();
+  if (fotoBase64.length()) {
+    JsonObject img = bagian.add<JsonObject>();
+    img["inline_data"]["mime_type"] = "image/jpeg"; img["inline_data"]["data"] = fotoBase64;
+  }
+  bagian.add<JsonObject>()["text"] = pertanyaan;
+  doc["generationConfig"]["responseMimeType"] = "application/json";   // minta jawaban JSON murni
+  String body; serializeJson(doc, body);
+  doc.clear();
+
+  WiFiClientSecure c; c.setInsecure();
+  HTTPClient http;
+  http.begin(c, String("https://generativelanguage.googleapis.com/v1beta/models/") + GEMINI_MODEL + ":generateContent");
+  http.addHeader("content-type", "application/json");
+  http.addHeader("x-goog-api-key", GEMINI_API_KEY);
+  http.setTimeout(30000);
+  kode = http.POST(body);
+  String resp = http.getString();
+  http.end();
+  if (kode != 200) { Serial.printf("[gemini] kode %d: %s\n", kode, resp.c_str()); return ""; }
+  JsonDocument r;
+  if (deserializeJson(r, resp)) { kode = -2; return ""; }
+  String teks;
+  for (JsonObject p : r["candidates"][0]["content"]["parts"].as<JsonArray>())
+    if (!(p["thought"] | false)) teks += p["text"] | "";
+  if (teks.length() == 0) { Serial.printf("[gemini] jawaban kosong: %s\n", resp.c_str()); kode = -3; }
+  return bersihkan(teks);
+}
+
+// Groq (cadangan), format OpenAI.
+String tanyaGroq(const String& pertanyaan, const String& fotoBase64, int& kode) {
+  JsonDocument doc;
+  doc["model"] = GROQ_MODEL;
+  doc["max_completion_tokens"] = 1024;
   JsonArray msgs = doc["messages"].to<JsonArray>();
+  JsonObject sis = msgs.add<JsonObject>(); sis["role"] = "system"; sis["content"] = promptSistem();
   for (int i = 0; i < riwayatN; i++) { JsonObject m = msgs.add<JsonObject>(); m["role"] = riwayatPeran[i]; m["content"] = riwayatIsi[i]; }
   JsonObject u = msgs.add<JsonObject>();
   u["role"] = "user";
   if (fotoBase64.length()) {
     JsonArray isi = u["content"].to<JsonArray>();
-    JsonObject img = isi.add<JsonObject>();
-    img["type"] = "image";
-    img["source"]["type"] = "base64"; img["source"]["media_type"] = "image/jpeg"; img["source"]["data"] = fotoBase64;
-    JsonObject txt = isi.add<JsonObject>();
-    txt["type"] = "text"; txt["text"] = pertanyaan;
+    JsonObject txt = isi.add<JsonObject>(); txt["type"] = "text"; txt["text"] = pertanyaan;
+    JsonObject img = isi.add<JsonObject>(); img["type"] = "image_url";
+    img["image_url"]["url"] = "data:image/jpeg;base64," + fotoBase64;
   } else {
     u["content"] = pertanyaan;
   }
@@ -470,21 +517,34 @@ String tanyaClaude(const String& pertanyaan, const String& fotoBase64 = "") {
 
   WiFiClientSecure c; c.setInsecure();
   HTTPClient http;
-  http.begin(c, "https://api.anthropic.com/v1/messages");
+  http.begin(c, "https://api.groq.com/openai/v1/chat/completions");
   http.addHeader("content-type", "application/json");
-  http.addHeader("x-api-key", CLAUDE_API_KEY);
-  http.addHeader("anthropic-version", "2023-06-01");
+  http.addHeader("Authorization", String("Bearer ") + GROQ_API_KEY);
   http.setTimeout(30000);
-  int code = http.POST(body);
+  kode = http.POST(body);
   String resp = http.getString();
   http.end();
-  if (code != 200) {
-    Serial.printf("[claude] kode %d: %s\n", code, resp.c_str());
-    return "{\"bicara\":\"Maaf, aku gagal menghubungi otak AI (kode " + String(code) + ").\",\"aksi\":[]}";
-  }
+  if (kode != 200) { Serial.printf("[groq] kode %d: %s\n", kode, resp.c_str()); return ""; }
   JsonDocument r;
-  if (deserializeJson(r, resp)) return "{\"bicara\":\"Jawaban AI tidak terbaca.\",\"aksi\":[]}";
-  String teks = r["content"][0]["text"] | "";
+  if (deserializeJson(r, resp)) { kode = -2; return ""; }
+  return bersihkan(r["choices"][0]["message"]["content"] | "");
+}
+
+// Tanya AI: Gemini dulu; kalau gagal (misalnya jatah gratis hari ini habis), pakai Groq kalau kuncinya ada.
+// fotoBase64 kosong = hanya teks.
+String tanyaAI(const String& pertanyaan, const String& fotoBase64 = "") {
+  bool adaGemini = strlen(GEMINI_API_KEY) > 0, adaGroq = strlen(GROQ_API_KEY) > 0;
+  if (!adaGemini && !adaGroq) return "{\"bicara\":\"API key Gemini belum diisi di kode.\",\"aksi\":[]}";
+  int kode = 0; String teks;
+  if (adaGemini) teks = tanyaGemini(pertanyaan, fotoBase64, kode);
+  if ((kode != 200 || teks.length() == 0) && adaGroq) {
+    if (adaGemini) Serial.printf("[ai] Gemini gagal (kode %d), pakai cadangan Groq\n", kode);
+    teks = tanyaGroq(pertanyaan, fotoBase64, kode);
+  }
+  if (kode != 200 || teks.length() == 0) {
+    if (kode == 429) return "{\"bicara\":\"Jatah AI gratis sedang habis. Coba lagi nanti.\",\"aksi\":[]}";
+    return "{\"bicara\":\"Maaf, aku gagal menghubungi otak AI (kode " + String(kode) + ").\",\"aksi\":[]}";
+  }
   ingat("user", pertanyaan);                 // foto tidak disimpan di riwayat, terlalu besar
   ingat("assistant", teks);
   return teks;
@@ -522,7 +582,7 @@ String jalankanJawaban(const String& jawaban, const String& pertanyaanAsli, bool
     String b64 = ok ? base64::encode(fotoBuf, fotoLen) : "";
     xSemaphoreGive(kunciFoto);
     if (ok) {
-      String j2 = tanyaClaude(pertanyaanAsli + " (Ini foto dari kameramu barusan. Jawab berdasarkan foto.)", b64);
+      String j2 = tanyaAI(pertanyaanAsli + " (Ini foto dari kameramu barusan. Jawab berdasarkan foto.)", b64);
       return jalankanJawaban(j2, pertanyaanAsli, false);
     }
     bicara = "Kameraku tidak bisa dihubungi.";
@@ -594,7 +654,7 @@ void tanganiPesan(const telegramMessage& m) {
     if (ok) { kirimFotoTelegram(chat); b64 = base64::encode(fotoBuf, fotoLen); }
     xSemaphoreGive(kunciFoto);
     if (!ok) { bot.sendMessage(chat, "Kamera tidak bisa dihubungi."); ekspresi = NORMAL; return; }
-    String jaw = tanyaClaude(q, b64);
+    String jaw = tanyaAI(q, b64);
     String kata = jalankanJawaban(jaw, q, false);
     bot.sendMessage(chat, kata.length() ? kata : "(tidak ada jawaban)");
     ekspresi = NORMAL; setStatus(kata);
@@ -612,7 +672,7 @@ void tanganiPesan(const telegramMessage& m) {
   else {
     ekspresi = PIKIR; setStatus("Berpikir...");
     bot.sendChatAction(chat, "typing");
-    String kata = jalankanJawaban(tanyaClaude(t), t, true);
+    String kata = jalankanJawaban(tanyaAI(t), t, true);
     bot.sendMessage(chat, kata.length() ? kata : "(diam)");
     ekspresi = NORMAL; setStatus(kata);
   }
@@ -632,7 +692,7 @@ void tugasJaringan(void*) {
         if (kata.length() == 0) { setStatus(strlen(GROQ_API_KEY) ? "Tidak terdengar jelas" : "GROQ_API_KEY belum diisi"); ekspresi = NORMAL; }
         else {
           setStatus("Kamu: " + kata);
-          String jawab = jalankanJawaban(tanyaClaude(kata), kata, true);
+          String jawab = jalankanJawaban(tanyaAI(kata), kata, true);
           bot.sendMessage(TELEGRAM_CHATID, "Kamu bilang: " + kata + "\n" + String(NAMA_ROBOT) + ": " + jawab);
           setStatus(jawab); ekspresi = NORMAL;
         }

@@ -23,17 +23,11 @@ cb83f7b93161	Open your new bot and press <b>Start</b>.
 f113e919babd	Already made a bot for the weather station? Make a new bot for the robot, so the two do not fight over messages.
 d9ab00ae764b	Install the <b>UniversalTelegramBot</b> (Brian Lough) and <b>ArduinoJson</b> (Benoit Blanchon) libraries.
 3a699b61b054	Fill in the WiFi, token and chat ID in the test code, upload to the S3, then send a message to the bot.
-feb436fa181e	Open <a href="https://platform.claude.com">platform.claude.com</a> (the old address console.anthropic.com points here), sign up or log in.
-decf529721b4	<b>Settings → Billing</b>: add a payment method and top up a small balance (for example $5). Without a balance, the API refuses every request.
-1cf17158b6e4	<b>Settings → Limits</b>: set a monthly spending limit.
-b2c0ea48083b	<b>Settings → API Keys → Create Key</b>. Name it "robot", copy the key (it starts with <code>sk-ant-</code>). The key is shown only once.
 902bfc25c072	Fill in the key in the test code, upload to the S3, type a question in the Serial Monitor.
 f93737ae35a7	Open <a href="https://console.groq.com">console.groq.com</a>, sign up, then <b>API Keys → Create API Key</b>. Copy the key (it starts with <code>gsk_</code>).
 6d1682345f7b	The brain code sends a 4-second recording (WAV 16 kHz) to the <code>whisper-large-v3-turbo</code> model with the language set to Indonesian, and receives the text.
-abae09753df9	Your recording is sent to Groq's servers. Read their privacy policy if that matters to you. Not filling in this key is fine too: only the SPEAK button does not work.
 107252ecd103	The <b>ESP32-audioI2S</b> library is not in the Library Manager. Open <a href="https://github.com/schreibfaul1/ESP32-audioI2S/releases">its releases page</a>, download the ZIP of version <b>4.0.0</b> (Source code zip). In the Arduino IDE: <b>Sketch → Include Library → Add .ZIP Library</b>, choose that ZIP file.
 c3f9b87bdf91	Make sure LovyanGFX, UniversalTelegramBot and ArduinoJson are installed.
-04f1e1343e1c	Open <a href="../kode/robot_otak/robot_otak.ino" download>robot_otak.ino</a>. Fill in the KONFIGURASI section: WiFi, token, chat ID, Claude API key, Groq API key (may be left empty), and <code>KAMERA_ALAMAT</code> with the camera's IP from Part 4.
 c490be0dd308	Change <code>NAMA_ROBOT</code> and <code>NAMA_PEMILIK</code> as you like.
 d37ae9d75100	Set Tools as in Part 3 Stage 1 (<b>PSRAM: OPI PSRAM</b>, <b>Huge APP</b>). Upload. The first compile can take a few minutes.
 7e7163bb7822	After the first power-up, the display asks for touch calibration: touch the tip of the arrow in each corner. The result is saved. To recalibrate, touch the screen just after the S3 is switched on.

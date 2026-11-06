@@ -98,8 +98,8 @@ PATEN = {
         'Token bot dan chat ID.',
         'Jangan diunggah ke GitHub atau dikirim ke orang lain. Kalau bocor, buat bot baru.'),
     ('5-ai', 2): (
-        'API key Claude dan batas pengeluaran bulanan.',
-        'Kunci hanya ditampilkan sekali. Jangan taruh di berkas yang akan diunggah.'),
+        'API key Gemini dari AI Studio.',
+        'Jangan taruh di berkas yang akan diunggah ke tempat publik.'),
     ('5-ai', 3): (
         'Kunci Groq (boleh dikosongkan).',
         'Rekaman suara dikirim ke server Groq. Kalau keberatan, kosongkan kuncinya.'),

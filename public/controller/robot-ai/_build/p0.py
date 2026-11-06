@@ -97,7 +97,7 @@ def kartu(g, n, f, s):
 
 def isi():
     import cover
-    o = '<header class="top"><a class="back" href="../">← Semua panduan</a>' + cover.utama() + '<span class="eyebrow">ESP32-S3 · DevKit V1 · ESP32-CAM · Claude</span>'
+    o = '<header class="top"><a class="back" href="../">← Semua panduan</a>' + cover.utama() + '<span class="eyebrow">ESP32-S3 · DevKit V1 · ESP32-CAM · Gemini</span>'
     o += '<h1>Robot AI 4WD</h1>'
     o += ('<p class="lead">Robot beroda empat yang bisa diajak ngobrol, digerakkan dari layar sentuh atau Telegram, melihat lewat kamera, '
           'memutar musik, mengikuti benda di depannya, dan berjaga. Dirakit bertahap dari baterai sampai AI, dengan tes kecil di setiap langkah.</p>')

@@ -1,0 +1,30 @@
+acfb224abccc	ESP32-S3 · DevKit V1 · ESP32-CAM · Gemini
+1e504827c95c	Telegram bot, free Gemini AI, speech to text, then the full brain code: face, chatting, seeing, follow and guard modes.
+a6ae6b4d0ace	This part switches on the robot's intelligence: Telegram for commands from your phone, Gemini for thinking and seeing, Groq for listening and as a backup AI. Each service is tested on its own before the full brain code is uploaded.
+2056359a5c66	Gemini API (Google AI Studio)
+2f12bf65672c	free with a daily limit
+d034eb8e0b8f	Groq
+b93f66023cea	turns your voice into text, and backup AI when the Gemini quota runs out
+e2aca69e0e5b	no, but recommended
+6964aeb52995	Gemini free limits
+2db47f0af917	Gemini is used through <b>Google AI Studio</b> without a credit card. Limits are counted per project and per model (requests per minute and per day), and Google no longer publishes them in its documentation: the numbers that apply to you are only visible on the <a href="https://aistudio.google.com/rate-limit">AI Studio limits page</a> and can change at any time. The daily quota resets at midnight Pacific time, around 15:00-16:00 WITA.
+1f22aeee7243	One chat with the robot = one request; a question that makes the robot take a photo is usually two (deciding to look, then describing the photo). If the Gemini quota runs out, the robot automatically uses <b>Groq</b> as a backup, as long as the Groq key is filled in (Step 3). On the free tier, Google may use your questions and photos to improve its services; do not send anything private.
+aec6033b8202	Gemini API key (free)
+5284dfe4a2c0	Google account
+78352060c348	Open <a href="https://aistudio.google.com">aistudio.google.com</a> and sign in with your Google account.
+0da2b2c785bd	<b>Get API key → Create API key</b>, choose or create a new project. Copy the key (it starts with <code>AIza</code>). No credit card needed.
+2b70003b6372	Open the <a href="https://aistudio.google.com/rate-limit">limits page</a> and check the daily quota of each model. The code uses <code>gemini-2.5-flash-lite</code> (fast, can see photos). If another Flash model that accepts images has a larger quota, write its name in <code>MODEL</code> (test code) and <code>GEMINI_MODEL</code> (brain code).
+2a11043f0d21	tes_gemini.ino
+9461370ac25e	<b>Why?</b> This code sends the question as JSON to <code>generativelanguage.googleapis.com</code> over HTTPS, with the key in the <code>x-goog-api-key</code> header. The connection is encrypted, but for simplicity the server certificate is not checked (<code>setInsecure</code>). That is fine for this home project; do not use this pattern for sensitive data.
+4cbb7b711c4c	The AI answer appears within a few seconds. Code 400 with API_KEY_INVALID = wrong key, 403 = key not allowed, 404 = wrong or retired model name, 429 = quota used up or too many requests.
+da1bdc19c7e4	<span class="py">Fine to make permanent</span> Gemini API key from AI Studio.
+1ae6a8ec0443	<span class="pn">Not yet</span> Do not put it in files you will upload somewhere public.
+6d8b72bfd21a	Groq: speech to text and backup AI (optional)
+f16ebabe7f2e	The same key also becomes the backup brain: if Gemini refuses (for example the daily quota is used up), the brain code asks the <code>GROQ_MODEL</code> model on Groq, which can also see photos.
+ff7a9896c1f2	Your recording is sent to Groq's servers. Read their privacy policy if that matters to you. Leaving this key empty is fine too: the TALK button will not work and there is no backup AI.
+237da7554215	Open <a href="../kode/robot_otak/robot_otak.ino" download>robot_otak.ino</a>. Fill in the CONFIGURATION section: WiFi, token, chat ID, Gemini API key, Groq API key (may be empty, but recommended as a backup), and <code>KAMERA_ALAMAT</code> with the camera IP from Part 4.
+50779d4595b2	The robot says "Jatah AI gratis sedang habis" (free AI quota used up): the daily limit of Gemini (and Groq if filled in) has been used. Wait for the quota to reset around 15:00-16:00 WITA, or pick another model with a larger quota on the AI Studio limits page.
+3008dfa341f6	The bot token, Gemini API key, and Groq API key are like passwords. Do not upload them to GitHub or send them to anyone. If one leaks, delete the key in AI Studio or the Groq console and create a new one.
+082bac9554ca	AI does not answer (code 400/403/404/429)
+a2f52e6b6ca1	wrong key / wrong model name / free quota used up
+3f39ac360bba	check the key and limits at aistudio.google.com; fill in GROQ_API_KEY as a backup

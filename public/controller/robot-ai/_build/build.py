@@ -21,7 +21,7 @@ PARTS = [
     ('2-badan', 'Badan', 'Chassis, 4 motor lewat TB6612, kepala pan-tilt, sensor jarak, kemiringan, cuaca, tombol STOP, dan kode badan.'),
     ('3-otak', 'Otak', 'ESP32-S3 dengan layar sentuh, SD card, speaker, mikrofon, lalu disambung ke badan lewat UART.'),
     ('4-mata', 'Mata', 'ESP32-CAM: upload lewat papan MB, lihat foto di browser, lalu pindah ke daya robot dan kepala pan-tilt.'),
-    ('5-ai', 'Kecerdasan', 'Bot Telegram, AI Claude, suara ke teks, lalu kode otak lengkap: wajah, ngobrol, melihat, mode ikuti dan jaga.'),
+    ('5-ai', 'Kecerdasan', 'Bot Telegram, AI Gemini gratis, suara ke teks, lalu kode otak lengkap: wajah, ngobrol, melihat, mode ikuti dan jaga.'),
     ('6-rakit', 'Rakit akhir', 'Tata letak di chassis tiga lantai, pindah ke daya baterai, uji di lantai, kalibrasi, dan daftar masalah umum.'),
 ]
 
@@ -141,7 +141,7 @@ def halaman_bagian(slug, judul_h1, lead, isi, desc):
 
 def halaman_utama(isi):
     out = HEAD.format(title='Robot AI 4WD · Panduan Elektronika',
-                      desc='Panduan lengkap merakit robot AI 4WD dengan ESP32-S3, ESP32 DevKit dan ESP32-CAM: daya baterai, motor, sensor, layar sentuh, suara, Telegram dan AI Claude. Bertahap untuk pemula.',
+                      desc='Panduan lengkap merakit robot AI 4WD dengan ESP32-S3, ESP32 DevKit dan ESP32-CAM: daya baterai, motor, sensor, layar sentuh, suara, Telegram dan AI Gemini. Bertahap untuk pemula.',
                       a='../assets/')
     out += '<body data-key="robot-ai/utama"><div class="wrap">' + isi
     out += ('<footer><span>Dibuat untuk belajar. Kode sudah dikompilasi, robot lengkapnya belum diuji di perangkat nyata.</span>'

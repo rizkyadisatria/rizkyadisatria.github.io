@@ -193,7 +193,7 @@ def bms():
 def arsitektur():
     W, H = 900, 430
     s = ''
-    s += box(330, 20, 240, 120, 'ESP32-S3 (OTAK)', ['layar sentuh + wajah', 'speaker, mikrofon, SD', 'WiFi, Telegram, AI Claude'], fill='#13283a', stroke='#7fb6ff')
+    s += box(330, 20, 240, 120, 'ESP32-S3 (OTAK)', ['layar sentuh + wajah', 'speaker, mikrofon, SD', 'WiFi, Telegram, AI Gemini'], fill='#13283a', stroke='#7fb6ff')
     s += box(20, 230, 240, 120, 'ESP32 DevKit V1 (BADAN)', ['4 motor (TB6612), 2 servo', '2 sensor jarak, MPU6050', 'cuaca, tombol STOP, baterai'], fill='#1d3324', stroke='#7fe0a0')
     s += box(640, 230, 240, 120, 'ESP32-CAM (MATA)', ['kamera OV2640/OV3660', 'foto lewat WiFi', 'di kepala pan-tilt'], fill='#3a2a13', stroke='#ffc27a')
     s += line([(330, 110), (140, 110), (140, 230)], 'kuning', 4)
@@ -201,7 +201,7 @@ def arsitektur():
     s += line([(570, 110), (760, 110), (760, 230)], 'cyan', 4)
     s += f'<path d="M570 110 L760 110 L760 230" fill="none" stroke="#0d0f0e" stroke-width="2" stroke-dasharray="6 6"/>'
     s += tag(665, 98, 'WiFi (tanpa kabel)')
-    s += box(330, 260, 240, 70, 'Internet', ['Telegram · Claude · Groq'], fill='#2a2a2a', stroke='#bbbbbb')
+    s += box(330, 260, 240, 70, 'Internet', ['Telegram · Gemini · Groq'], fill='#2a2a2a', stroke='#bbbbbb')
     s += f'<path d="M450 140 L450 260" fill="none" stroke="#26c6da" stroke-width="3" stroke-dasharray="6 6"/>'
     s += text(20, 395, 'Aturan keselamatan (berhenti saat ada halangan, gerakan berbatas waktu, tombol STOP)', 12.5, fill='#e8efe9')
     s += text(20, 414, 'ada di BADAN. Kalau otak atau WiFi macet, robot tetap berhenti sendiri.', 12.5, fill='#e8efe9')

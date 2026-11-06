@@ -8,13 +8,13 @@ def halaman():
     isi += section('biaya', 'Sebelum mulai', 'Tiga layanan internet yang dipakai', table(
         ['Layanan', 'Untuk apa', 'Biaya', 'Wajib?'],
         [['Bot Telegram', 'perintah dan foto dari HP', 'gratis', 'ya'],
-         ['Claude API (Anthropic)', 'otak AI: ngobrol, memutuskan gerakan, melihat foto', 'berbayar per pemakaian, isi saldo dulu', 'tidak, tanpa ini robot tetap bisa dikendalikan lewat perintah'],
-         ['Groq (Whisper)', 'mengubah suaramu jadi teks', 'ada tingkat gratis dengan batas pemakaian', 'tidak, hanya untuk tombol BICARA'],
+         ['Gemini API (Google AI Studio)', 'otak AI: ngobrol, memutuskan gerakan, melihat foto', 'gratis dengan batas harian', 'tidak, tanpa ini robot tetap bisa dikendalikan lewat perintah'],
+         ['Groq', 'mengubah suaramu jadi teks, dan AI cadangan kalau jatah Gemini habis', 'gratis dengan batas harian', 'tidak, tapi disarankan'],
          ['Google TTS (lewat library audio)', 'robot berbicara', 'gratis, tapi bukan layanan resmi', 'tidak; kalau berhenti bekerja, robot tetap menjawab lewat Telegram']]) + '''
 <div class="panel">
-  <h3>Perkiraan biaya Claude</h3>
-  <p>Model bawaan di kode adalah <code>claude-haiku-5-5</code>, model Claude paling murah. Halaman model Anthropic mencantumkan harga mulai $0,10 per juta token masukan dan $0,50 per juta token keluaran. Satu obrolan robot memakai sekitar 1.000-1.500 token masukan (aturan robot + riwayat + data sensor) dan sekitar 100 token jawaban, jadi kira-kira $0,0002 atau sekitar Rp3 per obrolan dengan kurs Rp16.000-an. Foto 640x480 menambah sekitar 400 token. Harga dan kurs bisa berubah; cek <a href="https://platform.claude.com/docs/en/about-claude/pricing">halaman harga</a>.</p>
-  <p>Wajib: pasang <b>batas pengeluaran bulanan</b> di console (Settings → Limits), misalnya $5, supaya kode yang macet berulang tidak menghabiskan saldo.</p>
+  <h3>Batas gratis Gemini</h3>
+  <p>Gemini dipakai lewat <b>Google AI Studio</b> tanpa kartu kredit. Batasnya dihitung per proyek dan per model (permintaan per menit dan per hari), dan Google tidak lagi mengumumkannya di dokumentasi: angka yang berlaku untukmu hanya terlihat di <a href="https://aistudio.google.com/rate-limit">halaman batas AI Studio</a> dan bisa berubah sewaktu-waktu. Jatah harian kembali penuh tengah malam waktu Pasifik, sekitar pukul 15.00-16.00 WITA.</p>
+  <p>Satu obrolan robot = satu permintaan; pertanyaan yang membuat robot memotret biasanya dua (memutuskan melihat, lalu menjelaskan fotonya). Kalau jatah Gemini habis, robot otomatis memakai <b>Groq</b> sebagai cadangan, asal kunci Groq diisi (Tahap 3). Di tingkat gratis, Google boleh memakai isi pertanyaan dan foto untuk memperbaiki layanannya; jangan kirim hal yang pribadi.</p>
 </div>''')
 
     t = ''
@@ -29,26 +29,26 @@ def halaman():
         ok_='Bot mengirim "Halo dari ESP32-S3!" dan membalas setiap pesanmu.',
         gagal=['"GAGAL kirim": token salah ketik (harus lengkap dengan angka dan titik dua), chat ID salah, atau belum menekan Start di bot.', 'WiFi tidak tersambung: ESP32 hanya bisa 2.4 GHz.'])
 
-    t += stage(S, 2, 'API key Claude', ['Akun Claude Console', 'Kartu atau metode bayar untuk isi saldo'], [
-        'Buka <a href="https://platform.claude.com">platform.claude.com</a> (alamat lama console.anthropic.com mengarah ke sini), daftar atau masuk.',
-        '<b>Settings → Billing</b>: tambahkan metode bayar dan isi saldo kecil (misalnya $5). Tanpa saldo, API menolak semua permintaan.',
-        '<b>Settings → Limits</b>: pasang batas pengeluaran bulanan.',
-        '<b>Settings → API Keys → Create Key</b>. Beri nama "robot", salin kuncinya (diawali <code>sk-ant-</code>). Kunci hanya ditampilkan sekali.',
+    t += stage(S, 2, 'API key Gemini (gratis)', ['Akun Google'], [
+        'Buka <a href="https://aistudio.google.com">aistudio.google.com</a> dan masuk dengan akun Google.',
+        '<b>Get API key → Create API key</b>, pilih atau buat proyek baru. Salin kuncinya (diawali <code>AIza</code>). Tidak perlu kartu kredit.',
+        'Buka <a href="https://aistudio.google.com/rate-limit">halaman batas</a> dan lihat jatah per hari tiap model. Kode memakai <code>gemini-2.5-flash-lite</code> (cepat, bisa melihat foto). Kalau ada model Flash lain yang bisa melihat gambar dengan jatah lebih besar, tulis namanya di <code>MODEL</code> (kode tes) dan <code>GEMINI_MODEL</code> (kode otak).',
         'Isi kunci di kode tes, upload ke S3, ketik pertanyaan di Serial Monitor.',
-    ], code=kode_tes('tes_claude'),
-        ok_='Jawaban AI muncul dalam beberapa detik. Kode 401 = kunci salah, 400 dengan pesan saldo = saldo kosong, 429 = terlalu sering.',
-        learn='Kode ini mengirim pertanyaan dalam format JSON ke alamat <code>api.anthropic.com/v1/messages</code> lewat HTTPS. Koneksinya terenkripsi, tapi demi kesederhanaan sertifikat server tidak diperiksa (<code>setInsecure</code>). Untuk proyek rumahan ini cukup; jangan pakai pola ini untuk data sensitif.')
+    ], code=kode_tes('tes_gemini'),
+        ok_='Jawaban AI muncul dalam beberapa detik. Kode 400 dengan API_KEY_INVALID = kunci salah, 403 = kunci tidak diizinkan, 404 = nama model salah atau sudah tidak tersedia, 429 = jatah habis atau terlalu sering.',
+        learn='Kode ini mengirim pertanyaan dalam format JSON ke alamat <code>generativelanguage.googleapis.com</code> lewat HTTPS, dengan kunci di header <code>x-goog-api-key</code>. Koneksinya terenkripsi, tapi demi kesederhanaan sertifikat server tidak diperiksa (<code>setInsecure</code>). Untuk proyek rumahan ini cukup; jangan pakai pola ini untuk data sensitif.')
 
-    t += stage(S, 3, 'Suara ke teks dengan Groq (opsional)', ['Akun Groq'], [
+    t += stage(S, 3, 'Groq: suara ke teks dan AI cadangan (opsional)', ['Akun Groq'], [
         'Buka <a href="https://console.groq.com">console.groq.com</a>, daftar, lalu <b>API Keys → Create API Key</b>. Salin kuncinya (diawali <code>gsk_</code>).',
         'Kode otak mengirim rekaman 4 detik (WAV 16 kHz) ke model <code>whisper-large-v3-turbo</code> dengan bahasa Indonesia, dan menerima teksnya.',
-        'Rekamanmu dikirim ke server Groq. Baca kebijakan privasi mereka kalau itu penting bagimu. Tidak mengisi kunci ini juga tidak apa-apa: tombol BICARA saja yang tidak berfungsi.',
+        'Kunci yang sama juga jadi cadangan otak AI: kalau Gemini menolak (misalnya jatah harian habis), kode otak bertanya ke model <code>GROQ_MODEL</code> di Groq, yang juga bisa melihat foto.',
+        'Rekamanmu dikirim ke server Groq. Baca kebijakan privasi mereka kalau itu penting bagimu. Tidak mengisi kunci ini juga tidak apa-apa: tombol BICARA tidak berfungsi dan tidak ada cadangan AI.',
     ], ok_='Kamu punya kunci gsk_ yang siap diisi di kode otak.')
 
     t += stage(S, 4, 'Pasang library audio dan upload kode otak', ['Semua rangkaian Bagian 3', 'Badan dan kamera menyala'], [
         'Library <b>ESP32-audioI2S</b> tidak ada di Library Manager. Buka <a href="https://github.com/schreibfaul1/ESP32-audioI2S/releases">halaman rilisnya</a>, unduh ZIP versi <b>4.0.0</b> (Source code zip). Di Arduino IDE: <b>Sketch → Include Library → Add .ZIP Library</b>, pilih file ZIP itu.',
         'Pastikan LovyanGFX, UniversalTelegramBot, dan ArduinoJson sudah terpasang.',
-        'Buka <a href="../kode/robot_otak/robot_otak.ino" download>robot_otak.ino</a>. Isi bagian KONFIGURASI: WiFi, token, chat ID, API key Claude, API key Groq (boleh kosong), dan <code>KAMERA_ALAMAT</code> dengan IP kamera dari Bagian 4.',
+        'Buka <a href="../kode/robot_otak/robot_otak.ino" download>robot_otak.ino</a>. Isi bagian KONFIGURASI: WiFi, token, chat ID, API key Gemini, API key Groq (boleh kosong, tapi disarankan sebagai cadangan), dan <code>KAMERA_ALAMAT</code> dengan IP kamera dari Bagian 4.',
         'Ganti <code>NAMA_ROBOT</code> dan <code>NAMA_PEMILIK</code> sesukamu.',
         'Atur Tools seperti Bagian 3 Tahap 1 (<b>PSRAM: OPI PSRAM</b>, <b>Huge APP</b>). Upload. Kompilasi pertama bisa beberapa menit.',
         'Setelah menyala pertama kali, layar meminta kalibrasi sentuh: sentuh ujung panah di tiap sudut. Hasilnya disimpan. Untuk kalibrasi ulang, sentuh layar saat S3 baru dinyalakan.',
@@ -84,14 +84,15 @@ def halaman():
         ok_='Semua perintah langsung (diawali /) berjalan. Obrolan AI menjawab dalam beberapa detik.',
         learn='AI diminta menjawab dalam format JSON: kalimat untuk diucapkan, ditambah daftar aksi seperti {"m":[150,150,800]} untuk maju. Kode otak menjalankan aksi itu satu per satu, dan badan tetap menolak gerakan yang berbahaya. Mode ikuti dan jaga hanya memakai sensor ultrasonik, jadi robot tidak bisa membedakan orang dan benda; ia mengikuti atau menjaga apa pun yang ada di depannya.',
         gagal=['AI menjawab tapi robot tidak bergerak: lihat Serial Monitor. Kalau ada "E DITOLAK", ada halangan atau tombol STOP terkunci.', 'Foto gagal: kamera menyala? IP di KAMERA_ALAMAT benar? Tab /stream di browser sudah ditutup?',
-               'BICARA menghasilkan "Tidak terdengar jelas": bicara lebih dekat ke mikrofon, atau GROQ_API_KEY belum diisi.'])
+               'BICARA menghasilkan "Tidak terdengar jelas": bicara lebih dekat ke mikrofon, atau GROQ_API_KEY belum diisi.',
+               'Robot berkata "Jatah AI gratis sedang habis": batas harian Gemini (dan Groq kalau diisi) sudah terpakai. Tunggu jatahnya kembali sekitar pukul 15.00-16.00 WITA, atau pilih model lain dengan jatah lebih besar di halaman batas AI Studio.'])
 
     isi += section('rakit', 'Langkah', 'Pasang kecerdasan', '<div class="parts" style="gap:16px">' + t + '</div>')
     isi += section('aman', 'Penting', 'Keamanan dan privasi', ul([
-        'Token bot, API key Claude, dan API key Groq sama dengan password. Jangan unggah ke GitHub atau kirim ke orang lain. Kalau bocor, hapus kuncinya di console dan buat yang baru.',
+        'Token bot, API key Gemini, dan API key Groq sama dengan password. Jangan unggah ke GitHub atau kirim ke orang lain. Kalau bocor, hapus kuncinya di AI Studio atau console Groq dan buat yang baru.',
         'Robot hanya menurut ke chat ID-mu. Orang lain yang menemukan bot-mu akan dibalas "aku hanya menurut ke pemilikku".',
         'Kamera dan mikrofon bisa merekam orang lain di rumah. Beritahu mereka, dan matikan robot kalau tidak dipakai.',
         'Mode jaga bukan alarm keamanan sungguhan: sensor ultrasonik bisa terkecoh tirai yang bergerak, dan bisa melewatkan orang di samping.',
     ]))
-    lead = 'Bagian ini menyalakan kecerdasan robot: Telegram untuk perintah dari HP, Claude untuk berpikir dan melihat, Groq untuk mendengar. Setiap layanan dites sendiri sebelum kode otak lengkap di-upload.'
-    return S, 'Kecerdasan', lead, isi, 'Menyalakan kecerdasan robot: bot Telegram, Claude API untuk ngobrol dan melihat foto, suara ke teks, mode ikuti dan jaga.'
+    lead = 'Bagian ini menyalakan kecerdasan robot: Telegram untuk perintah dari HP, Gemini untuk berpikir dan melihat, Groq untuk mendengar dan sebagai AI cadangan. Setiap layanan dites sendiri sebelum kode otak lengkap di-upload.'
+    return S, 'Kecerdasan', lead, isi, 'Menyalakan kecerdasan robot: bot Telegram, Gemini API gratis untuk ngobrol dan melihat foto, suara ke teks, mode ikuti dan jaga.'
