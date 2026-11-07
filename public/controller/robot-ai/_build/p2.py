@@ -117,7 +117,7 @@ def halaman():
         'Pin header TB6612-mu sudah terpasang, jadi tidak perlu menyolder. Balik papan: <b>nama pin tercetak di bawah</b>. Di modulmu urutannya sisi kiri PWMA, <b>AIN2, AIN1</b>, STBY, BIN1, BIN2, PWMB, GND dan sisi kanan VM, VCC, GND, AO1, AO2, BO2, BO1, GND. Perhatikan AIN2 ada di atas AIN1: cocokkan nama, jangan menebak dari posisi.',
         f'Kabel F-F dari TB6612 ke pin S papan 30P: {pin("PWMA")}→D25, {pin("AIN1")}→D26, {pin("AIN2")}→D27, {pin("PWMB")}→D13, {pin("BIN1")}→D32, {pin("BIN2")}→D33.',
         f'{pin("STBY")} dan {pin("VCC")} ke dua pin <b>3V</b> di blok daya. {pin("GND")} (yang di sisi pin logika) ke pin G mana saja.',
-        f'Saklar baterai OFF. Potong hijau 22 AWG <b>{KB.pn("vm")}</b> dan hitam <b>{KB.pn("vmg")}</b>. Solder satu ujung masing-masing ke potongan jumper betina 3 cm, heat shrink. Hijau: WAGO 6V → {pin("VM")}. Hitam: WAGO −6 → {pin("GND")} di sebelah VM.',
+        f'Saklar baterai OFF. Potong hijau 22 AWG <b>{KB.pn("vm")}</b> dan hitam <b>{KB.pn("vmg")}</b>. Solder satu ujung masing-masing ke potongan jumper betina 3 cm, heat shrink. Hijau: WAGO 6V → {pin("VM")}. Hitam: WAGO −6 → {pin("GND")} ketiga di sisi kanan, tepat di bawah VCC (urutan VM, VCC, GND). Ketiga pin GND TB6612 tersambung di dalam papan, jadi GND lain pun tetap jalan.',
         'Kapasitor 470 µF: <b>kaki panjang (+) ke WAGO 6V</b>, sisi bergaris (−) ke WAGO −6, di lubang yang masih kosong. Terbalik bisa meletus.',
         f'Kabel motor kiri (ujung jumper betina) ke {pin("AO1")} dan {pin("AO2")}, motor kanan ke {pin("BO1")} dan {pin("BO2")}.',
         '<b>Angkat robot</b>: taruh chassis di atas kotak atau gelas supaya keempat roda menggantung.',
