@@ -56,6 +56,8 @@ L3 = [  # di atas lantai 3 (plat ketiga, sama dengan chassis): tanpa batas tingg
     ('S3 + ekspansi', 25, 43, 81, 82, 30, '#13283a'), ('breadboard 2', 112, 40, 54, 82, 20, '#d9d9cf'),
     ('TFT (berdiri)', 106, 129, 86, 10, 55, '#8c1d18'), ('speaker (berdiri)', 96, 14, 84, 22, 30, '#2a2a2a'),
     ('STOP', 150, 44, 12, 12, 12, '#7a1010'),          # ditancap di breadboard 2
+    ('MAX98357A', 172, 44, 18, 20, 12, '#5b2a86'),     # dekat ujung speaker: kabel speaker pendek
+    ('INMP441', 178, 100, 14, 14, 8, '#1f2a44'),       # jauh dari speaker, lubang suara menghadap ke atas
     ('kepala', 212, 58, 36, 36, 70, '#3a2a13'),
 ]
 MENONJOL = {'speaker (berdiri)', 'TFT (berdiri)'}   # boleh menonjol sedikit dari tepi pinggang, asal diikat ke sayap tengah

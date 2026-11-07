@@ -229,7 +229,7 @@ LANTAI3 = [
 
 
 def lantai3():
-    return gambar(3, -2, 258, ['S3 + ekspansi', 'breadboard 2', 'TFT (berdiri)', 'speaker (berdiri)', 'STOP', 'kepala'], LANTAI3,
+    return gambar(3, -2, 258, ['S3 + ekspansi', 'breadboard 2', 'TFT (berdiri)', 'speaker (berdiri)', 'STOP', 'MAX98357A', 'INMP441', 'kepala'], LANTAI3,
                   [(88, 55, '5V'), (101, 75, 'IO17'), (225, 84, ''), (232, 76, 'CAM')],
                   [(*H23, 'H23'), (*HUA, 'HUA'), (*HST, 'HST'), (*HSV, 'HSV')],
                   k=3.6, label='Peta kabel lantai 3, posisi sama dengan di robot',
