@@ -12,7 +12,7 @@ KIT = [
     ('ekspansi30p', 'Papan ekspansi 30P', 'Tempat DevKit dicolok, ada blok 5V/3V/GND.', 1),
     ('chassis', 'Chassis 4WD', 'Dua plat akrilik, 4 motor TT, 4 roda.', 1),
     ('plat', '3 plat chassis Starlectric', 'Plat bawah, plat atas, dan plat lantai 3. Akrilik buram, ujung lebar 15,2 cm, pinggang 10 cm.', 1),
-    ('spacer30', 'Spacer kuningan 30+6 mm', '12 buah, 12 baut, 12 mur: 6 kaki lantai 3, tiap kaki 2 bertumpuk (60 mm).', 1),
+    ('spacer30', 'Spacer kuningan 30+6 mm', '8 buah, 8 baut, 8 mur: 4 kaki lantai 3 di pojok, tiap kaki 2 bertumpuk (60 mm).', 1),
     ('kabel22', 'Kabel 22 AWG merah, hijau, hitam', 'Masing-masing 1 m. Jalur daya: merah +7,4 V, hijau +6 V, hitam GND.', 1),
     ('kabel22b', 'Kabel 22 AWG merah + hitam tambahan', 'Merah dan hitam, 2 m. Sisa dan cadangan untuk jalur daya.', 1),
     ('kabel26oren', 'Kabel 26 AWG oranye', '1 m. Cadangan untuk sinyal atau penanda kabel.', 2),

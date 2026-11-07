@@ -40,7 +40,6 @@ eb62f1cd27d7	<span class="py">OK to lock in</span> All level-1 items (LM2596, MP
 598acba13a3e	Close the top plate and mount level 2
 249b14f5f5eb	Level 2, rear.
 ced3b91a0aa8	Level 2 mounted, all items steady, and the cells can be pulled out of the holders without opening anything.
-aea1f109d866	<span class="py">OK to lock in</span> The top plate with all six legs, holders, BMS, switch, fuse, breadboard 1, 30P board, XL4015 and front HC-SR04.
 ecdb3fb2ede5	<span class="pn">Not yet</span> The red 5 V wire of LM2596 #1 is not plugged in yet (Stage 6). The 6 mm button is removed; do not close level 3 before the wires going up are gathered at the front.
 982a8b24989a	Mount level 3
 efcdecd38c8b	Level 3 mounted and the head can move fully without pulling any wire.
@@ -104,14 +103,12 @@ ce34adb275c6	A cell that gets hot while charging, swells, or smells: stop, put i
 420ce7fa4aa3	Next ideas: wheel encoders (the code wheel from the chassis kit) for exact distance travelled, a line sensor to follow a path, or a cliff sensor under the front.
 c191578d8735	All the parts already tested in Parts 1-5
 c1727882cf4c	The third chassis plate
-c167eb6571a6	12 M3 brass standoffs 30+6 mm (6 legs x 2)
 d0f578a93d8d	Bottom plate with motors
 d88ef9d8d389	M3 nylon standoff kit (6 mm)
 1a4a761ebc5e	Cable ties 3 x 100 mm
 ac70934487f9	Masking tape + marker
 9c2787e86086	3 mm drill (if needed)
 0f07c4a55620	Top plate
-0d9eb1447ab5	12 brass standoffs
 3fcbbea89002	Short M3 bolts + nuts
 affc3f43da3f	M3 nylon standoff kit
 91eaf90e3065	Cable ties

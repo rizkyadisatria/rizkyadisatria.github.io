@@ -7,7 +7,7 @@ EN = {
     'ekspansi30p': ('30P expansion board', 'Where the DevKit plugs in; has 5V/3V/GND blocks.'),
     'chassis': ('4WD chassis', 'Two acrylic plates, 4 TT motors, 4 wheels.'),
     'plat': ('3 Starlectric chassis plates', 'Bottom plate, top plate and the level-3 plate. Opaque acrylic, 15.2 cm at the wide end, 10 cm at the waist.'),
-    'spacer30': ('Brass standoffs 30+6 mm', '12 pieces, 12 bolts, 12 nuts: 6 legs for level 3, each leg is 2 stacked (60 mm).'),
+    'spacer30': ('Brass standoffs 30+6 mm', '8 pieces, 8 bolts, 8 nuts: 4 corner legs for level 3, each leg is 2 stacked (60 mm).'),
     'kabel22': ('22 AWG wire: red, green, black', '1 m each. Power lines: red +7.4 V, green +6 V, black GND.'),
     'kabel22b': ('Extra 22 AWG red + black wire', 'Red and black, 2 m. Leftover and spare for power lines.'),
     'kabel26oren': ('26 AWG orange wire', '1 m. Spare for signals or for marking wires.'),

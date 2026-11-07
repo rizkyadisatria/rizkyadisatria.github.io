@@ -118,7 +118,7 @@ PATEN = {
         'Semua barang lantai 1 (LM2596, MPU6050, TB6612, empat WAGO, HC-SR04 belakang), kabel sudah berlabel di ujung atasnya.',
         'Plat atas jangan ditutup dulu. Kabel lantai 1 yang naik harus sudah lengkap, berlabel, dan sambungannya dicek.'),
     ('6-rakit', 3): (
-        'Plat atas dengan keenam kaki, holder, BMS, saklar, sekring, breadboard 1, papan 30P, XL4015, dan HC-SR04 depan.',
+        'Plat atas dengan empat kaki lantai 3, holder, BMS, saklar, sekring, breadboard 1, papan 30P, XL4015, dan HC-SR04 depan.',
         'Kabel merah 5 V LM2596 #1 belum ditancap (Tahap 6). Tombol 6 mm sudah dilepas; jangan menutup lantai 3 sebelum kabel naik terkumpul di depan.'),
     ('6-rakit', 4): (
         'Plat ketiga lengkap: S3, TFT, breadboard 2, kepala, speaker, dan tombol STOP.',
