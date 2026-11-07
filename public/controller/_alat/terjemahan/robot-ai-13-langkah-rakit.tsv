@@ -49,7 +49,6 @@ affd73dc38b8	Send <code>/kiri</code> then <code>/kanan</code>: the robot spins o
 9572cae4a3cb	Put a 30 cm box in front of the robot, send <code>/maju 3000</code>. The robot must stop before about 20 cm.
 b3f806cd8646	Press the STOP button while the robot moves: it stops at once, Telegram notifies you. Press again to release.
 d23da17d985c	Try <code>/ikuti</code> then walk slowly in front of the robot. Try <code>/jaga</code> then walk past it after 4 seconds.
-6c241e9f58c5	Finally, chat: "Robi, maju sedikit lalu lihat ke kiri, ada apa di sana?"
 a24302495feb	Speed: the number 150 in the forward command is 59% power. If it is too fast for your room, change the number in <code>tanganiPesan</code> and <code>tanganiSentuh</code> in the brain code.
 07f75fc8f82c	Stop distance: <code>JARAK_STOP_DEPAN</code> in the body code. A slippery floor needs a larger distance because the robot slides.
 89c66069e481	Head: <code>TILT_MIN</code>, <code>TILT_MAX</code> in the body code. Pan direction in the AI: if "lihat ke kiri" turns right instead, change the note "pan 30=kanan 150=kiri" in <code>promptSistem</code>.

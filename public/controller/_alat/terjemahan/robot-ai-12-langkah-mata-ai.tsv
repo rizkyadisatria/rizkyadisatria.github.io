@@ -17,7 +17,6 @@ a0820b133104	<b>Never</b> use the ESP32-CAM's <span class="pin">VCC</span> or <s
 10825f1fcbba	A 1000 µF capacitor near the ESP32-CAM, between 5V and GND: solder its legs to the red and black wires about 3 cm before the female jumper (long leg to red), then insulate. The wire is over 20 cm, so the capacitor must be at the camera end, not at the LM2596.
 c212b7c49598	Switch ON. Wait 10 seconds, then open the camera's IP address in the browser: the photo still shows.
 92e06063dc5a	The ESP32-CAM has no bolt holes, so strap it to the front mount of the pan-tilt head with 2 cable ties: one across the very top edge (above the camera, through the SD slot), one across the ESP32-CAM label area under the ribbon connector. Do not cross the lens, the flash LED or the ribbon connector. Nylon does not disturb the antenna; only metal does. Tighten just enough that it does not wobble.
-e7d346edd2b0	In Telegram, search for <b>@BotFather</b>, send <code>/newbot</code>, give a name (for example Robi Robot) and a username ending in "bot". Save the <b>token</b> you are given.
 e9ac8ea739c7	Search for <b>@userinfobot</b>, press Start, save your <b>Id</b> number. The robot will only obey this ID.
 cb83f7b93161	Open your new bot and press <b>Start</b>.
 f113e919babd	Already made a bot for the weather station? Make a new bot for the robot, so the two do not fight over messages.
@@ -25,10 +24,8 @@ d9ab00ae764b	Install the <b>UniversalTelegramBot</b> (Brian Lough) and <b>Arduin
 3a699b61b054	Fill in the WiFi, token and chat ID in the test code, upload to the S3, then send a message to the bot.
 902bfc25c072	Fill in the key in the test code, upload to the S3, type a question in the Serial Monitor.
 f93737ae35a7	Open <a href="https://console.groq.com">console.groq.com</a>, sign up, then <b>API Keys → Create API Key</b>. Copy the key (it starts with <code>gsk_</code>).
-6d1682345f7b	The brain code sends a 4-second recording (WAV 16 kHz) to the <code>whisper-large-v3-turbo</code> model with the language set to Indonesian, and receives the text.
 107252ecd103	The <b>ESP32-audioI2S</b> library is not in the Library Manager. Open <a href="https://github.com/schreibfaul1/ESP32-audioI2S/releases">its releases page</a>, download the ZIP of version <b>4.0.0</b> (Source code zip). In the Arduino IDE: <b>Sketch → Include Library → Add .ZIP Library</b>, choose that ZIP file.
 c3f9b87bdf91	Make sure LovyanGFX, UniversalTelegramBot and ArduinoJson are installed.
-c490be0dd308	Change <code>NAMA_ROBOT</code> and <code>NAMA_PEMILIK</code> as you like.
 d37ae9d75100	Set Tools as in Part 3 Stage 1 (<b>PSRAM: OPI PSRAM</b>, <b>Huge APP</b>). Upload. The first compile can take a few minutes.
 7e7163bb7822	After the first power-up, the display asks for touch calibration: touch the tip of the arrow in each corner. The result is saved. To recalibrate, touch the screen just after the S3 is switched on.
 3c2bb4a35a6c	Start with <code>/bantuan</code> in Telegram: the bot sends the list of commands.

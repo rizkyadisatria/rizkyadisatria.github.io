@@ -44,7 +44,9 @@ const char* GEMINI_MODEL    = "gemini-2.5-flash-lite"; // bisa melihat foto; cek
 const char* GROQ_API_KEY    = "";                     // gsk_...: suara ke teks, dan cadangan AI kalau jatah Gemini habis
 const char* GROQ_MODEL      = "qwen/qwen3.8-27b";     // model Groq yang bisa melihat foto (cadangan)
 const char* KAMERA_ALAMAT   = "";                     // contoh "192.168.1.50". Kosong = cari robotcam.local
-const char* NAMA_ROBOT      = "Robi";
+const char* NAMA_ROBOT      = "Zond";                 // nama robot; perintah suara harus menyebut nama ini
+const bool  DENGAR_NAMA     = true;                   // true = mendengar terus, menanggapi kalau namanya disebut
+                                                      // false = hanya mendengar setelah tombol BICARA
 const char* NAMA_PEMILIK    = "Rizky";
 const int   VOLUME_AWAL     = 12;                     // 0..21
 
@@ -168,6 +170,7 @@ volatile Ekspresi ekspresi = NORMAL;
 char teksStatus[96] = "Menyala...";
 volatile int arahMata = 0;          // -1 kiri, 0 tengah, 1 kanan
 volatile bool sedangBicara = false;
+volatile bool audioJalan = false;          // speaker sedang memutar sesuatu (bicara, musik, radio)
 volatile bool adaSD = false;
 String alamatKamera;
 volatile int pesanBadan = 0;        // 1 = baterai lemah, 2 = stop dikunci (diteruskan ke Telegram)
@@ -229,6 +232,7 @@ void tugasAudio(void*) {
       sedangBicara = true;
     }
     if (!audio.isRunning() && antreTTS.empty()) sedangBicara = false;
+    audioJalan = audio.isRunning() || !antreTTS.empty();
     if (pakaiSD) xSemaphoreTake(kunciSPI, portMAX_DELAY);
     audio.loop();
     if (pakaiSD) xSemaphoreGive(kunciSPI);
@@ -373,24 +377,120 @@ void tulisHeaderWav(uint8_t* h, uint32_t dataLen) {
   w = 2; memcpy(h + 32, &w, 2); w = 16; memcpy(h + 34, &w, 2); memcpy(h + 36, "data", 4); memcpy(h + 40, &dataLen, 4);
 }
 
-bool rekam(int detik) {
-  size_t sampel = MIC_RATE * detik;
-  if (!wavBuf) wavBuf = (uint8_t*)ps_malloc(44 + sampel * 2);
-  if (!wavBuf) return false;
+// ---- Mendengar terus: potong tiap kalimat berdasarkan keras-pelannya suara ----
+// Satu kalimat (maksimal 6 detik) disimpan di wavBuf, lalu tugas jaringan mengubahnya jadi teks.
+// Robot tidak mendengar saat speaker berbunyi, supaya tidak menanggapi suaranya sendiri.
+const int FRAME = 320;                     // 20 milidetik pada 16 kHz
+const int PRAROL = 15;                     // simpan 0,3 detik sebelum suara mulai, supaya awal kata tidak terpotong
+const int MAKS_DETIK = 6;
+const int AMBANG_MIN = 300;                // suara di bawah ini selalu dianggap diam
+volatile bool mintaDengar = false;         // tombol BICARA ditekan
+volatile bool suaraSiap = false;           // satu kalimat sudah ada di wavBuf
+volatile bool suaraButuhNama = true;       // kalimat itu harus menyebut nama robot supaya ditanggapi
+volatile unsigned long jendelaSampai = 0;  // sampai kapan boleh bicara tanpa menyebut nama
+
+void tugasDengar(void*) {
+  static int32_t blok[FRAME * 2];
+  static int16_t cincin[PRAROL * FRAME];
+  const size_t maks = MIC_RATE * MAKS_DETIK;
+  wavBuf = (uint8_t*)ps_malloc(44 + maks * 2);
+  if (!wavBuf) { Serial.println("[dengar] memori PSRAM tidak cukup"); vTaskDelete(NULL); }
   int16_t* out = (int16_t*)(wavBuf + 44);
-  int32_t blok[256];
-  while (mic.available() > 0) mic.read();                 // buang data lama
-  size_t n = 0;
-  while (n < sampel) {
-    size_t b = mic.readBytes((char*)blok, sizeof(blok));
-    for (size_t i = 0; i + 1 < b / 4 && n < sampel; i += 2) {   // data stereo: kiri, kanan, kiri, ... ambil kiri saja
-      int32_t v = blok[i] >> 14;                            // 24 bit -> 16 bit, dengan sedikit penguatan
-      out[n++] = (int16_t)constrain(v, -32768, 32767);
+  float hpX = 0, hpY = 0, lantai = 200;     // lantai = perkiraan bising ruangan
+  int posCincin = 0, atas = 0, bawah = 0, bersuara = 0;
+  bool merekam = false; size_t n = 0;
+  unsigned long tSibuk = 0;
+  for (;;) {
+    size_t k = mic.readBytes((char*)blok, sizeof(blok)) / 8;
+    if (k == 0) { vTaskDelay(1); continue; }
+    if (k > FRAME) k = FRAME;
+    int16_t f[FRAME]; double jum = 0;
+    for (size_t i = 0; i < k; i++) {
+      float x = blok[2 * i] >> 14;                       // jalur kiri, 24 bit -> 16 bit dengan sedikit penguatan
+      float y = x - hpX + 0.995f * hpY;                  // buang geseran nol dan dengung rendah
+      hpX = x; hpY = y;
+      f[i] = (int16_t)constrain((int)y, -32768, 32767); jum += (double)y * y;
+    }
+    int rms = sqrt(jum / k);
+
+    if (suaraSiap || audioJalan || sedangBicara) { tSibuk = millis(); merekam = false; atas = 0; continue; }
+    if (millis() - tSibuk < 600) continue;               // tunggu gema speaker hilang
+    if (mintaDengar) {
+      mintaDengar = false; jendelaSampai = millis() + 6000;
+      ekspresi = DENGAR; setStatus("Mendengarkan...");
+    }
+    bool bolehDengar = DENGAR_NAMA || millis() < jendelaSampai;
+    if (!merekam) {
+      if (jendelaSampai && millis() > jendelaSampai) {   // waktu menunggu perintah habis
+        jendelaSampai = 0;
+        if (ekspresi == DENGAR) { ekspresi = NORMAL; setStatus(""); }
+      }
+      memcpy(cincin + (posCincin % PRAROL) * FRAME, f, k * 2); posCincin++;
+      int ambang = max(AMBANG_MIN, (int)(lantai * 3));
+      if (rms > ambang) atas++;
+      else { atas = 0; lantai += (rms - lantai) * 0.02f; }
+      if (atas >= 3 && bolehDengar) {                   // 60 milidetik suara keras: kalimat dimulai
+        n = 0;
+        int ada = min(posCincin, PRAROL);
+        for (int r = posCincin - ada; r < posCincin; r++) { memcpy(out + n, cincin + (r % PRAROL) * FRAME, FRAME * 2); n += FRAME; }
+        merekam = true; bersuara = atas; bawah = 0;
+      }
+    } else {
+      if (n + k <= maks) { memcpy(out + n, f, k * 2); n += k; }
+      if (rms > max(AMBANG_MIN / 2, (int)(lantai * 2))) { bersuara++; bawah = 0; } else bawah++;
+      if (bawah >= 35 || n + FRAME > maks) {             // 0,7 detik diam, atau sudah 6 detik: kalimat selesai
+        merekam = false; atas = 0;
+        if (bersuara >= 15) {                            // minimal 0,3 detik bersuara, selain itu cuma bunyi singkat
+          wavLen = 44 + n * 2; tulisHeaderWav(wavBuf, n * 2);
+          suaraButuhNama = millis() > jendelaSampai;
+          suaraSiap = true;
+        }
+      }
     }
   }
-  wavLen = 44 + sampel * 2;
-  tulisHeaderWav(wavBuf, sampel * 2);
-  return true;
+}
+
+// Cari nama robot di tiga kata pertama. Whisper kadang menulis nama sedikit berbeda (Zon, Zone, Son), jadi dicocokkan
+// dengan toleransi satu huruf. sisa = kalimat tanpa nama dan kata sapaan; kosong kalau hanya memanggil nama.
+int jarakHuruf(const String& a, const String& b) {
+  int m = a.length(), n = b.length(); if (abs(m - n) > 1) return 9;
+  int d[12][12]; if (m > 10 || n > 10) return 9;
+  for (int i = 0; i <= m; i++) d[i][0] = i;
+  for (int j = 0; j <= n; j++) d[0][j] = j;
+  for (int i = 1; i <= m; i++) for (int j = 1; j <= n; j++)
+    d[i][j] = min(min(d[i - 1][j] + 1, d[i][j - 1] + 1), d[i - 1][j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1));
+  return d[m][n];
+}
+String miripkan(String w) { w.replace("z", "s"); return w; }   // z dan s sering tertukar
+
+bool cariNama(const String& kalimat, String& sisa) {
+  String nama = NAMA_ROBOT; nama.toLowerCase(); nama = miripkan(nama);
+  String t = kalimat; t.toLowerCase();
+  for (unsigned i = 0; i < t.length(); i++) if (!isalnum((unsigned char)t[i])) t[i] = ' ';
+  bool ketemu = false; int kata = 0; sisa = "";
+  const char* sapaan[] = {"hai", "hei", "hey", "halo", "hallo", "oke", "ok", "eh", "ya", "hi"};
+  int i = 0;
+  while (i < (int)t.length()) {
+    while (i < (int)t.length() && t[i] == ' ') i++;
+    int j = i; while (j < (int)t.length() && t[j] != ' ') j++;
+    if (j > i) {
+      String w = t.substring(i, j); kata++;
+      bool iniNama = !ketemu && kata <= 3 && jarakHuruf(miripkan(w), nama) <= 1;   // nama biasanya di awal kalimat
+      bool iniSapaan = false;
+      for (const char* s : sapaan) if (w == s) iniSapaan = true;
+      if (iniNama) ketemu = true;
+      else if (!(iniSapaan && sisa.length() == 0)) sisa += (sisa.length() ? " " : "") + w;
+    }
+    i = j;
+  }
+  return ketemu;
+}
+
+// Batasi kiriman suara ke Groq saat robot mendengar terus (obrolan orang lain, TV), supaya jatah harian tidak habis.
+bool izinSuaraKeTeks() {
+  static unsigned long awalMenit = 0; static int jumlah = 0;
+  if (millis() - awalMenit > 60000) { awalMenit = millis(); jumlah = 0; }
+  return ++jumlah <= 10;
 }
 
 String suaraKeTeks() {
@@ -399,6 +499,7 @@ String suaraKeTeks() {
   String awal = String("--") + batas + "\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-large-v3-turbo\r\n" +
                 "--" + batas + "\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nid\r\n" +
                 "--" + batas + "\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\ntext\r\n" +
+                "--" + batas + "\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\n" + NAMA_ROBOT + "\r\n" +
                 "--" + batas + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"suara.wav\"\r\nContent-Type: audio/wav\r\n\r\n";
   String akhir = String("\r\n--") + batas + "--\r\n";
   size_t total = awal.length() + wavLen + akhir.length();
@@ -431,6 +532,7 @@ void ingat(const String& peran, const String& isi) {
 
 String promptSistem() {
   return String("Kamu adalah ") + NAMA_ROBOT + ", robot beroda empat milik " + NAMA_PEMILIK + " di Lombok. "
+    "Namamu " + String(NAMA_ROBOT) + "; pemilikmu memanggil namamu sebelum memberi perintah, jadi abaikan panggilan itu dan tanggapi permintaannya. "
     "Bicara Bahasa Indonesia santai, ramah, dan SINGKAT (paling banyak 2 kalimat) karena jawabanmu diucapkan lewat speaker kecil. "
     "Jujur: kalau tidak tahu, bilang tidak tahu. Kamu punya badan yang bisa bergerak. "
     "Jawab HANYA dengan satu objek JSON tanpa teks lain, formatnya: "
@@ -682,20 +784,30 @@ void tugasJaringan(void*) {
   unsigned long tPoll = 0;
   for (;;) {
     if (WiFi.status() != WL_CONNECTED) { vTaskDelay(pdMS_TO_TICKS(2000)); continue; }
-    Tugas tg;
-    if (xQueueReceive(antrianTugas, &tg, 0) == pdTRUE && tg.jenis == T_SUARA) {
-      kirimAudio(A_STOP); vTaskDelay(pdMS_TO_TICKS(150));
-      ekspresi = DENGAR; setStatus("Mendengarkan... (4 detik)");
-      if (rekam(4)) {
-        ekspresi = PIKIR; setStatus("Mengubah suara ke teks...");
-        String kata = suaraKeTeks();
-        if (kata.length() == 0) { setStatus(strlen(GROQ_API_KEY) ? "Tidak terdengar jelas" : "GROQ_API_KEY belum diisi"); ekspresi = NORMAL; }
-        else {
-          setStatus("Kamu: " + kata);
-          String jawab = jalankanJawaban(tanyaAI(kata), kata, true);
-          bot.sendMessage(TELEGRAM_CHATID, "Kamu bilang: " + kata + "\n" + String(NAMA_ROBOT) + ": " + jawab);
-          setStatus(jawab); ekspresi = NORMAL;
-        }
+    if (suaraSiap) {
+      bool butuhNama = suaraButuhNama;
+      String kata;
+      if (!butuhNama || izinSuaraKeTeks()) {
+        if (!butuhNama) { ekspresi = PIKIR; setStatus("Mengubah suara ke teks..."); }
+        kata = suaraKeTeks();
+      } else Serial.println("[dengar] terlalu banyak suara dalam semenit, dilewati");
+      suaraSiap = false;                                  // wavBuf boleh dipakai lagi
+      String sisa;
+      bool adaNama = kata.length() && cariNama(kata, sisa);
+      if (kata.length() == 0) {
+        if (!butuhNama) { setStatus(strlen(GROQ_API_KEY) ? "Tidak terdengar jelas" : "GROQ_API_KEY belum diisi"); ekspresi = NORMAL; }
+      } else if (butuhNama && !adaNama) {
+        Serial.println("[dengar] tanpa nama, diabaikan: " + kata);
+      } else if (adaNama && sisa.length() == 0) {         // hanya memanggil nama: tunggu perintahnya
+        ucapkan("Ya?");
+        jendelaSampai = millis() + 9000;
+        ekspresi = DENGAR; setStatus("Ya? Silakan bicara");
+      } else {
+        jendelaSampai = 0;
+        ekspresi = PIKIR; setStatus("Kamu: " + kata);
+        String jawab = jalankanJawaban(tanyaAI(kata), kata, true);
+        bot.sendMessage(TELEGRAM_CHATID, "Kamu bilang: " + kata + "\n" + String(NAMA_ROBOT) + ": " + jawab);
+        setStatus(jawab); ekspresi = NORMAL;
       }
     }
     if (alarmJaga) {
@@ -935,7 +1047,7 @@ void tanganiSentuh() {
     gambarTombol(tombol <= 5 ? tombol : -1);
     if (tombolLalu >= 0 && tombolLalu <= 3) kirimBadan("S");               // jari diangkat = berhenti
     if (tombol == 4) { gantiMode(M_BIASA); kirimBadan("S"); kirimAudio(A_STOP); setStatus("Berhenti"); }
-    if (tombol == 5) { Tugas t{T_SUARA}; xQueueSend(antrianTugas, &t, 0); }
+    if (tombol == 5) { kirimAudio(A_STOP); mintaDengar = true; }   // BICARA: dengarkan tanpa perlu menyebut nama
     tombolLalu = tombol; tKirim = 0;
     if (tombol == 10) { lihatKameraDiLayar(); tombolLalu = -1; }
   }
@@ -987,7 +1099,7 @@ void setup() {
   audio.setPinout(AMP_BCLK, AMP_LRC, AMP_DIN);
   audio.setVolume(VOLUME_AWAL);
   mic.setPins(MIC_SCK, MIC_WS, -1, MIC_SD);
-  // Mode STEREO, bukan MONO: di ESP32-S3 mode mono memberi data rusak (sebagian besar nol). Jalur kiri diambil di rekam().
+  // Mode STEREO, bukan MONO: di ESP32-S3 mode mono memberi data rusak (sebagian besar nol). Jalur kiri diambil di tugasDengar().
   if (!mic.begin(I2S_MODE_STD, MIC_RATE, I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO))
     Serial.println("Mikrofon gagal mulai");
 
@@ -1007,6 +1119,7 @@ void setup() {
 
   xTaskCreatePinnedToCore(tugasAudio, "audio", 12288, nullptr, 3, nullptr, 1);
   xTaskCreatePinnedToCore(tugasJaringan, "jaringan", 16384, nullptr, 1, nullptr, 0);
+  xTaskCreatePinnedToCore(tugasDengar, "dengar", 6144, nullptr, 2, nullptr, 0);
 }
 
 void loop() {

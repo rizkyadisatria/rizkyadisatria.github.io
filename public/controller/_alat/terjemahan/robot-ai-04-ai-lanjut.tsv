@@ -28,7 +28,6 @@ f1ca8a3fc601	Photo fails: is the camera on? Is the IP in KAMERA_ALAMAT correct? 
 edd3c74596a2	SPEAK gives "Tidak terdengar jelas": speak closer to the microphone, or GROQ_API_KEY has not been filled in.
 2947cf619107	Security and privacy
 df1a93c4bda9	The robot only obeys your chat ID. Anyone else who finds your bot gets the reply "aku hanya menurut ke pemilikku".
-fc6ec41cd5ec	The camera and microphone can record other people at home. Tell them, and switch the robot off when it is not in use.
 ef111ed5e9d5	Guard mode is not a real security alarm: the ultrasonic sensors can be fooled by a moving curtain, and can miss a person off to the side.
 2490a1dba100	A phone with Telegram
 0b3c7afae171	The UniversalTelegramBot and ArduinoJson libraries

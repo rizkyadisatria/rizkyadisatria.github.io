@@ -1,0 +1,13 @@
+8bf85d55d40a	In Telegram, search for <b>@BotFather</b>, send <code>/newbot</code>, give it a name (for example Zond Robot) and a username ending in "bot". Save the <b>token</b> it gives you.
+390d61989809	The brain code cuts your speech into sentences (16 kHz WAV, at most 6 seconds), sends each to the <code>whisper-large-v3-turbo</code> model with Indonesian as the language, and receives the text. The robot only responds to sentences that say its name.
+e647b7e57935	Change <code>NAMA_ROBOT</code> (default <code>Zond</code>) and <code>NAMA_PEMILIK</code> as you like. Pick a short robot name that rarely comes up in everyday conversation, because the robot only responds to voice commands that say its name.
+722ffa6b68eb	The screen shows a face with two blinking eyes, the status line at the top shows battery and distance from the body, the speaker says "Halo, aku Zond. Aku siap.", and the bot sends "Zond menyala".
+472e4697e573	Say "Zond, maju sedikit" (Zond, move forward a little)
+5a7bf8382cec	the robot hears its name, answers, moves, and sends the conversation to Telegram
+ce5bbf8d6455	Say just "Zond", wait for the robot to say "Ya?", then speak
+aeb2b4d27ec8	commands after "Ya?" do not need the name again (for about 8 seconds)
+ae78cf87b366	Tap TALK (BICARA), then speak
+51c6ac2be0ce	same, without needing to say the name
+5fba604bd099	The robot does not respond when you say its name: check the Serial Monitor. Lines "[dengar] tanpa nama, diabaikan" (no name, ignored) show what it heard; if the name is written very differently, change NAMA_ROBOT to a name that is easier to pronounce clearly. The robot also does not listen while the speaker is making sound, including while music or radio is playing.
+23ef94677a59	The camera and microphone can record other people at home. With <code>DENGAR_NAMA</code> on, every sentence it hears is sent to Groq to check whether it says the robot's name (at most 10 sentences per minute). Tell the people at home, switch the robot off when not in use, or set <code>DENGAR_NAMA = false</code> so the robot only listens after the TALK button.
+d342fa397abd	Finally, chat: "Zond, maju sedikit lalu lihat ke kiri, ada apa di sana?" (Zond, move forward a little then look left, what is there?)

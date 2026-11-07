@@ -134,7 +134,7 @@ def utama():
     isi = robot(340, 58, .95)
     isi += gelombang(700, 90, 3, ORANYE, 1)
     isi += f'<g transform="translate(70 70)"><rect width="170" height="64" rx="16" fill="#26332e" stroke="#3a4a44"/><path d="M28 64 L20 84 L46 64Z" fill="#26332e"/>'
-    isi += f'<text x="85" y="40" text-anchor="middle" font-family="Inter,sans-serif" font-size="20" fill="{PUTIH}" font-weight="600">Halo, aku Robi!</text></g>'
+    isi += f'<text x="85" y="40" text-anchor="middle" font-family="Inter,sans-serif" font-size="20" fill="{PUTIH}" font-weight="600">Halo, aku Zond!</text></g>'
     isi += f'<g transform="translate(90 160)"><rect width="120" height="44" rx="14" fill="{ORANYE2}"/><text x="60" y="29" text-anchor="middle" font-family="Inter,sans-serif" font-size="16" fill="#fff" font-weight="600">maju 1 m</text></g>'
     return bingkai(isi, 'Ilustrasi robot AI 4WD tiga lantai dengan layar wajah dan kepala kamera', 'u')
 
@@ -193,7 +193,7 @@ def mata():
 
 def ai():
     isi = f'<g transform="translate(250 54)"><rect width="250" height="66" rx="18" fill="#26332e" stroke="#3a4a44"/><path d="M30 66 L22 86 L52 66Z" fill="#26332e"/>'
-    isi += f'<text x="125" y="41" text-anchor="middle" font-family="Inter,sans-serif" font-size="19" fill="{PUTIH}">"Robi, lihat ke kiri"</text></g>'
+    isi += f'<text x="125" y="41" text-anchor="middle" font-family="Inter,sans-serif" font-size="19" fill="{PUTIH}">"Zond, lihat ke kiri"</text></g>'
     isi += f'<g transform="translate(300 150)"><rect width="270" height="66" rx="18" fill="{ORANYE2}"/><path d="M240 66 L250 86 L216 66Z" fill="{ORANYE2}"/>'
     isi += f'<text x="135" y="41" text-anchor="middle" font-family="Inter,sans-serif" font-size="19" fill="#fff">"Ada kucing di sofa."</text></g>'
     isi += wajah(610, 80, 120, 84)
@@ -288,7 +288,7 @@ def kartu_robot():
     isi = robot(250, 170, 1.45)
     isi += gelombang(730, 170, 3, ORANYE, 1)
     isi += f'<g transform="translate(46 70)"><rect width="190" height="70" rx="18" fill="#26332e" stroke="#3a4a44"/><path d="M30 70 L22 92 L52 70Z" fill="#26332e"/>'
-    isi += f'<text x="95" y="44" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="24" fill="{PUTIH}" font-weight="600">Halo, aku Robi!</text></g>'
+    isi += f'<text x="95" y="44" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="24" fill="{PUTIH}" font-weight="600">Halo, aku Zond!</text></g>'
     isi += f'<g transform="translate(60 180)"><rect width="150" height="52" rx="16" fill="{ORANYE2}"/><text x="75" y="34" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="20" fill="#fff" font-weight="600">maju 1 m</text></g>'
     return bingkai(isi, 'Ilustrasi robot AI 4WD', 'k', 800, 500)
 

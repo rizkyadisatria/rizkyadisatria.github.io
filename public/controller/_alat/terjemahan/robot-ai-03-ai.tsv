@@ -21,7 +21,6 @@ f5cbcf348305	<span class="py">OK to lock in</span> The Groq key (may be left emp
 e37ff5517d31	<span class="pn">Not yet</span> Voice recordings are sent to Groq's servers. If you object, leave the key empty.
 ac91d4d16c1d	Install the audio library and upload the brain code
 56880b9d9735	The full code is about 770 lines: <a href="../kode/robot_otak/robot_otak.ino" download>download robot_otak.ino</a>. Do not upload a file that already contains the token and API key to a public place.
-ba9f15a6f382	The screen shows a face with two blinking eyes, the status line at the top shows the battery and the distance from the body, the speaker says "Halo, aku Robi. Aku siap.", and the bot sends "Robi menyala".
 31a370895297	<span class="py">OK to lock in</span> The filled-in robot_otak.ino (WiFi, token, chat ID, API key, KAMERA_ALAMAT, robot name). The touch calibration is stored on the S3.
 f009943db34f	<span class="pn">Not yet</span> A file that already contains keys must not be uploaded to a public place. The wheels stay lifted.
 8f18816b3307	Compile error "Audio.h: No such file": the audio library was not installed from the ZIP.
@@ -37,8 +36,6 @@ e6fb2ab6a248	the robot moves while your finger is on it and stops when you let g
 29493907c679	motors and sound stop, the mode returns to normal
 0dcfc516d342	Tap the robot's face
 a33e6c6f4210	the screen shows the camera for 10 seconds (tap again to leave)
-becfe9243dbb	Tap SPEAK, then talk for 4 seconds
-758c9fc0036b	your voice is turned into text, answered by the AI, spoken aloud and sent to Telegram
 3f2ebbf1c6ae	Telegram: <code>/status</code>
 57d6eda15b0c	distance, battery, temperature, humidity, tilt
 6fa567262678	Telegram: <code>/maju 800</code>, <code>/kiri</code>, <code>/stop</code>
