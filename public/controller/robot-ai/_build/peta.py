@@ -42,7 +42,9 @@ def gambar(lantai, x0, x1, barang, kabel, tanda=(), lubang=(), redup=(), k=4.0, 
         s += f'<rect x="{X(x)}" y="{Y(y)}" width="{w * k}" height="{h * k}" rx="4" fill="{c}" stroke="#e9ece9" stroke-opacity=".8"/>'
         col = '#222' if c in ('#f1c40f', '#d9d9cf') else '#f4f6f5'
         fs = 11 if min(w, h) * k > 40 else 9.5
-        if h > w * 1.3:
+        if n == 'breadboard 2' and lantai == 3:          # ada modul di atasnya: label di tepi atas
+            s += diag.text(X(x) + 6, Y(y) + 14, n, 10, fill=col)
+        elif h > w * 1.3:
             s += f'<text transform="translate({X(x + w / 2) + 4} {Y(y + h / 2)}) rotate(-90)" text-anchor="middle" font-family="{diag.SANS}" font-size="{fs}" fill="{col}" fill-opacity=".85">{n}</text>'
         else:
             s += diag.text(X(x + w / 2), Y(y + h / 2) + 4, n, fs, anchor='middle', fill=col)
@@ -201,7 +203,7 @@ LANTAI2 = [
     ('bat', 'merah-biru', HXL, (123, 75), 6),
     ('hcb', 'abu', H7, (100, 60), 4),
     ('hctrig', 'abu', (104, 62), (195, 64), (150, 70)),
-    ('stop', 'abu', HST, (130, 75), (150, 32)),
+    ('stop', 'abu', HST, (130, 75), 4),
     ('uart', 'abu', (195, 60), HUA, (190, 42)),
     ('mpu', 'abu', HX6, (205, 42), (226, 66)),
     ('tbsig', 'abu', HX6, (190, 50), (210, 80)),
@@ -221,7 +223,7 @@ def lantai2():
 LANTAI3 = [
     ('5vs3', 'pasang', H23, (88, 55), 3),
     ('uart', 'abu', HUA, (101, 75), (150, 38)),
-    ('stop', 'abu', (156, 50), HST, 2),
+    ('stop', 'abu', (139, 97), HST, 3),
     ('servo+', 'hijau', HSV, (225, 84), -4),
     ('servo-', 'hitam', HSV, (229, 84), 4),
     ('5vcam', 'pasang', HSV, (232, 76), (246, 104)),

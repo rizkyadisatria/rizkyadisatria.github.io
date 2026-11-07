@@ -46,7 +46,7 @@ def halaman():
              (9, 4, 'kuning'), (10, 10, 'cyan'), (11, 3, 'biru'), (12, 5, 'hijau')]
     t += stage(S, 2, 'Layar TFT dan sentuhan', ['TFT 2,4" SPI 240x320', 'Breadboard 2 (400 lubang)', 'Kabel F-F, F-M, M-M', 'Library LovyanGFX'], [
         'Cabut USB. Install library <b>LovyanGFX</b> (lovyan03) dari Library Manager.',
-        'Siapkan <b>breadboard 2</b> (breadboard 400 lubang kedua; yang pertama dipakai badan). Breadboard tidak punya sumber daya sendiri: <b>dayanya dari papan ekspansi S3</b>. Satu kabel dari pin <b>3V3</b> di blok 3V3 papan ekspansi S3 → garis <b>merah</b> atas, satu kabel dari pin <b>G</b> papan ekspansi S3 → garis <b>biru</b> atas. Dari dua garis ini layar, MAX98357A, dan INMP441 mendapat daya (S3 sendiri hidup dari USB di mode meja). MAX98357A dan INMP441 nanti ditancapkan di breadboard ini, di kolom 12 ke atas.',
+        'Siapkan <b>breadboard 2</b> (breadboard 400 lubang kedua; yang pertama dipakai badan). Breadboard tidak punya sumber daya sendiri: <b>dayanya dari papan ekspansi S3</b>. Satu kabel dari pin <b>3V3</b> di blok 3V3 papan ekspansi S3 → garis <b>merah</b> atas, satu kabel dari pin <b>G</b> papan ekspansi S3 → garis <b>biru</b> atas. Dari dua garis ini layar, MAX98357A, dan INMP441 mendapat daya (S3 sendiri hidup dari USB di mode meja). MAX98357A nanti ditancapkan di kolom 12-18 dan INMP441 di kolom 26-28 breadboard ini; kolom 21-23 disisakan untuk tombol STOP robot jadi.',
         'Tiga kolom jadi bus SPI: kabel dari pin S <b>IO12</b> → <span class="pin">a2</span>, <b>IO11</b> → <span class="pin">a5</span>, <b>IO13</b> → <span class="pin">a8</span>.',
         'Sambungkan pin layar sesuai diagram. Baca nama pin di belakang layar: di modulmu urutannya dari bawah VCC, GND, CS, RESET, DC, SDI(MOSI), SCK, LED, SDO(MISO), T_CLK, T_CS, T_DIN, T_DO, T_IRQ. Satu kolom breadboard punya 5 lubang (a-e), jadi SCK layar ke <span class="pin">b2</span>, T_CLK ke <span class="pin">c2</span>, dan seterusnya.',
         '<b>SDO(MISO) layar dibiarkan tidak tersambung.</b> Pada banyak modul merah ini, pin SDO layar tidak mau "diam" saat layar tidak dipakai, sehingga mengacaukan sentuhan dan SD. Layar tidak perlu dibaca.',
@@ -78,25 +78,27 @@ def halaman():
         ok_='Serial Monitor menulis ukuran SD dan daftar file, dan layar menampilkan nama file.',
         gagal=['SD GAGAL: format FAT32 (bukan exFAT), cek SD_CS ke IO21, coba kartu lain. Kartu di atas 32 GB biasanya exFAT.', 'Layar bekerja tapi SD gagal hanya saat layar dinyalakan: SDO(MISO) layar mungkin tersambung. Cabut.'])
 
-    t += stage(S, 4, 'Speaker MAX98357A', ['MAX98357A (pin header dan terminal sudah terpasang)', 'Speaker kotak', 'Gunting/tang kupas', 'Kabel F-M dan F-F'], [
+    t += stage(S, 4, 'Speaker MAX98357A', ['MAX98357A (pin header dan terminal sudah terpasang)', 'Speaker kotak', 'Gunting/tang kupas', 'Kabel F-M dan M-M'], [
         'MAX98357A-mu sudah berpin header dan berterminal sekrup, jadi tidak perlu menyolder. Nama pin tercetak di sisi depan (LRC, BCLK, DIN, GAIN, SD, GND, Vin).',
         'Cek dulu ohm speaker kotakmu: lihat stiker di belakangnya, atau ukur dua kabelnya dengan multimeter di skala 200 Ω. Hasil sekitar 3-4 Ω berarti speaker 4 Ω, sekitar 6-8 Ω berarti 8 Ω. Keduanya aman untuk MAX98357A (4-8 Ω).',
         'Konektor putih di ujung kabel speaker tidak cocok dengan terminal. Potong konektornya, kupas 5 mm tiap kabel, pilin seratnya, lalu jepit di terminal: <b>merah ke ⊕</b>, hitam ke ⊖. Kencangkan sekrup lalu tarik pelan untuk mengecek.',
-        f'{pin("Vin")} → garis merah (3,3 V, untuk di meja), {pin("GND")} → garis biru.',
-        f'{pin("BCLK")} → S <b>IO4</b>, {pin("LRC")} → S <b>IO5</b>, {pin("DIN")} → S <b>IO7</b>. {pin("GAIN")} dan {pin("SD")} dibiarkan kosong.',
+        'Tancap MAX98357A di breadboard 2 dengan tujuh pinnya di baris e, kolom 12 sampai 18: <span class="pin">e12</span> LRC, <span class="pin">e13</span> BCLK, <span class="pin">e14</span> DIN, <span class="pin">e15</span> GAIN, <span class="pin">e16</span> SD, <span class="pin">e17</span> GND, <span class="pin">e18</span> Vin. Badan modul menyeberang di atas parit ke arah baris f-j. Tekan sampai pinnya masuk penuh.',
+        'Kabel M-M dari lubang di kolom yang sama: <span class="pin">a17</span> (GND) → garis biru, <span class="pin">a18</span> (Vin) → garis merah (3,3 V, untuk di meja).',
+        f'Kabel F-M dari pin S papan ekspansi: <b>IO4</b> → <span class="pin">a13</span> (BCLK), <b>IO5</b> → <span class="pin">a12</span> (LRC), <b>IO7</b> → <span class="pin">a14</span> (DIN). Kolom 15 dan 16 ({pin("GAIN")} dan {pin("SD")}) dibiarkan kosong.',
         'Upload kode tes (tanpa library tambahan).',
     ], figs=f'<div class="photos">{photo(IMG + "speaker_kotak.jpg", "Speaker kotak dengan kabel merah hitam dan konektor putih", "Speaker kotak milikmu. Speaker bulat 8 Ω 3 W jadi cadangan.")}{photo(IMG + "max98357a.jpg", "MAX98357A dengan pin header kuning", "MAX98357A milikmu: 4-8 Ω, 3 W, Vin 2,5-5,5 V.")}</div>' + fig(diag.conn('MAX98357A', '#5b2a86', ['LRC', 'BCLK', 'DIN', 'GAIN ✕', 'SD ✕', 'GND', 'Vin'], 'Sambung ke', '#151a18',
             [('#grup', 'papan S3 (pin S)'), 'IO5', 'IO4', 'IO7', ('#grup', 'breadboard'), 'rel biru (GND)', 'rel merah (3V3)'],
-            [(0, 1, 'kuning'), (1, 2, 'hijau'), (2, 3, 'biru'), (5, 5, 'gnd'), (6, 6, '3v3')], label='Sambungan MAX98357A')),
+            [(0, 1, 'kuning'), (1, 2, 'hijau'), (2, 3, 'biru'), (5, 5, 'gnd'), (6, 6, '3v3')], label='Sambungan MAX98357A'), 'Sambungannya lewat kolom breadboard: pin modul di baris e, kabelnya di baris a kolom yang sama.'),
         code=kode_tes('tes_speaker'),
         ok_='Terdengar do-re-mi-fa-sol lalu diam sedetik, berulang.',
         learn='MAX98357A menerima suara digital (I2S) dan langsung menguatkannya ke speaker. Pin GAIN kosong = penguatan 9 dB, pin SD kosong = menyala. Di robot jadi, Vin dipindah ke 5 V supaya lebih keras.',
         gagal=['Diam: cek BCLK/LRC/DIN tidak tertukar dan kabel speaker terjepit kuat di terminal (bukan isolasinya yang terjepit).', 'Bunyi kresek: kabel GND kurang kuat, atau kabel data terlalu panjang.'])
 
-    t += stage(S, 5, 'Mikrofon INMP441', ['INMP441', 'Pin header + solder', 'Kabel F-M dan F-F'], [
+    t += stage(S, 5, 'Mikrofon INMP441', ['INMP441', 'Pin header + solder', 'Kabel F-M dan M-M'], [
         'Solder pin header ke INMP441 kalau belum ada. Bagian bulat dengan lubang kecil adalah lubang suara, jangan ditutup.',
-        f'{pin("VDD")} → garis merah (3,3 V; INMP441 tidak boleh 5 V), {pin("GND")} dan {pin("L/R")} → garis biru.',
-        f'{pin("SCK")} → S <b>IO15</b>, {pin("WS")} → S <b>IO16</b>, {pin("SD")} → S <b>IO6</b>.',
+        'Tancap INMP441 menyeberangi parit tengah di <b>kolom 26 sampai 28</b>: baris pin SCK, WS, L/R di sisi a-e, baris pin SD, VDD, GND di sisi f-j. Pakai baris e dan f kalau jarak dua baris pinnya pas; kalau lebih lebar, d dan g. Lubang suara jangan menghadap ke breadboard atau tertutup. Catat kolom tiap pin dari nama yang tercetak, karena urutannya bisa berbeda antar-modul.',
+        f'Kabel M-M dari lubang kosong di kolom pin itu: {pin("VDD")} → garis merah (3,3 V; INMP441 tidak boleh 5 V), {pin("GND")} dan {pin("L/R")} → garis biru.',
+        f'Kabel F-M dari pin S papan ekspansi ke lubang kosong di kolom pin itu: <b>IO15</b> → {pin("SCK")}, <b>IO16</b> → {pin("WS")}, <b>IO6</b> → {pin("SD")}.',
         'Upload kode tes, buka <b>Tools → Serial Plotter</b>. Diam, lalu tepuk tangan dekat mikrofon.',
     ], figs=photo(IMG + 'inmp441.jpg', 'Mikrofon INMP441 dengan label pin', 'INMP441 milikmu: SCK, WS, L/R di satu sisi, SD, VDD, GND di sisi lain.', 300),
         code=kode_tes('tes_mic'),
@@ -125,8 +127,8 @@ def halaman():
         [['Blok 3V3 S3', 'rel merah breadboard 2'], ['GND S3', 'rel biru'], ['IO12 / IO11 / IO13', 'a2 / a5 / a8'],
          ['TFT VCC, LED', 'rel merah'], ['TFT GND', 'rel biru'], ['TFT SCK, T_CLK, SD_SCK', 'b2, c2, d2'], ['TFT SDI(MOSI), T_DIN, SD_MOSI', 'b5, c5, d5'],
          ['T_DO, SD_MISO', 'c8, d8'], ['TFT SDO(MISO), T_IRQ', 'tidak disambung'], ['TFT CS, DC, RESET', 'IO10, IO9, IO8'], ['T_CS', 'IO14'], ['SD_CS', 'IO21'],
-         ['MAX98357A Vin / GND', 'rel merah (mode jalan: blok 5V) / rel biru'], ['MAX98357A BCLK, LRC, DIN', 'IO4, IO5, IO7'],
-         ['INMP441 VDD / GND, L/R', 'rel merah / rel biru'], ['INMP441 SCK, WS, SD', 'IO15, IO16, IO6'],
+         ['MAX98357A (pin di e12-e18)', 'tertancap di breadboard 2'], ['a18 (Vin) / a17 (GND)', 'rel merah (mode jalan: pin 5V papan S3) / rel biru'], ['a13, a12, a14 (BCLK, LRC, DIN)', 'IO4, IO5, IO7'],
+         ['INMP441 (kolom 26-28)', 'tertancap di breadboard 2, menyeberangi parit'], ['kolom VDD / kolom GND dan L/R', 'rel merah / rel biru'], ['kolom SCK, WS, SD', 'IO15, IO16, IO6'],
          ['IO17, IO18, G', 'DevKit D16, D17, G']]))
     lead = 'Otak memegang layar sentuh, suara, dan koneksi internet. Setiap modul dites sendiri dulu, lalu otak disambung ke badan.'
     return S, 'Otak robot', lead, isi, 'Merakit otak robot ESP32-S3: layar TFT sentuh, SD card, speaker MAX98357A, mikrofon INMP441, dan UART ke badan.'

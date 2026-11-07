@@ -20,7 +20,7 @@ P = {
     'W6': (210, 39, 1), 'W6G': (210, 113, 1), 'TB': (234, 76, 1), 'MPU': (206, 74, 1),
     'MOTB': (113, 40, 1), 'MOTD': (127, 40, 1), 'HCB': (13, 76, 1),
     # lantai 3
-    'S3': (88, 55, 3), 'S3U': (101, 75, 3), 'CAM': (230, 76, 3), 'KPL': (225, 82, 3), 'STOP': (156, 50, 3),
+    'S3': (88, 55, 3), 'S3U': (101, 75, 3), 'CAM': (230, 76, 3), 'KPL': (225, 82, 3), 'STOP': (139, 97, 3),
     'HCD': (245, 76, 2),
 }
 
@@ -34,7 +34,7 @@ LUBANG = {
     'HSV': (230, 112), # lt1-lt2-lt3: kanan depan, kabel servo dan kamera ke kepala
     'H23': (61, 32),   # lt2-lt3: kiri papan S3 (lt3), celah holder 2 / BMS (lt2)
     'HUA': (184, 30),  # lt2-lt3: depan speaker (lt3), kiri DevKit (lt2)
-    'HST': (194, 30),  # lt2-lt3: depan speaker (lt3), kabel tombol STOP dari breadboard 2
+    'HST': (170, 124), # lt2-lt3: antara breadboard 2 dan TFT (lt3), belakang XL4015 (lt2): kabel tombol STOP
 }
 VIA = {
     'sakw': ['H7'], 'pminw': ['H8'], 'xl+': ['HXL'], 'xl-': ['HXL'], 'w6+': ['HX6'], 'w6-': ['HX6'],

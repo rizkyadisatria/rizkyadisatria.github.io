@@ -83,12 +83,7 @@ a29914375f7b	TFT SCK, T_CLK, SD_SCK
 1ff10ff2e0b2	TFT SDI(MOSI), T_DIN, SD_MOSI
 cae3d16c462f	TFT SDO(MISO), T_IRQ
 2421ed91ab82	not connected
-02becc49bdbe	MAX98357A Vin / GND
-3593157f06c6	red rail (run mode: 5V block) / blue rail
-3b211a300507	MAX98357A BCLK, LRC, DIN
-ae74b8b3a26c	INMP441 VDD / GND, L/R
 ba11c2452bfe	red rail / blue rail
-40247414e795	INMP441 SCK, WS, SD
 4de51bbd705b	S3 expansion board
 98a5f38fcadb	USB-C data cable
 2fb222543a2d	2.4&quot; SPI TFT 240x320
@@ -99,7 +94,6 @@ f1b59819a78a	Breadboard 2 (400 holes)
 ec7e78e01964	MAX98357A (pin headers and terminal already attached)
 41f9664fd3dd	Boxed speaker
 203926f61027	Wire cutter/stripper
-3c13a415d053	F-M and F-F wires
 095cd9e19da0	Pin header + solder
 902490b0f3c7	The body already has robot_badan.ino
 e969a3adba1a	Pins marked ✕ (SDO(MISO) and T_IRQ) are left without wires. The red and blue lines of breadboard 2 are themselves powered by the 3V3 and G pins of the S3 expansion board (step 2).

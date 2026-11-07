@@ -29,7 +29,6 @@ f05d0a42988f	Tie the wires in groups: power (red, green, black), motors, servos,
 07484ea121fd	Tighten all the screw terminals once more. Insert both cells (cell 1 then cell 2).
 5fa1b2bd4443	Switch OFF, unplug all USB cables.
 7d41809a3752	Plug in the red 5 V ends from LM2596 #1: one to the <b>5V</b> pin of the 30P board's power block, one to the <b>5V</b> pin of the S3 board's power block. The camera's 5 V wire from LM2596 #2 has been fitted since Part 4.
-f0b5c2d5d19a	Move the MAX98357A Vin from the 3.3 V rail to the S3 board's 5V pin, so the speaker is louder and does not load the 3.3 V.
 17f080ccea8c	Check with continuity: all the GNDs (BMS P−, the three converters, both expansion boards, the ESP32-CAM, the TB6612) beep to each other.
 c6951a167a59	Switch ON. Within 10 seconds: the DevKit's blue LED lights, the face appears on the display, the speaker greets you, the Telegram bot sends a message.
 34326fca7381	Measure LM2596 #1 OUT once more with everything on: still above 4.9 V.

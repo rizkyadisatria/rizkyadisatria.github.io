@@ -55,11 +55,13 @@ L3 = [  # di atas lantai 3 (plat ketiga, sama dengan chassis): tanpa batas tingg
     # versi akhir dari foto lantai 3 (7 Nov): TFT berdiri di tepi kanan dengan slot SD di atas, speaker di tepi kiri
     ('S3 + ekspansi', 25, 43, 81, 82, 30, '#13283a'), ('breadboard 2', 112, 40, 54, 82, 20, '#d9d9cf'),
     ('TFT (berdiri)', 106, 129, 86, 10, 55, '#8c1d18'), ('speaker (berdiri)', 96, 14, 84, 22, 30, '#2a2a2a'),
-    ('STOP', 150, 44, 12, 12, 12, '#7a1010'),          # ditancap di breadboard 2
-    ('MAX98357A', 172, 44, 18, 20, 12, '#5b2a86'),     # dekat ujung speaker: kabel speaker pendek
-    ('INMP441', 178, 100, 14, 14, 8, '#1f2a44'),       # jauh dari speaker, lubang suara menghadap ke atas
+    # tertancap di breadboard 2 (kolom 1 di sisi speaker, baris a di sisi S3, 2,54 mm per kolom)
+    ('MAX98357A', 131, 69, 20, 19, 12, '#5b2a86'),     # pin di e12-e18, badan di atas parit
+    ('STOP', 135, 93, 9, 9, 12, '#7a1010'),            # e21, e23, f21, f23
+    ('INMP441', 132, 105, 14, 14, 8, '#1f2a44'),       # kolom 26-28: ujung terjauh dari speaker
     ('kepala', 212, 58, 36, 36, 70, '#3a2a13'),
 ]
+SINGKAT = {'MAX98357A': 'MAX', 'INMP441': 'mik'}   # nama pendek untuk gambar tiga lantai yang kecil
 MENONJOL = {'speaker (berdiri)', 'TFT (berdiri)'}   # boleh menonjol sedikit dari tepi pinggang, asal diikat ke sayap tengah
 HEAD = (230, 76, 30)      # pusat x, y dan jari-jari ruang putar kepala (barang setinggi >15 mm tidak boleh di sini)
 TINGGI = {'L1': 27, 'L2': 57}
@@ -82,7 +84,7 @@ def cek():
         if nama == 'L3':
             luas += 3.14159 * HEAD[2] ** 2 - 40 * 40            # kepala memakai lingkaran ruang putar
         bebas = luas_plat * 0.9 - sum(w * h for n, x, y, w, h, t, c in L if n == 'motor')
-        overl = [(a[0], b[0]) for a, b in itertools.combinations(L, 2) if n_motor(a, b) is False and {a[0], b[0]} != {'breadboard 2', 'STOP'} and
+        overl = [(a[0], b[0]) for a, b in itertools.combinations(L, 2) if n_motor(a, b) is False and not ({a[0], b[0]} & {'breadboard 2'} and {a[0], b[0]} & {'STOP', 'MAX98357A', 'INMP441'}) and
                  a[1] < b[1] + b[3] + GAP and b[1] < a[1] + a[3] + GAP and a[2] < b[2] + b[4] + GAP and b[2] < a[2] + a[4] + GAP]
         if nama == 'L3':
             hx, hy, hr = HEAD
@@ -131,6 +133,10 @@ def svg():
             col = '#222' if c in ('#f1c40f', '#d9d9cf') else '#f4f6f5'
             if n == 'motor':
                 continue
+            if nama == 'L3' and n == 'breadboard 2':      # ada modul di atasnya: label di tepi atas
+                s += diag.text(X + w * k / 2, Y + 11, n, 8.5, anchor='middle', fill=col)
+                continue
+            n = SINGKAT.get(n, n)
             if h > w * 1.3 and w * k < 50:
                 s += f'<text transform="translate({X + w * k / 2 + 3} {Y + h * k / 2}) rotate(-90)" text-anchor="middle" font-family="{diag.SANS}" font-size="{fs}" fill="{col}">{n}</text>'
             else:
