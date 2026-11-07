@@ -86,7 +86,7 @@ DAFTAR = [
     ('hctrig', '1 kabel', 'jumper', 'BB1b', 'D30', 0, 'kolom 18 breadboard 1 → pin S D14 (TRIG belakang)'),
     ('stop', '2 kabel', 'jumper', 'STOP', 'BB1', 0, 'tombol STOP di breadboard 2 → kolom 27 dan 29 breadboard 1'),
     ('uart', '3 kabel F-F', 'jumper', 'D30', 'S3U', 0, 'UART: papan 30P (D16, D17, G) → papan S3 (IO17, IO18, G)'),
-    ('hcb', '4 kabel', 'jumper', 'HCB', 'BB1b', 0, 'HC-SR04 belakang → breadboard 1'),
+    ('hcb', '4 kabel', 'jumper', 'HCB', 'BB1b', 100, 'HC-SR04 belakang → breadboard 1 (sambung F-F + M-M)'),
     ('mpu', '4 kabel F-F', 'jumper', 'MPU', 'P30', 0, 'MPU6050 → header I2C papan 30P'),
     ('tbsig', '9 kabel F-F', 'jumper', 'TB', 'P30', 0, 'TB6612 (PWMA, AIN1, AIN2, PWMB, BIN1, BIN2, STBY, VCC, GND) → papan 30P'),
     ('hcd', '4 kabel', 'jumper', 'HCD', 'BB1', 0, 'HC-SR04 depan → papan 30P dan breadboard 1'),

@@ -49,7 +49,6 @@ daa76176aa52	the rear motor's own wires
 dc00ecf9f6ed	rear motor → AO / BO of the TB6612
 c22b4edd2209	the front motor's own wires
 57546639485f	front motor → joined to the rear motor wire passing by
-7fed1f27fa1b	rear HC-SR04 → breadboard 1
 137654692ab2	MPU6050 → I2C header of the 30P board
 7a81f0f77383	TB6612 (PWMA, AIN1, AIN2, PWMB, BIN1, BIN2, STBY, VCC, GND) → 30P board
 3ec124f82fc4	<b>Why this way?</b> TT motors are designed for 3-6 V. Two motors on one side always move together (the robot turns by spinning the left and right sides in different directions), so one driver channel per side is enough.
