@@ -107,10 +107,8 @@ f8e2a34417a9	<span class="pn">Not yet</span> The MPU6050 is not stuck down yet. 
 afe9d55e1b5a	WHO_AM_I is not 0x68 (for example 0x70 or 0x98): a clone module. As long as pitch and roll make sense, it is still usable.
 72abfc262300	Numbers stuck at the same value or all 0: the module has not woken up or is broken. Unplug and replug the USB, check the header pin solder joints.
 86652c6de23d	Battery gauge and STOP button
-8c8c027952fc	<b>Why this way?</b> GPIO 39 is input only and has no pull-up resistor inside the chip, so we add 10 kΩ to 3.3 V. Not pressed, the pin reads HIGH; pressed, the pin connects to GND and reads LOW. For the finished robot, the 6 mm button is replaced by a 12 mm button on the middle-left wing of level 3, connected with two wires to columns 27 and 29 (lengths in Part 6).
 f4f93eecc280	The battery voltage in the Serial Monitor matches the multimeter (difference under 0.1 V after calibration), and the text changes to DITEKAN when the button is pressed.
 ea3adc9327ec	<span class="py">OK to lock in</span> The 26 AWG battery-gauge wire (blue heat shrink) from LM2596 #1 IN+ to a20, and the 20 kΩ and 10 kΩ divider resistors. The BATERAI_FAKTOR value you calculated.
-41ddf5daea6d	<span class="pn">Not yet</span> The 6 mm button is only for testing: in Part 6 Stage 3 it is removed and replaced by the 12 mm STOP button on level 3. The table GND wire (WAGO − to the G pin) is also only for testing: on the robot the shared GND comes from the LM2596 #1 black wire to the 30P board.
 564dd211916f	Battery reads 0: the BAT+ wire is not in a20, or the switch is OFF.
 2e735b904077	Battery reads 0 even though the multimeter at the WAGO reads 8 V, and a20 to the breadboard GND is also 0 V: the battery GND is not connected to the DevKit GND (shared GND step).
 19b62a2bbd71	The battery number jumps to about 3100 mV or 140 mV by itself, and the button switches between DITEKAN/released untouched: the breadboard's top rail is not getting 3.3 V (the 3V and G pin wires from Stage 5 are not fitted), so the button's pull-up does not work and the input floats.

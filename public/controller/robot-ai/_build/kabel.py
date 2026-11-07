@@ -20,7 +20,7 @@ P = {
     'W6': (210, 39, 1), 'W6G': (210, 113, 1), 'TB': (234, 76, 1), 'MPU': (206, 74, 1),
     'MOTB': (113, 40, 1), 'MOTD': (127, 40, 1), 'HCB': (13, 76, 1),
     # lantai 3
-    'S3': (77, 40, 3), 'S3U': (90, 60, 3), 'CAM': (230, 76, 3), 'KPL': (225, 82, 3), 'STOP': (136, 11, 3),
+    'S3': (77, 40, 3), 'S3U': (90, 60, 3), 'CAM': (230, 76, 3), 'KPL': (225, 82, 3), 'STOP': (138, 37, 3),
     'HCD': (245, 76, 2),
 }
 
@@ -34,7 +34,7 @@ LUBANG = {
     'HSV': (230, 112), # lt1-lt2-lt3: kanan depan, kabel servo dan kamera ke kepala
     'H23': (96, 30),   # lt2-lt3: celah papan S3 / breadboard 2 (lt3)
     'HUA': (154, 30),  # lt2-lt3: celah breadboard 2 / TFT (lt3), celah breadboard 1 / DevKit (lt2)
-    'HST': (115, 18),  # lt2-lt3: sayap tengah kiri, kabel tombol STOP
+    'HST': (115, 18),  # lt2-lt3: sayap tengah kiri, kabel tombol STOP dari breadboard 2
 }
 VIA = {
     'sakw': ['H7'], 'pminw': ['H8'], 'xl+': ['HXL'], 'xl-': ['HXL'], 'w6+': ['HX6'], 'w6-': ['HX6'],
@@ -84,7 +84,7 @@ DAFTAR = [
     ('motor', 'kabel bawaan motor belakang', '-', 'MOTB', 'TB', 0, 'motor belakang → AO / BO TB6612'),
     ('motord', 'kabel bawaan motor depan', '-', 'MOTD', 'MOTD', 30, 'motor depan → disambung ke kabel motor belakang yang lewat'),
     ('hctrig', '1 kabel', 'jumper', 'BB1b', 'D30', 0, 'kolom 18 breadboard 1 → pin S D14 (TRIG belakang)'),
-    ('stop', '2 kabel', '26', 'STOP', 'BB1', 0, 'tombol STOP 12 mm → kolom 27 dan 29 breadboard 1'),
+    ('stop', '2 kabel', 'jumper', 'STOP', 'BB1', 0, 'tombol STOP di breadboard 2 → kolom 27 dan 29 breadboard 1'),
     ('uart', '3 kabel F-F', 'jumper', 'D30', 'S3U', 0, 'UART: papan 30P (D16, D17, G) → papan S3 (IO17, IO18, G)'),
     ('hcb', '4 kabel', 'jumper', 'HCB', 'BB1b', 0, 'HC-SR04 belakang → breadboard 1'),
     ('mpu', '4 kabel F-F', 'jumper', 'MPU', 'P30', 0, 'MPU6050 → header I2C papan 30P'),

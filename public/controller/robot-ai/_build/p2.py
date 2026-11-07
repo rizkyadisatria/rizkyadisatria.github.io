@@ -203,7 +203,7 @@ def halaman():
     ], figs=bb(7, 'Breadboard badan tahap 7: pembagi baterai dan tombol STOP') + fig(diag.pembagi_baterai()),
         code=kode_tes('tes_baterai'),
         ok_='Tegangan baterai di Serial Monitor sama dengan multimeter (selisih di bawah 0,1 V setelah kalibrasi), dan tulisan berubah ke DITEKAN saat tombol ditekan.',
-        learn='GPIO 39 hanya bisa input dan tidak punya resistor pull-up di dalam chip, jadi kita pasang 10 kΩ ke 3,3 V. Tanpa ditekan pin membaca HIGH; ditekan, pin tersambung ke GND dan membaca LOW. Untuk robot jadi, tombol 6 mm diganti tombol 12 mm di sayap tengah kiri lantai 3, disambung dua kabel ke kolom 27 dan 29 (panjangnya di Bagian 6).',
+        learn='GPIO 39 hanya bisa input dan tidak punya resistor pull-up di dalam chip, jadi kita pasang 10 kΩ ke 3,3 V. Tanpa ditekan pin membaca HIGH; ditekan, pin tersambung ke GND dan membaca LOW. Untuk robot jadi, tombol dipindah ke breadboard 2 di lantai 3 supaya mudah ditekan, lalu disambung dua kabel ke kolom 27 dan 29 (panjangnya di Bagian 6).',
         gagal=['Baterai terbaca 0: kabel BAT+ belum masuk a20, atau saklar OFF.', 'Baterai terbaca 0 padahal multimeter di WAGO membaca 8 V, dan a20 ke GND breadboard juga 0 V: GND baterai belum disambung ke GND DevKit (langkah GND bersama).', 'Angka baterai melonjak ke sekitar 3100 mV atau 140 mV sendiri, dan tombol berganti DITEKAN/lepas tanpa disentuh: rel atas breadboard tidak mendapat 3,3 V (kabel pin 3V dan G dari Tahap 5 belum dipasang), sehingga pull-up tombol tidak bekerja dan input melayang.', 'Tombol selalu DITEKAN: kaki tombol yang dipakai bukan diagonal. Putar tombol 90 derajat.'])
 
     tahap += stage(S, 8, 'Upload kode badan dan uji keselamatan', ['Semua rangkaian Tahap 3-7', 'Robot terangkat'], [

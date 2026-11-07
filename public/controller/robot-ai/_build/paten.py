@@ -57,7 +57,7 @@ PATEN = {
         'MPU6050 belum ditempel. Di robot ia harus datar di lantai 1 dengan spacer 6 mm, tulisan menghadap ke depan (Bagian 6 Tahap 2). Kalau miring, pitch dan roll tidak mulai dari nol.'),
     ('2-badan', 7): (
         'Kabel pengukur baterai 26 AWG (heat shrink biru) dari IN+ LM2596 #1 ke a20, serta resistor pembagi 20 kΩ dan 10 kΩ. Nilai BATERAI_FAKTOR yang kamu hitung.',
-        'Tombol 6 mm hanya untuk tes: di Bagian 6 Tahap 3 ia dilepas dan diganti tombol STOP 12 mm di lantai 3. Kabel GND meja (WAGO − ke pin G) juga hanya untuk tes: di robot GND bersama datang dari kabel hitam LM2596 #1 ke papan 30P.'),
+        'Tombol 6 mm hanya untuk tes: di Bagian 6 Tahap 3 ia dilepas, lalu dipasang lagi di breadboard 2 di lantai 3. Kabel GND meja (WAGO − ke pin G) juga hanya untuk tes: di robot GND bersama datang dari kabel hitam LM2596 #1 ke papan 30P.'),
     ('2-badan', 8): (
         'Isi BATERAI_FAKTOR dan pilihan arah putar motor di robot_badan.ino. Kode ini dipakai apa adanya di robot. Upload kode wajib sebelum Bagian 3.',
         'JARAK_STOP_DEPAN, TILT_MIN, dan TILT_MAX baru disetel setelah robot jadi (Bagian 6 Tahap 8). Uji keselamatan boleh ditunda ke Bagian 6, tapi jangan sampai terlewat.'),

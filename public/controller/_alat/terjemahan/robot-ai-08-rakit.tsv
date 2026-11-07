@@ -24,7 +24,6 @@ daa8e3af9dd2	Estimated from the layout above: horizontal distance + the rise and
 41c6021ced36	thin red with yellow mark
 81a8a0984cdc	red + black
 f3fd6ae60f5d	thin red with blue mark
-8718b060106d	12 mm STOP button → columns 27 and 29 of breadboard 1
 651d8c950569	column 18 of breadboard 1 → S pin D14 (rear TRIG)
 571a86283aa8	UART: 30P board (D16, D17, G) → S3 board (IO17, IO18, G)
 6b81811153d2	front HC-SR04 → 30P board and breadboard 1
@@ -42,7 +41,6 @@ eb62f1cd27d7	<span class="py">OK to lock in</span> All level-1 items (LM2596, MP
 8f592f3b233d	<span class="pn">Not yet</span> Do not close the top plate yet. The level-1 wires that go up must be complete, labeled, and their connections checked.
 598acba13a3e	Close the top plate and mount level 2
 249b14f5f5eb	Level 2, rear.
-12ec278cc5a4	2 wires, 26 AWG
 ced3b91a0aa8	Level 2 mounted, all items steady, and the cells can be pulled out of the holders without opening anything.
 aea1f109d866	<span class="py">OK to lock in</span> The top plate with all six legs, holders, BMS, switch, fuse, breadboard 1, 30P board, XL4015 and front HC-SR04.
 ecdb3fb2ede5	<span class="pn">Not yet</span> The red 5 V wire of LM2596 #1 is not plugged in yet (Stage 6). The 6 mm button is removed; do not close level 3 before the wires going up are gathered at the front.
@@ -121,7 +119,6 @@ affc3f43da3f	M3 nylon standoff kit
 91eaf90e3065	Cable ties
 b433b7b755de	Third plate
 f1f9ec8a2504	M3 bolts + nylon standoff kit
-ab07cde6ccbe	26 AWG wire
 3739cd6d2f13	2x2 m of clear space
 b2d90e4fb2c5	Fully charged battery
 62a72cca88e5	keep a finger on the screen while switching on to recalibrate, or run tes_layar again

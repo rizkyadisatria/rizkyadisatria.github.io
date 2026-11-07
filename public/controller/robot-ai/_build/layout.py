@@ -54,7 +54,7 @@ L2 = [  # di atas plat atas, di bawah lantai 3: tinggi maks ~57 mm (posisi dari 
 L3 = [  # di atas lantai 3 (plat ketiga, sama dengan chassis): tanpa batas tinggi (posisi dari foto)
     ('S3 + ekspansi', 13, 28, 81, 82, 30, '#13283a'), ('breadboard 2', 98, 27, 54, 82, 20, '#d9d9cf'),
     ('TFT (rebah)', 156, 30, 42, 78, 10, '#8c1d18'), ('speaker (berdiri)', 77, 114, 77, 20, 30, '#2a2a2a'),
-    ('STOP', 129, 4, 15, 15, 12, '#7a1010'),
+    ('STOP', 132, 31, 12, 12, 12, '#7a1010'),          # ditancap di breadboard 2
     ('kepala', 212, 58, 36, 36, 70, '#3a2a13'),
 ]
 MENONJOL = {'speaker (berdiri)'}   # boleh menonjol sedikit dari tepi pinggang, asal diikat ke sayap tengah
@@ -79,7 +79,7 @@ def cek():
         if nama == 'L3':
             luas += 3.14159 * HEAD[2] ** 2 - 40 * 40            # kepala memakai lingkaran ruang putar
         bebas = luas_plat * 0.9 - sum(w * h for n, x, y, w, h, t, c in L if n == 'motor')
-        overl = [(a[0], b[0]) for a, b in itertools.combinations(L, 2) if n_motor(a, b) is False and
+        overl = [(a[0], b[0]) for a, b in itertools.combinations(L, 2) if n_motor(a, b) is False and {a[0], b[0]} != {'breadboard 2', 'STOP'} and
                  a[1] < b[1] + b[3] + GAP and b[1] < a[1] + a[3] + GAP and a[2] < b[2] + b[4] + GAP and b[2] < a[2] + a[4] + GAP]
         if nama == 'L3':
             hx, hy, hr = HEAD

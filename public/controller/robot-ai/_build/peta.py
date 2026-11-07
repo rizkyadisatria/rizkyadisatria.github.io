@@ -221,7 +221,7 @@ def lantai2():
 LANTAI3 = [
     ('5vs3', 'pasang', H23, (77, 40), 3),
     ('uart', 'abu', HUA, (90, 60), (120, 40)),
-    ('stop', 'abu', (136, 11), HST, 2),
+    ('stop', 'abu', (138, 37), HST, 2),
     ('servo+', 'hijau', HSV, (225, 84), -4),
     ('servo-', 'hitam', HSV, (229, 84), 4),
     ('5vcam', 'pasang', HSV, (232, 76), (246, 104)),
