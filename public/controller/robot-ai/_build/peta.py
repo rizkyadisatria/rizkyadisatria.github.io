@@ -201,8 +201,8 @@ LANTAI2 = [
     ('bat', 'merah-biru', HXL, (123, 75), 6),
     ('hcb', 'abu', H7, (100, 60), 4),
     ('hctrig', 'abu', (104, 62), (195, 64), (150, 70)),
-    ('stop', 'abu', HST, (130, 75), (118, 50)),
-    ('uart', 'abu', (195, 60), HUA, (180, 30)),
+    ('stop', 'abu', HST, (130, 75), (150, 32)),
+    ('uart', 'abu', (195, 60), HUA, (190, 42)),
     ('mpu', 'abu', HX6, (205, 42), (226, 66)),
     ('tbsig', 'abu', HX6, (190, 50), (210, 80)),
     ('hcd', 'abu', (240, 76), (150, 80), (200, 92)),
@@ -219,9 +219,9 @@ def lantai2():
 
 # ================= lantai 3: otak dan kepala =================
 LANTAI3 = [
-    ('5vs3', 'pasang', H23, (77, 40), 3),
-    ('uart', 'abu', HUA, (90, 60), (120, 40)),
-    ('stop', 'abu', (138, 37), HST, 2),
+    ('5vs3', 'pasang', H23, (88, 55), 3),
+    ('uart', 'abu', HUA, (101, 75), (150, 38)),
+    ('stop', 'abu', (156, 50), HST, 2),
     ('servo+', 'hijau', HSV, (225, 84), -4),
     ('servo-', 'hitam', HSV, (229, 84), 4),
     ('5vcam', 'pasang', HSV, (232, 76), (246, 104)),
@@ -229,8 +229,8 @@ LANTAI3 = [
 
 
 def lantai3():
-    return gambar(3, -2, 258, ['S3 + ekspansi', 'breadboard 2', 'TFT (rebah)', 'speaker (berdiri)', 'STOP', 'kepala'], LANTAI3,
-                  [(77, 40, '5V'), (90, 60, 'IO17'), (225, 84, ''), (232, 76, 'CAM')],
+    return gambar(3, -2, 258, ['S3 + ekspansi', 'breadboard 2', 'TFT (berdiri)', 'speaker (berdiri)', 'STOP', 'kepala'], LANTAI3,
+                  [(88, 55, '5V'), (101, 75, 'IO17'), (225, 84, ''), (232, 76, 'CAM')],
                   [(*H23, 'H23'), (*HUA, 'HUA'), (*HST, 'HST'), (*HSV, 'HSV')],
                   k=3.6, label='Peta kabel lantai 3, posisi sama dengan di robot',
                   judul='LANTAI 3: otak, layar, kepala')

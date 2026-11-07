@@ -52,12 +52,13 @@ L2 = [  # di atas plat atas, di bawah lantai 3: tinggi maks ~57 mm (posisi dari 
     ('HC-SR04 dpn', 236, 53, 18, 46, 21, '#1d4f86'),
 ]
 L3 = [  # di atas lantai 3 (plat ketiga, sama dengan chassis): tanpa batas tinggi (posisi dari foto)
-    ('S3 + ekspansi', 13, 28, 81, 82, 30, '#13283a'), ('breadboard 2', 98, 27, 54, 82, 20, '#d9d9cf'),
-    ('TFT (rebah)', 156, 30, 42, 78, 10, '#8c1d18'), ('speaker (berdiri)', 77, 114, 77, 20, 30, '#2a2a2a'),
-    ('STOP', 132, 31, 12, 12, 12, '#7a1010'),          # ditancap di breadboard 2
+    # versi akhir dari foto lantai 3 (7 Nov): TFT berdiri di tepi kanan dengan slot SD di atas, speaker di tepi kiri
+    ('S3 + ekspansi', 25, 43, 81, 82, 30, '#13283a'), ('breadboard 2', 112, 40, 54, 82, 20, '#d9d9cf'),
+    ('TFT (berdiri)', 106, 129, 86, 10, 55, '#8c1d18'), ('speaker (berdiri)', 96, 14, 84, 22, 30, '#2a2a2a'),
+    ('STOP', 150, 44, 12, 12, 12, '#7a1010'),          # ditancap di breadboard 2
     ('kepala', 212, 58, 36, 36, 70, '#3a2a13'),
 ]
-MENONJOL = {'speaker (berdiri)'}   # boleh menonjol sedikit dari tepi pinggang, asal diikat ke sayap tengah
+MENONJOL = {'speaker (berdiri)', 'TFT (berdiri)'}   # boleh menonjol sedikit dari tepi pinggang, asal diikat ke sayap tengah
 HEAD = (230, 76, 30)      # pusat x, y dan jari-jari ruang putar kepala (barang setinggi >15 mm tidak boleh di sini)
 TINGGI = {'L1': 27, 'L2': 57}
 GAP = 3                   # jarak minimal antar-barang (mm) untuk kabel

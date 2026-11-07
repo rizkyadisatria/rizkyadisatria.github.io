@@ -20,7 +20,7 @@ P = {
     'W6': (210, 39, 1), 'W6G': (210, 113, 1), 'TB': (234, 76, 1), 'MPU': (206, 74, 1),
     'MOTB': (113, 40, 1), 'MOTD': (127, 40, 1), 'HCB': (13, 76, 1),
     # lantai 3
-    'S3': (77, 40, 3), 'S3U': (90, 60, 3), 'CAM': (230, 76, 3), 'KPL': (225, 82, 3), 'STOP': (138, 37, 3),
+    'S3': (88, 55, 3), 'S3U': (101, 75, 3), 'CAM': (230, 76, 3), 'KPL': (225, 82, 3), 'STOP': (156, 50, 3),
     'HCD': (245, 76, 2),
 }
 
@@ -32,9 +32,9 @@ LUBANG = {
     'HXL': (154, 98),  # lt1-lt2: antara breadboard 1 dan XL4015
     'HX6': (218, 98),  # lt1-lt2: depan XL4015 (lt2), di atas WAGO 6V (lt1)
     'HSV': (230, 112), # lt1-lt2-lt3: kanan depan, kabel servo dan kamera ke kepala
-    'H23': (96, 30),   # lt2-lt3: celah papan S3 / breadboard 2 (lt3)
-    'HUA': (154, 30),  # lt2-lt3: celah breadboard 2 / TFT (lt3), celah breadboard 1 / DevKit (lt2)
-    'HST': (115, 18),  # lt2-lt3: sayap tengah kiri, kabel tombol STOP dari breadboard 2
+    'H23': (61, 32),   # lt2-lt3: kiri papan S3 (lt3), celah holder 2 / BMS (lt2)
+    'HUA': (184, 30),  # lt2-lt3: depan speaker (lt3), kiri DevKit (lt2)
+    'HST': (194, 30),  # lt2-lt3: depan speaker (lt3), kabel tombol STOP dari breadboard 2
 }
 VIA = {
     'sakw': ['H7'], 'pminw': ['H8'], 'xl+': ['HXL'], 'xl-': ['HXL'], 'w6+': ['HX6'], 'w6-': ['HX6'],

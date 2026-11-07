@@ -3,7 +3,6 @@
 4b4ca27794ad	Every part has passed its test on the table. Now they are mounted on the chassis, moved to battery power, and tested on the floor with a hand always near the STOP button.
 d69631f10b27	Final assembly and testing
 3b1eb6753053	Dry stack and check
-d79af278f6d9	The drawing below is to scale. The plate shape was read from your photo using the cutting mat squares as a ruler (error about 1-2 mm), and the motor and item positions were measured from three photos of your dry stack (error a few mm). Calculated result: level 1 is 39% filled, level 2 62%, level 3 73% of the usable area, with at least 3 mm between items and nothing overlapping. The only thing that sticks out past a plate edge is the speaker on level 3 (about 8 mm), and that is deliberate because the robot's width is set by the wheels anyway. What the top-down photos cannot show: the height of each level, which is why there is a height check step.
 a739de99c4d3	The three levels seen from above, the front of the robot on the right, the robot's left at the top of the drawing. All three levels use the same chassis plate.
 badc317d1b8a	Height clearance
 008e72e38558	Tallest item
@@ -30,7 +29,6 @@ f3fd6ae60f5d	thin red with blue mark
 d3409640bab5	The 5 V line is fine with 26 AWG: the highest current is about 1 A, and 25 cm out and back only drops about 0.07 V. Jumper wires are usually 20 cm; the ones listed as 20 cm and up are tight, so extend with an M-F wire if short.
 57cb541c39da	Level 1 dry stack (front at the bottom). The HC-SR04 in this photo is still at the front; move it to the rear end.
 5edf0a634918	Level 2 (front at the bottom, so the robot's left is on the right of the photo). Holder 2 and the XL4015 will be rotated 180° later.
-645c31a76cd7	Level 3: S3, breadboard 2, speaker, TFT lying flat, head. The head in the photo is still lying down; later it stands up and is bolted to the plate.
 2e7ab8fa58cf	<b>Why this way?</b> Level 1 is only 30 mm tall, so it holds low items that are rarely touched: converters and power joints. The DevKit and the S3 board need height for upright jumper wires, so they go up to levels 2 and 3. The big breadboard is replaced by two 400-hole breadboards, one per board, so each board's wires are short.
 8615fff3a9b2	Every item has a place, nothing touches the plate above it, the cells can be pulled out, and every cut wire reaches its end.
 cce8e9b6b046	<span class="py">OK to lock in</span> The position of every item on the three levels, after photographing. This is a gate: once it passes, the whole layout is considered final.
