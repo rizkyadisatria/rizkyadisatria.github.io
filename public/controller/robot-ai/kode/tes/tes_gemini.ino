@@ -8,7 +8,7 @@
 const char* WIFI_NAMA     = "NAMA_WIFI";
 const char* WIFI_PASSWORD = "PASSWORD_WIFI";
 const char* API_KEY       = "ISI_API_KEY_GEMINI";
-const char* MODEL         = "gemini-2.5-flash-lite";   // samakan dengan GEMINI_MODEL di robot_otak
+const char* MODEL         = "gemini-3.5-flash-lite";   // samakan dengan GEMINI_MODEL di robot_otak; coba juga "gemma-4-31b-it"
 
 String tanya(const String& q) {
   JsonDocument doc;

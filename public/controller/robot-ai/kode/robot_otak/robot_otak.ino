@@ -40,7 +40,8 @@ const char* WIFI_PASSWORD   = "PASSWORD_WIFI";
 const char* TELEGRAM_TOKEN  = "ISI_TOKEN_DARI_BOTFATHER";
 const char* TELEGRAM_CHATID = "ISI_ANGKA_ID_KAMU";    // dari @userinfobot. Bot hanya menurut ke ID ini
 const char* GEMINI_API_KEY  = "";                     // dari aistudio.google.com (gratis), diawali AIza...
-const char* GEMINI_MODEL    = "gemini-2.5-flash-lite"; // bisa melihat foto; cek batas gratis tiap model di AI Studio
+const char* GEMINI_MODEL    = "gemini-3.5-flash-lite"; // AI utama, bisa melihat foto (jatah gratis 500/hari, Nov 2026)
+const char* GEMMA_MODEL     = "gemma-4-31b-it";       // cadangan pertama, kunci yang sama (14.400/hari). Kosongkan untuk mematikan
 const char* GROQ_API_KEY    = "";                     // gsk_...: suara ke teks, dan cadangan AI kalau jatah Gemini habis
 const char* GROQ_MODEL      = "qwen/qwen3.8-27b";     // model Groq yang bisa melihat foto (cadangan)
 const char* KAMERA_ALAMAT   = "";                     // contoh "192.168.1.50". Kosong = cari robotcam.local
@@ -555,8 +556,9 @@ String bersihkan(String t) {
   return t;
 }
 
-// Gemini (Google AI Studio). kode: 200 = berhasil, 429 = jatah habis atau terlalu sering.
-String tanyaGemini(const String& pertanyaan, const String& fotoBase64, int& kode) {
+// Gemini atau Gemma lewat Google AI Studio. kode: 200 = berhasil, 429 = jatah habis atau terlalu sering.
+// gemma = true: model Gemma belum tentu mendukung mode JSON, jadi JSON hanya diminta lewat aturan di prompt.
+String tanyaGemini(const char* model, bool gemma, const String& pertanyaan, const String& fotoBase64, int& kode) {
   JsonDocument doc;
   doc["system_instruction"]["parts"][0]["text"] = promptSistem();
   JsonArray isi = doc["contents"].to<JsonArray>();
@@ -573,26 +575,27 @@ String tanyaGemini(const String& pertanyaan, const String& fotoBase64, int& kode
     img["inline_data"]["mime_type"] = "image/jpeg"; img["inline_data"]["data"] = fotoBase64;
   }
   bagian.add<JsonObject>()["text"] = pertanyaan;
-  doc["generationConfig"]["responseMimeType"] = "application/json";   // minta jawaban JSON murni
+  if (gemma) doc["generationConfig"]["thinkingConfig"]["thinkingLevel"] = "minimal";   // tanpa berpikir panjang, supaya cepat
+  else doc["generationConfig"]["responseMimeType"] = "application/json";              // minta jawaban JSON murni
   String body; serializeJson(doc, body);
   doc.clear();
 
   WiFiClientSecure c; c.setInsecure();
   HTTPClient http;
-  http.begin(c, String("https://generativelanguage.googleapis.com/v1beta/models/") + GEMINI_MODEL + ":generateContent");
+  http.begin(c, String("https://generativelanguage.googleapis.com/v1beta/models/") + model + ":generateContent");
   http.addHeader("content-type", "application/json");
   http.addHeader("x-goog-api-key", GEMINI_API_KEY);
   http.setTimeout(30000);
   kode = http.POST(body);
   String resp = http.getString();
   http.end();
-  if (kode != 200) { Serial.printf("[gemini] kode %d: %s\n", kode, resp.c_str()); return ""; }
+  if (kode != 200) { Serial.printf("[%s] kode %d: %s\n", model, kode, resp.c_str()); return ""; }
   JsonDocument r;
   if (deserializeJson(r, resp)) { kode = -2; return ""; }
   String teks;
   for (JsonObject p : r["candidates"][0]["content"]["parts"].as<JsonArray>())
     if (!(p["thought"] | false)) teks += p["text"] | "";
-  if (teks.length() == 0) { Serial.printf("[gemini] jawaban kosong: %s\n", resp.c_str()); kode = -3; }
+  if (teks.length() == 0) { Serial.printf("[%s] jawaban kosong: %s\n", model, resp.c_str()); kode = -3; }
   return bersihkan(teks);
 }
 
@@ -632,15 +635,20 @@ String tanyaGroq(const String& pertanyaan, const String& fotoBase64, int& kode) 
   return bersihkan(r["choices"][0]["message"]["content"] | "");
 }
 
-// Tanya AI: Gemini dulu; kalau gagal (misalnya jatah gratis hari ini habis), pakai Groq kalau kuncinya ada.
+// Tanya AI: Gemini dulu; kalau gagal (misalnya jatah gratis hari ini habis), Gemma dengan kunci yang sama,
+// lalu Groq kalau kuncinya ada.
 // fotoBase64 kosong = hanya teks.
 String tanyaAI(const String& pertanyaan, const String& fotoBase64 = "") {
   bool adaGemini = strlen(GEMINI_API_KEY) > 0, adaGroq = strlen(GROQ_API_KEY) > 0;
   if (!adaGemini && !adaGroq) return "{\"bicara\":\"API key Gemini belum diisi di kode.\",\"aksi\":[]}";
   int kode = 0; String teks;
-  if (adaGemini) teks = tanyaGemini(pertanyaan, fotoBase64, kode);
+  if (adaGemini) teks = tanyaGemini(GEMINI_MODEL, false, pertanyaan, fotoBase64, kode);
+  if ((kode != 200 || teks.length() == 0) && adaGemini && strlen(GEMMA_MODEL)) {
+    Serial.printf("[ai] %s gagal (kode %d), pakai cadangan %s\n", GEMINI_MODEL, kode, GEMMA_MODEL);
+    teks = tanyaGemini(GEMMA_MODEL, true, pertanyaan, fotoBase64, kode);
+  }
   if ((kode != 200 || teks.length() == 0) && adaGroq) {
-    if (adaGemini) Serial.printf("[ai] Gemini gagal (kode %d), pakai cadangan Groq\n", kode);
+    if (adaGemini) Serial.printf("[ai] AI Studio gagal (kode %d), pakai cadangan Groq\n", kode);
     teks = tanyaGroq(pertanyaan, fotoBase64, kode);
   }
   if (kode != 200 || teks.length() == 0) {

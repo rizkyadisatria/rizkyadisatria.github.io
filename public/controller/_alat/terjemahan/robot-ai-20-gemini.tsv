@@ -8,12 +8,10 @@ b93f66023cea	turns your voice into text, and backup AI when the Gemini quota run
 e2aca69e0e5b	no, but recommended
 6964aeb52995	Gemini free limits
 2db47f0af917	Gemini is used through <b>Google AI Studio</b> without a credit card. Limits are counted per project and per model (requests per minute and per day), and Google no longer publishes them in its documentation: the numbers that apply to you are only visible on the <a href="https://aistudio.google.com/rate-limit">AI Studio limits page</a> and can change at any time. The daily quota resets at midnight Pacific time, around 15:00-16:00 WITA.
-1f22aeee7243	One chat with the robot = one request; a question that makes the robot take a photo is usually two (deciding to look, then describing the photo). If the Gemini quota runs out, the robot automatically uses <b>Groq</b> as a backup, as long as the Groq key is filled in (Step 3). On the free tier, Google may use your questions and photos to improve its services; do not send anything private.
 aec6033b8202	Gemini API key (free)
 5284dfe4a2c0	Google account
 78352060c348	Open <a href="https://aistudio.google.com">aistudio.google.com</a> and sign in with your Google account.
 0da2b2c785bd	<b>Get API key → Create API key</b>, choose or create a new project. Copy the key (it starts with <code>AIza</code>). No credit card needed.
-2b70003b6372	Open the <a href="https://aistudio.google.com/rate-limit">limits page</a> and check the daily quota of each model. The code uses <code>gemini-2.5-flash-lite</code> (fast, can see photos). If another Flash model that accepts images has a larger quota, write its name in <code>MODEL</code> (test code) and <code>GEMINI_MODEL</code> (brain code).
 2a11043f0d21	tes_gemini.ino
 9461370ac25e	<b>Why?</b> This code sends the question as JSON to <code>generativelanguage.googleapis.com</code> over HTTPS, with the key in the <code>x-goog-api-key</code> header. The connection is encrypted, but for simplicity the server certificate is not checked (<code>setInsecure</code>). That is fine for this home project; do not use this pattern for sensitive data.
 4cbb7b711c4c	The AI answer appears within a few seconds. Code 400 with API_KEY_INVALID = wrong key, 403 = key not allowed, 404 = wrong or retired model name, 429 = quota used up or too many requests.
@@ -28,3 +26,6 @@ ff7a9896c1f2	Your recording is sent to Groq's servers. Read their privacy policy
 082bac9554ca	AI does not answer (code 400/403/404/429)
 a2f52e6b6ca1	wrong key / wrong model name / free quota used up
 3f39ac360bba	check the key and limits at aistudio.google.com; fill in GROQ_API_KEY as a backup
+bab2e89e2a2c	Example free quotas seen on one account in November 2026: <b>Gemini 3.5 Flash Lite</b> 15 per minute and 500 per day, <b>Gemma 4 31B</b> 30 per minute and 14,400 per day, while Gemini 2.5 Flash Lite gets only 20 per day. The code uses Gemini 3.5 Flash Lite as the main brain and Gemma 4 31B (same key) as the first backup.
+61b8a9a75238	One chat with the robot = one request; a question that makes the robot take a photo is usually two (deciding to look, then describing the photo). If the Gemini quota runs out, the robot automatically switches to Gemma, then to <b>Groq</b> if the Groq key is filled in (Step 3). On the free tier, Google may use your questions and photos to improve its services; do not send anything private.
+c5c5aaad514a	Open the <a href="https://aistudio.google.com/rate-limit">limits page</a> and check the daily quota of each model. The code uses <code>gemini-3.5-flash-lite</code> (fast, can see photos) with <code>gemma-4-31b-it</code> as backup. If your quotas differ, write the name of the model with the largest daily quota in <code>MODEL</code> (test code) and <code>GEMINI_MODEL</code> (brain code).

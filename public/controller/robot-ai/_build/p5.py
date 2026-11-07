@@ -14,7 +14,8 @@ def halaman():
 <div class="panel">
   <h3>Batas gratis Gemini</h3>
   <p>Gemini dipakai lewat <b>Google AI Studio</b> tanpa kartu kredit. Batasnya dihitung per proyek dan per model (permintaan per menit dan per hari), dan Google tidak lagi mengumumkannya di dokumentasi: angka yang berlaku untukmu hanya terlihat di <a href="https://aistudio.google.com/rate-limit">halaman batas AI Studio</a> dan bisa berubah sewaktu-waktu. Jatah harian kembali penuh tengah malam waktu Pasifik, sekitar pukul 15.00-16.00 WITA.</p>
-  <p>Satu obrolan robot = satu permintaan; pertanyaan yang membuat robot memotret biasanya dua (memutuskan melihat, lalu menjelaskan fotonya). Kalau jatah Gemini habis, robot otomatis memakai <b>Groq</b> sebagai cadangan, asal kunci Groq diisi (Tahap 3). Di tingkat gratis, Google boleh memakai isi pertanyaan dan foto untuk memperbaiki layanannya; jangan kirim hal yang pribadi.</p>
+  <p>Contoh jatah gratis yang terlihat di satu akun pada November 2026: <b>Gemini 3.5 Flash Lite</b> 15 per menit dan 500 per hari, <b>Gemma 4 31B</b> 30 per menit dan 14.400 per hari, sedangkan Gemini 2.5 Flash Lite hanya 20 per hari. Kode memakai Gemini 3.5 Flash Lite sebagai otak utama dan Gemma 4 31B (kunci yang sama) sebagai cadangan pertama.</p>
+  <p>Satu obrolan robot = satu permintaan; pertanyaan yang membuat robot memotret biasanya dua (memutuskan melihat, lalu menjelaskan fotonya). Kalau jatah Gemini habis, robot otomatis pindah ke Gemma, lalu ke <b>Groq</b> kalau kunci Groq diisi (Tahap 3). Di tingkat gratis, Google boleh memakai isi pertanyaan dan foto untuk memperbaiki layanannya; jangan kirim hal yang pribadi.</p>
 </div>''')
 
     t = ''
@@ -32,7 +33,7 @@ def halaman():
     t += stage(S, 2, 'API key Gemini (gratis)', ['Akun Google'], [
         'Buka <a href="https://aistudio.google.com">aistudio.google.com</a> dan masuk dengan akun Google.',
         '<b>Get API key → Create API key</b>, pilih atau buat proyek baru. Salin kuncinya (diawali <code>AIza</code>). Tidak perlu kartu kredit.',
-        'Buka <a href="https://aistudio.google.com/rate-limit">halaman batas</a> dan lihat jatah per hari tiap model. Kode memakai <code>gemini-2.5-flash-lite</code> (cepat, bisa melihat foto). Kalau ada model Flash lain yang bisa melihat gambar dengan jatah lebih besar, tulis namanya di <code>MODEL</code> (kode tes) dan <code>GEMINI_MODEL</code> (kode otak).',
+        'Buka <a href="https://aistudio.google.com/rate-limit">halaman batas</a> dan lihat jatah per hari tiap model. Kode memakai <code>gemini-3.5-flash-lite</code> (cepat, bisa melihat foto) dengan cadangan <code>gemma-4-31b-it</code>. Kalau jatahmu berbeda, tulis nama model yang jatah per harinya paling besar di <code>MODEL</code> (kode tes) dan <code>GEMINI_MODEL</code> (kode otak).',
         'Isi kunci di kode tes, upload ke S3, ketik pertanyaan di Serial Monitor.',
     ], code=kode_tes('tes_gemini'),
         ok_='Jawaban AI muncul dalam beberapa detik. Kode 400 dengan API_KEY_INVALID = kunci salah, 403 = kunci tidak diizinkan, 404 = nama model salah atau sudah tidak tersedia, 429 = jatah habis atau terlalu sering.',
