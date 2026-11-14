@@ -1,0 +1,11 @@
+0bf03d93588e	Your INMP441 seen from the pin side: SCK, WS, L/R in one row, SD, VDD, GND in the other. SCK faces SD, WS faces VDD, L/R faces GND.
+3568721ad939	Plug the INMP441 across the center gap in <b>columns 26 to 28</b>, like an IC: the spacing between its two pin rows equals the spacing from row e to row f. The sound hole faces up. The SCK, WS, L/R row goes in <b>row f</b>, the SD, VDD, GND row in <b>row e</b>: <span class="pin">f26</span> SCK, <span class="pin">f27</span> WS, <span class="pin">f28</span> L/R, <span class="pin">e26</span> SD, <span class="pin">e27</span> VDD, <span class="pin">e28</span> GND. Do not plug both pin rows on the same side (for example a and d): the five holes of a column are connected, so SCK would be shorted to SD.
+3960c88d8f29	Wires for pins in row f come from <b>row j</b>, wires for pins in row e from <b>row a</b>, in the same column. Check the labels on your module first; if the order differs, keep this rule and the wire destinations stay the same.
+2cf55e36a98d	Power (M-M wires): <span class="pin">a27</span> (VDD) → red line (3.3 V; the INMP441 must not get 5 V), <span class="pin">a28</span> (GND) → blue line, <span class="pin">j28</span> (L/R) → <span class="pin">b28</span> (the GND column, across the gap), so L/R also goes to GND.
+764a7705c536	Signals (F-M wires from the S pins of the expansion board): <b>IO15</b> → <span class="pin">j26</span> (SCK), <b>IO16</b> → <span class="pin">j27</span> (WS), <b>IO6</b> → <span class="pin">a26</span> (SD).
+dd1ea221f6a6	Always 0: SD and WS swapped, or the j28 → b28 wire (L/R to GND) is loose. Upload tes_mic_diagnosis to see which channel is alive.
+c3c24107e975	INMP441 (f26-f28 SCK, WS, L/R; e26-e28 SD, VDD, GND)
+94308ae80988	a27 (VDD) / a28 (GND)
+f95db22187eb	red rail 3.3 V / blue rail
+3deac686e27b	b28 (GND column)
+dc2a967c1c59	j26, j27, a26 (SCK, WS, SD)

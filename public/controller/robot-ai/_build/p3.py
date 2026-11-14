@@ -96,15 +96,16 @@ def halaman():
 
     t += stage(S, 5, 'Mikrofon INMP441', ['INMP441', 'Pin header + solder', 'Kabel F-M dan M-M'], [
         'Solder pin header ke INMP441 kalau belum ada. Bagian bulat dengan lubang kecil adalah lubang suara, jangan ditutup.',
-        'Tancap INMP441 menyeberangi parit tengah di <b>kolom 26 sampai 28</b>: baris pin SCK, WS, L/R di sisi a-e, baris pin SD, VDD, GND di sisi f-j. Pakai baris e dan f kalau jarak dua baris pinnya pas; kalau lebih lebar, d dan g. Lubang suara jangan menghadap ke breadboard atau tertutup. Catat kolom tiap pin dari nama yang tercetak, karena urutannya bisa berbeda antar-modul.',
-        f'Kabel M-M dari lubang kosong di kolom pin itu: {pin("VDD")} → garis merah (3,3 V; INMP441 tidak boleh 5 V), {pin("GND")} dan {pin("L/R")} → garis biru.',
-        f'Kabel F-M dari pin S papan ekspansi ke lubang kosong di kolom pin itu: <b>IO15</b> → {pin("SCK")}, <b>IO16</b> → {pin("WS")}, <b>IO6</b> → {pin("SD")}.',
+        'Tancap INMP441 menyeberangi parit tengah di <b>kolom 26 sampai 28</b>, seperti IC: jarak dua baris pinnya sama dengan jarak baris e ke f. Lubang suara menghadap ke atas. Baris SCK, WS, L/R di <b>baris f</b>, baris SD, VDD, GND di <b>baris e</b>: <span class="pin">f26</span> SCK, <span class="pin">f27</span> WS, <span class="pin">f28</span> L/R, <span class="pin">e26</span> SD, <span class="pin">e27</span> VDD, <span class="pin">e28</span> GND. Jangan menancap kedua baris pin di sisi yang sama (misalnya a dan d): lima lubang satu kolom saling tersambung, jadi SCK terhubung singkat dengan SD.',
+        'Kabel untuk pin di baris f diambil dari <b>baris j</b>, untuk pin di baris e dari <b>baris a</b>, di kolom yang sama. Cocokkan dengan tulisan di modulmu dulu; kalau urutannya berbeda, pegang aturan ini dan tujuan kabelnya tetap.',
+        f'Daya (kabel M-M): <span class="pin">a27</span> (VDD) → garis merah (3,3 V; INMP441 tidak boleh 5 V), <span class="pin">a28</span> (GND) → garis biru, <span class="pin">j28</span> (L/R) → <span class="pin">b28</span> (kolom GND, menyeberang parit), jadi L/R ikut ke GND.',
+        f'Sinyal (kabel F-M dari pin S papan ekspansi): <b>IO15</b> → <span class="pin">j26</span> (SCK), <b>IO16</b> → <span class="pin">j27</span> (WS), <b>IO6</b> → <span class="pin">a26</span> (SD).',
         'Upload kode tes, buka <b>Tools → Serial Plotter</b>. Diam, lalu tepuk tangan dekat mikrofon.',
-    ], figs=photo(IMG + 'inmp441.jpg', 'Mikrofon INMP441 dengan label pin', 'INMP441 milikmu: SCK, WS, L/R di satu sisi, SD, VDD, GND di sisi lain.', 300),
+    ], figs=photo(IMG + 'inmp441.jpg', 'Mikrofon INMP441 dengan label pin', 'INMP441 milikmu dilihat dari sisi pin: SCK, WS, L/R di satu baris, SD, VDD, GND di baris lain. SCK berhadapan dengan SD, WS dengan VDD, L/R dengan GND.', 300),
         code=kode_tes('tes_mic'),
         ok_='Garis di Serial Plotter rendah saat diam (puluhan sampai ratusan) dan melonjak ke ribuan saat kamu tepuk tangan atau bicara.',
         learn='L/R ke GND membuat mikrofon mengirim suara di jalur kiri. Kode membaca jalur kiri saja. Mikrofon dan speaker memakai dua jalur I2S terpisah, jadi bisa diatur sendiri-sendiri.',
-        gagal=['Selalu 0: SD dan WS tertukar, atau L/R tidak ke GND.', 'Angka besar terus walau diam: kabel GND lepas.'])
+        gagal=['Selalu 0: SD dan WS tertukar, atau kabel j28 → b28 (L/R ke GND) lepas. Upload tes_mic_diagnosis untuk melihat jalur mana yang hidup.', 'Angka besar terus walau diam: kabel GND lepas.'])
 
     t += stage(S, 6, 'Sambung otak ke badan (UART)', ['Badan sudah berisi robot_badan.ino', '3 kabel F-F'], [
         'Cabut USB kedua board.',
@@ -128,7 +129,7 @@ def halaman():
          ['TFT VCC, LED', 'rel merah'], ['TFT GND', 'rel biru'], ['TFT SCK, T_CLK, SD_SCK', 'b2, c2, d2'], ['TFT SDI(MOSI), T_DIN, SD_MOSI', 'b5, c5, d5'],
          ['T_DO, SD_MISO', 'c8, d8'], ['TFT SDO(MISO), T_IRQ', 'tidak disambung'], ['TFT CS, DC, RESET', 'IO10, IO9, IO8'], ['T_CS', 'IO14'], ['SD_CS', 'IO21'],
          ['MAX98357A (pin di e12-e18)', 'tertancap di breadboard 2'], ['a18 (Vin) / a17 (GND)', 'rel merah (mode jalan: pin 5V papan S3) / rel biru'], ['a13, a12, a14 (BCLK, LRC, DIN)', 'IO4, IO5, IO7'],
-         ['INMP441 (kolom 26-28)', 'tertancap di breadboard 2, menyeberangi parit'], ['kolom VDD / kolom GND dan L/R', 'rel merah / rel biru'], ['kolom SCK, WS, SD', 'IO15, IO16, IO6'],
+         ['INMP441 (f26-f28 SCK, WS, L/R; e26-e28 SD, VDD, GND)', 'tertancap di breadboard 2, menyeberangi parit'], ['a27 (VDD) / a28 (GND)', 'rel merah 3,3 V / rel biru'], ['j28 (L/R)', 'b28 (kolom GND)'], ['j26, j27, a26 (SCK, WS, SD)', 'IO15, IO16, IO6'],
          ['IO17, IO18, G', 'DevKit D16, D17, G']]))
     lead = 'Otak memegang layar sentuh, suara, dan koneksi internet. Setiap modul dites sendiri dulu, lalu otak disambung ke badan.'
     return S, 'Otak robot', lead, isi, 'Merakit otak robot ESP32-S3: layar TFT sentuh, SD card, speaker MAX98357A, mikrofon INMP441, dan UART ke badan.'

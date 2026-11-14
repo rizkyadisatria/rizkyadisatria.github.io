@@ -59,12 +59,10 @@ ddc0ee301335	You hear do-re-mi-fa-sol and then a one-second pause, repeating.
 0129c814e39a	<span class="pn">Not yet</span> The MAX98357A Vin is still on the 3.3 V rail. On the robot it is moved to the S3 board's 5V pin (Part 6 Stage 6). The speaker is not strapped to the plate yet (Part 6 Stage 4).
 be6c0f0f7d57	Silent: check that BCLK/LRC/DIN are not swapped and the speaker wires are clamped firmly in the terminal (not the insulation).
 bbed1c53b2c6	Crackling: the GND wire is not firm enough, or the data wires are too long.
-13249b08b1f1	Your INMP441: SCK, WS, L/R on one side, SD, VDD, GND on the other.
 f8794520a0f3	<b>Why this way?</b> L/R to GND makes the microphone send sound on the left channel. The code reads only the left channel. The microphone and speaker use two separate I2S channels, so each can be set on its own.
 7c294b008f46	The line in the Serial Plotter is low when quiet (tens to hundreds) and jumps to the thousands when you clap or speak.
 7ee5bd24e4ba	<span class="py">OK to lock in</span> The soldered INMP441 header pins, with the sound hole left uncovered.
 52f63912f5de	<span class="pn">Not yet</span> VDD stays on 3.3 V. Do not move it to 5 V in run mode like the speaker's Vin: the INMP441 must not get 5 V.
-aca3dfe1386d	Always 0: SD and WS are swapped, or L/R is not on GND.
 684d43110e8d	Large numbers even when quiet: the GND wire came loose.
 a603028eafcd	Connect the brain to the body (UART)
 daeb0f6b1074	One board's TX always goes to the other board's RX (crossed).
@@ -83,7 +81,6 @@ a29914375f7b	TFT SCK, T_CLK, SD_SCK
 1ff10ff2e0b2	TFT SDI(MOSI), T_DIN, SD_MOSI
 cae3d16c462f	TFT SDO(MISO), T_IRQ
 2421ed91ab82	not connected
-ba11c2452bfe	red rail / blue rail
 4de51bbd705b	S3 expansion board
 98a5f38fcadb	USB-C data cable
 2fb222543a2d	2.4&quot; SPI TFT 240x320
