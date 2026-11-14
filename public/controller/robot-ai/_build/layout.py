@@ -57,7 +57,7 @@ L3 = [  # di atas lantai 3 (plat ketiga, sama dengan chassis): tanpa batas tingg
     ('TFT (berdiri)', 106, 129, 86, 10, 55, '#8c1d18'), ('speaker (berdiri)', 96, 14, 84, 22, 30, '#2a2a2a'),
     # tertancap di breadboard 2 (kolom 1 di sisi speaker, baris a di sisi S3, 2,54 mm per kolom)
     ('MAX98357A', 131, 69, 20, 19, 12, '#5b2a86'),     # pin di e12-e18, badan di atas parit
-    ('STOP', 135, 93, 9, 9, 12, '#7a1010'),            # e21, e23, f21, f23
+    ('STOP', 133, 91, 12, 12, 12, '#7a1010'),          # 12x12 mm: e21, e23, h21, h23
     ('INMP441', 132, 105, 14, 14, 8, '#1f2a44'),       # kolom 26-28: ujung terjauh dari speaker
     ('kepala', 212, 58, 36, 36, 70, '#3a2a13'),
 ]
