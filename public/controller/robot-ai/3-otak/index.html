@@ -754,13 +754,15 @@ void loop() {
     Serial.println(&quot;Mengirim PING ke badan... (belum ada jawaban: cek TX/RX disilang dan GND bersama)&quot;);
     Serial1.println(&quot;PING&quot;);
   }
-  while (Serial.available()) Serial1.write(Serial.read());   // dari laptop ke badan
+  static uint32_t tKetik = 0;                                // kapan terakhir kamu mengetik
+  while (Serial.available()) { Serial1.write(Serial.read()); tKetik = millis(); }   // dari laptop ke badan
   static String baris;
   while (Serial1.available()) {                              // dari badan ke laptop
     char c = Serial1.read();
     if (c == &#x27;\n&#x27;) {
       dijawab = true;
-      if (!baris.startsWith(&quot;D &quot;) || millis() % 2000 &lt; 260) Serial.println(&quot;badan: &quot; + baris);  // data D dicetak jarang
+      // data D rutin dicetak jarang; jawaban Q (sesaat setelah kamu mengetik) selalu dicetak
+      if (!baris.startsWith(&quot;D &quot;) || millis() - tKetik &lt; 1000 || millis() % 2000 &lt; 260) Serial.println(&quot;badan: &quot; + baris);
       baris = &quot;&quot;;
     } else if (c != &#x27;\r&#x27;) baris += c;
   }

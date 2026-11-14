@@ -18,13 +18,15 @@ void loop() {
     Serial.println("Mengirim PING ke badan... (belum ada jawaban: cek TX/RX disilang dan GND bersama)");
     Serial1.println("PING");
   }
-  while (Serial.available()) Serial1.write(Serial.read());   // dari laptop ke badan
+  static uint32_t tKetik = 0;                                // kapan terakhir kamu mengetik
+  while (Serial.available()) { Serial1.write(Serial.read()); tKetik = millis(); }   // dari laptop ke badan
   static String baris;
   while (Serial1.available()) {                              // dari badan ke laptop
     char c = Serial1.read();
     if (c == '\n') {
       dijawab = true;
-      if (!baris.startsWith("D ") || millis() % 2000 < 260) Serial.println("badan: " + baris);  // data D dicetak jarang
+      // data D rutin dicetak jarang; jawaban Q (sesaat setelah kamu mengetik) selalu dicetak
+      if (!baris.startsWith("D ") || millis() - tKetik < 1000 || millis() % 2000 < 260) Serial.println("badan: " + baris);
       baris = "";
     } else if (c != '\r') baris += c;
   }
