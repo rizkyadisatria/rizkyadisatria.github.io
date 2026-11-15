@@ -360,18 +360,18 @@ bool ambilFoto(const char* res) {
   return got == (size_t)len;
 }
 
-// Library Telegram memanggil fotoMasihAda() dulu di setiap putaran, lalu buffer dan panjangnya.
-// Potongan (chunk) dihitung di fotoMasihAda() supaya urutan pemanggilan dua fungsi lainnya tidak berpengaruh.
+// Library Telegram 1.3.0 hanya memakai jalur "per potongan" kalau fungsi per-byte diisi nullptr
+// (logikanya terbalik di library). Urutan panggilannya: fotoMasihAda(), fotoBufferBerikut(), fotoPanjangBerikut().
 size_t potAwal = 0, potLen = 0;
 bool fotoMasihAda() { fotoPos = potAwal + potLen; potAwal = fotoPos; potLen = min((size_t)1024, fotoLen - fotoPos); return potLen > 0; }
-byte fotoByteBerikut() { return fotoBuf[fotoPos++]; }
 byte* fotoBufferBerikut() { return fotoBuf + potAwal; }
 int fotoPanjangBerikut() { return potLen; }
 
 bool kirimFotoTelegram(const String& chat) {
   if (!fotoBuf || !fotoLen) return false;
   fotoPos = 0; potAwal = 0; potLen = 0;
-  String r = bot.sendPhotoByBinary(chat, "image/jpeg", fotoLen, fotoMasihAda, fotoByteBerikut, fotoBufferBerikut, fotoPanjangBerikut);
+  String r = bot.sendPhotoByBinary(chat, "image/jpeg", fotoLen, fotoMasihAda, nullptr, fotoBufferBerikut, fotoPanjangBerikut);
+  if (r.indexOf("\"ok\":true") < 0) Serial.println("[telegram] kirim foto gagal: " + r.substring(0, 200));
   return r.indexOf("\"ok\":true") >= 0;
 }
 
@@ -1133,6 +1133,7 @@ void setup() {
     alamatKamera.replace("http://", ""); alamatKamera.replace("https://", ""); alamatKamera.trim();
     while (alamatKamera.endsWith("/")) alamatKamera.remove(alamatKamera.length() - 1);
     tgClient.setCACert(TELEGRAM_CERTIFICATE_ROOT);
+    bot.waitForResponse = 6000;                        // unggah foto butuh lebih dari 1,5 detik bawaan
     bot.sendMessage(TELEGRAM_CHATID, String(NAMA_ROBOT) + " menyala. Ketik /bantuan");
     setStatus("Siap");
     ucapkan(String("Halo, aku ") + NAMA_ROBOT + ". Aku siap.");
