@@ -861,7 +861,9 @@ bool pasangSD() {
     SD.end();
     digitalWrite(TFT_CS, HIGH); digitalWrite(TOUCH_CS, HIGH);   // layar dan sentuh tidak boleh ikut menjawab
     delay(50);
-    if (SD.begin(SD_CS, SPI, f) && SD.cardType() != CARD_NONE) {
+    bool ok = SD.begin(SD_CS, SPI, f) && SD.cardType() != CARD_NONE;
+    Serial.printf("[sd] coba %u MHz: %s\n", (unsigned)(f / 1000000), ok ? "berhasil" : "gagal");
+    if (ok) {
       adaSD = true;
       Serial.printf("SD card terbaca pada %u MHz (%llu MB)\n", (unsigned)(f / 1000000), SD.cardSize() / (1024 * 1024));
       break;
@@ -1423,6 +1425,47 @@ void tugasWeb(void*) {
 // ======================= SETUP & LOOP =======================
 // Baca pilihan layar tersimpan: jenis chip, balik layar kiri-kanan / atas-bawah, dan warna negatif (invert).
 // Bawaan untuk modul merahmu (ILI9342C): layar dibalik atas-bawah dan invert aktif. Ubah lewat tombol Serial di tes_media.
+// ======================= DIAGNOSIS LAYAR (dicetak di Serial Monitor saat menyala) =======================
+// Uji tiap kabel layar sebelum layar dinyalakan: pin dibaca dengan penarik ke atas lalu ke bawah.
+//   "1/0" = mengikuti penarik: kabel tidak terhubung singkat (normal)
+//   "0/0" = terhubung ke GND, "1/1" = terhubung ke 3,3 V (CS dengan resistor penarik di modul juga 1/1, itu normal)
+void diagPinLayar() {
+  struct { const char* nama; int pin; } p[] = {{"SCK  IO12", TFT_SCK}, {"MOSI IO11", TFT_MOSI}, {"MISO IO13", TFT_MISO},
+    {"CS   IO10", TFT_CS}, {"DC   IO9 ", TFT_DC}, {"RST  IO8 ", TFT_RST}, {"T_CS IO14", TOUCH_CS}, {"SDCS IO21", SD_CS}};
+  Serial.printf("[layar] alasan menyala: %d (1 = saklar/daya baru, 3 = RST/upload, 9 = brownout)\n", (int)esp_reset_reason());
+  for (auto& x : p) {
+    pinMode(x.pin, INPUT_PULLUP);   delay(2); int a = digitalRead(x.pin);
+    pinMode(x.pin, INPUT_PULLDOWN); delay(2); int b = digitalRead(x.pin);
+    pinMode(x.pin, INPUT);
+    Serial.printf("[layar] pin %s  %d/%d  %s\n", x.nama, a, b,
+                  a && !b ? "ok" : (!a && !b) ? "TERHUBUNG KE GND?" : "ditarik ke 3,3 V");
+  }
+  Preferences q; q.begin("robot", true);
+  Serial.printf("[layar] setelan tersimpan: ic %d, fh %d, fv %d, inv %d, geo %d, rgb %d\n", q.getUChar("ic", 1), q.getUChar("fh", 0),
+                q.getUChar("fv", 1), q.getUChar("inv", 1), q.getUChar("geo", 1), q.getUChar("rgb", 1));
+  q.end();
+}
+
+// Chip sentuh XPT2046 ada di modul layar, memakai kabel SCK/MOSI/MISO dan daya VCC yang sama.
+// Kalau chip ini menjawab dengan angka suhu yang wajar, berarti daya modul dan kabel SPI sampai.
+void diagSentuh() {
+  SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+  int v[3];
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(TOUCH_CS, LOW);
+    SPI.transfer(0x84);                                   // ukur suhu chip (TEMP0), 12 bit
+    v[i] = SPI.transfer16(0) >> 3;
+    digitalWrite(TOUCH_CS, HIGH);
+    delay(2);
+  }
+  SPI.endTransaction();
+  bool hidup = v[0] > 100 && v[0] < 4000 && abs(v[0] - v[2]) < 200;
+  Serial.printf("[layar] chip sentuh menjawab: %d %d %d -> %s\n", v[0], v[1], v[2],
+                hidup ? "HIDUP: daya modul dan kabel SCK/MOSI/MISO sampai"
+                : (v[0] == 0 ? "DIAM (semua 0): VCC/GND modul, SCK, MOSI, atau MISO putus"
+                : v[0] >= 4000 ? "MISO selalu 1: kabel MISO atau GND modul bermasalah" : "angka acak: sambungan SPI goyang"));
+}
+
 void muatLayar() {
   Preferences p; p.begin("robot", true);
   bool ic = p.getUChar("ic", 1) != 0;
@@ -1447,21 +1490,28 @@ void setup() {
   pilihanAI = pref.getUChar("ai", AI_OTOMATIS);                         // otak AI pilihan terakhir (panel web / /ai)
   if (pilihanAI >= AI_JUMLAH || !aiTersedia(pilihanAI)) pilihanAI = AI_OTOMATIS;
   pref.end();
+  diagPinLayar();
   lcd.aturPanel(geo != 0, rgb != 0);
   muatLayar();
   // Saat saklar baru dinyalakan, tegangan layar naik lebih lambat dari S3. Kalau perintah awal dikirim terlalu cepat,
   // layar tidak menerimanya dan hanya tampil putih. Tunggu daya stabil, lalu kirim pengaturan awal dua kali.
   if (esp_reset_reason() == ESP_RST_POWERON || esp_reset_reason() == ESP_RST_BROWNOUT) delay(600);
-  lcd.init(); delay(150); lcd.init();
+  unsigned long tLayar = millis();
+  bool okLayar = lcd.init(); delay(150); okLayar = lcd.init() && okLayar;
+  Serial.printf("[layar] init %s dalam %lu ms (jeda awal %s), kecepatan tulis 27 MHz\n", okLayar ? "selesai" : "GAGAL",
+                millis() - tLayar, (esp_reset_reason() == ESP_RST_POWERON || esp_reset_reason() == ESP_RST_BROWNOUT) ? "600 ms" : "tidak ada");
   lcd.setRotation(arah > 7 ? 6 : arah);
   if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 6 : 1);   // robot memakai layar mendatar 320 x 240
   lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
+  Serial.printf("[layar] arah %d, ukuran %d x %d\n", lcd.getRotation(), (int)lcd.width(), (int)lcd.height());
   int32_t tx, ty; bool paksa = lcd.getTouchRaw(&tx, &ty);    // sentuh layar saat menyala = kalibrasi ulang
+  if (paksa) Serial.printf("[layar] sentuhan terbaca saat menyala (x %d, y %d): masuk kalibrasi ulang\n", (int)tx, (int)ty);
   kalibrasiSentuh(paksa);
   wajah.setPsram(true); wajah.setColorDepth(16); wajah.createSprite(320, 186);
   gambarTombol();
 
   SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI);
+  diagSentuh();
   pasangSD();
 
   Audio::audio_info_callback = infoAudio;
