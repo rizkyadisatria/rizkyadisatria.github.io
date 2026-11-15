@@ -244,6 +244,13 @@ void tugasAudio(void*) {
     if (pakaiSD) xSemaphoreTake(kunciSPI, portMAX_DELAY);
     audio.loop();
     if (pakaiSD) xSemaphoreGive(kunciSPI);
+    static unsigned long tLapor = 0;                     // laporan tiap 3 detik saat memutar lagu dari SD
+    if (pakaiSD && millis() - tLapor > 3000) {
+      tLapor = millis();
+      if (audio.isRunning())
+        Serial.printf("[audio] detik %u, posisi %u, buffer %u, PSRAM bebas %u\n", (unsigned)audio.getAudioCurrentTime(),
+                      (unsigned)audio.getAudioFilePosition(), (unsigned)audio.inBufferFilled(), (unsigned)ESP.getFreePsram());
+    }
     vTaskDelay(1);
   }
 }
