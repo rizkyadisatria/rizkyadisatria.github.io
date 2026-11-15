@@ -225,12 +225,14 @@ void infoAudio(Audio::msg_t m) {
 void tugasAudio(void*) {
   std::vector<String> antreTTS;
   bool pakaiSD = false;          // kunci bus SPI hanya saat memutar dari SD (layar memakai bus yang sama)
+  String laguSekarang;           // untuk menyambung ulang kalau pembacaan SD macet
+  uint32_t posLalu = 0; unsigned long tPosBerubah = 0;
   for (;;) {
     PerintahAudio p;
     while (xQueueReceive(antrianAudio, &p, 0) == pdTRUE) {
       xSemaphoreTake(kunciSPI, portMAX_DELAY);
       switch (p.jenis) {
-        case A_FILE: antreTTS.clear(); pakaiSD = true; audio.connecttoFS(SD, p.isi); break;
+        case A_FILE: antreTTS.clear(); pakaiSD = true; laguSekarang = p.isi; audio.connecttoFS(SD, p.isi); break;
         case A_URL:  antreTTS.clear(); pakaiSD = false; audio.connecttohost(p.isi); break;
         case A_TTS:  if (audio.isRunning() && !sedangBicara) audio.stopSong();   // bicara memotong musik
                      antreTTS.push_back(String(p.isi)); break;
@@ -250,6 +252,21 @@ void tugasAudio(void*) {
     if (pakaiSD) xSemaphoreTake(kunciSPI, portMAX_DELAY);
     audio.loop();
     if (pakaiSD) xSemaphoreGive(kunciSPI);
+    // Pembacaan SD kadang macet di tengah lagu (gangguan di kabel SPI): posisi file berhenti naik.
+    // Pasang ulang SD lalu lanjutkan lagu dari detik terakhir.
+    if (pakaiSD && audio.isRunning()) {
+      uint32_t pos = audio.getAudioFilePosition();
+      if (pos != posLalu) { posLalu = pos; tPosBerubah = millis(); }
+      else if (millis() - tPosBerubah > 3000 && laguSekarang.length()) {
+        uint32_t detik = audio.getAudioCurrentTime();
+        Serial.printf("[audio] SD macet di detik %u, pasang ulang SD dan lanjutkan\n", (unsigned)detik);
+        audio.stopSong();
+        adaSD = false; pasangSD();
+        if (adaSD) { xSemaphoreTake(kunciSPI, portMAX_DELAY); audio.connecttoFS(SD, laguSekarang.c_str(), detik); xSemaphoreGive(kunciSPI); }
+        else { pakaiSD = false; setStatus("SD card terlepas"); }
+        posLalu = 0; tPosBerubah = millis();
+      }
+    }
     static unsigned long tLapor = 0;                     // laporan tiap 3 detik saat memutar lagu dari SD
     if (pakaiSD && millis() - tLapor > 3000) {
       tLapor = millis();
@@ -763,7 +780,7 @@ struct Tugas { JenisTugas jenis; };
 // coba beberapa kali, makin pelan. 10 MHz pun masih jauh cukup untuk FLAC. Dipanggil lagi kalau SD belum terbaca.
 bool pasangSD() {
   if (adaSD) return true;
-  const uint32_t frek[] = {16000000, 10000000, 4000000, 4000000};
+  const uint32_t frek[] = {10000000, 4000000, 4000000};   // 10 MHz cukup untuk FLAC; lebih cepat sering error di kabel jumper
   xSemaphoreTake(kunciSPI, portMAX_DELAY);
   for (uint32_t f : frek) {
     SD.end();
