@@ -31,3 +31,9 @@ bab2e89e2a2c	Example free quotas seen on one account in November 2026: <b>Gemini
 c5c5aaad514a	Open the <a href="https://aistudio.google.com/rate-limit">limits page</a> and check the daily quota of each model. The code uses <code>gemini-3.5-flash-lite</code> (fast, can see photos) with <code>gemma-4-31b-it</code> as backup. If your quotas differ, write the name of the model with the largest daily quota in <code>MODEL</code> (test code) and <code>GEMINI_MODEL</code> (brain code).
 c66006d7394a	Telegram: <code>/lagu</code>, <code>/putar hujan</code> (part of the name is enough), <code>/volume 15</code>, <code>/diam</code>
 62adaa944934	music from the SD card: mp3, flac, wav, m4a, aac, ogg, opus
+35dd70850149	Tap LAGU on the screen
+c4b79a83845d	plays songs from the SD card; tap again for the next song
+35c942d7d1aa	Tap RADIO on the screen
+eeece1c39a7f	plays internet radio from <code>DAFTAR_RADIO</code> in the code; tap again for the next station
+ec5bc0f8ef2f	Tap VOL - / VOL + on the screen
+b59b5c08098c	volume down or up by 2 steps (0 to 21)

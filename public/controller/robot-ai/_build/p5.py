@@ -60,7 +60,9 @@ def halaman():
                '"badan belum terhubung" di layar: cek kabel UART dan GND (Bagian 3 Tahap 6).', 'Tidak bersuara tapi tes speaker berhasil: Google TTS mungkin sedang menolak. Jawaban tetap dikirim lewat Telegram.'])
 
     fitur = table(['Coba ini', 'Yang terjadi'], [
-        ['Tahan tombol MAJU/MUNDUR/KIRI/KANAN di layar', 'robot bergerak selama jari menempel, berhenti saat dilepas'],
+        ['Ketuk LAGU di layar', 'memutar lagu di SD card; ketuk lagi untuk lagu berikutnya'],
+        ['Ketuk RADIO di layar', 'memutar radio internet dari <code>DAFTAR_RADIO</code> di kode; ketuk lagi untuk stasiun berikutnya'],
+        ['Ketuk VOL - / VOL + di layar', 'volume turun atau naik 2 langkah (0 sampai 21)'],
         ['Ketuk STOP di layar', 'motor dan suara berhenti, mode kembali biasa'],
         ['Ketuk wajah robot', 'layar menampilkan kamera selama 10 detik (ketuk lagi untuk keluar)'],
         ['Ucapkan "Zond, maju sedikit"', 'robot mendengar namanya, menjawab, bergerak, dan mengirim percakapan ke Telegram'],

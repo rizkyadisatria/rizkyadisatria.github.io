@@ -51,6 +51,11 @@ const uint8_t ARAH_LAYAR    = 6;                      // 6 = slot SD di atas, 4 
                                                       // false = hanya mendengar setelah tombol BICARA
 const char* NAMA_PEMILIK    = "Rizky";
 const int   VOLUME_AWAL     = 12;                     // 0..21
+// Stasiun untuk tombol RADIO di layar (ketuk lagi = stasiun berikutnya). Alamat stream MP3/AAC,
+// cari di radio-browser.info (salin "Stream URL"). Tambah sebanyak yang kamu mau.
+const char* DAFTAR_RADIO[] = {
+  "http://stream.radioparadise.com/mp3-128",           // Radio Paradise (musik campuran, tanpa iklan)
+};
 
 // ======================= PIN (sesuai panduan) =======================
 #define TFT_SCK   12
@@ -182,6 +187,7 @@ volatile bool alarmJaga = false;    // diisi mode jaga, dikirim ke Telegram oleh
 
 // ======================= AUDIO (task sendiri) =======================
 enum JenisAudio { A_FILE, A_URL, A_TTS, A_STOP, A_VOL };
+int volSekarang = VOLUME_AWAL;   // volume yang sedang dipakai, 0..21
 struct PerintahAudio { JenisAudio jenis; char isi[200]; };
 
 // Semua jenis data (enum/struct) harus dibuat sebelum fungsi pertama: Arduino IDE menaruh deklarasi
@@ -229,7 +235,7 @@ void tugasAudio(void*) {
         case A_TTS:  if (audio.isRunning() && !sedangBicara) audio.stopSong();   // bicara memotong musik
                      antreTTS.push_back(String(p.isi)); break;
         case A_STOP: antreTTS.clear(); audio.stopSong(); break;
-        case A_VOL:  audio.setVolume(constrain(atoi(p.isi), 0, 21)); break;
+        case A_VOL:  volSekarang = constrain(atoi(p.isi), 0, 21); audio.setVolume(volSekarang); break;
       }
       xSemaphoreGive(kunciSPI);
     }
@@ -926,8 +932,11 @@ void tugasJaringan(void*) {
 
 // ======================= TAMPILAN =======================
 const int TOMBOL_Y = 192, TOMBOL_H = 48, TOMBOL_N = 6, TOMBOL_W = 320 / TOMBOL_N;
-const char* labelTombol[TOMBOL_N] = {"KIRI", "MAJU", "MUNDUR", "KANAN", "STOP", "BICARA"};
-const uint16_t warnaTombol[TOMBOL_N] = {0x2104, 0x2104, 0x2104, 0x2104, 0xA000, 0x0320};
+// Tombol layar hanya untuk hiburan dan suara. Gerak lewat suara atau Telegram, karena orang yang menyentuh layar
+// berdiri dekat robot, dan robot yang bergerak saat disentuh bisa menabrak kaki atau terjatuh dari meja.
+enum { T_BICARA, T_LAGU, T_RADIO, T_VOLKURANG, T_VOLTAMBAH, T_STOP };
+const char* labelTombol[TOMBOL_N] = {"BICARA", "LAGU", "RADIO", "VOL -", "VOL +", "STOP"};
+const uint16_t warnaTombol[TOMBOL_N] = {0x0320, 0x2945, 0x2945, 0x4208, 0x4208, 0xA000};
 
 void gambarTombol(int tekan = -1) {
   xSemaphoreTake(kunciSPI, portMAX_DELAY);
@@ -1127,7 +1136,7 @@ void kalibrasiSentuh(bool paksa) {
 }
 
 void tanganiSentuh() {
-  static int tombolLalu = -1; static unsigned long tKirim = 0;
+  static int tombolLalu = -1;
   int32_t x, y; bool ada;
   xSemaphoreTake(kunciSPI, portMAX_DELAY);
   ada = lcd.getTouch(&x, &y);
@@ -1139,19 +1148,42 @@ void tanganiSentuh() {
   static int calon = -1, ulang = 0;
   if (baca == calon) ulang++; else { calon = baca; ulang = 1; }
   int tombol = (ulang >= 4) ? calon : tombolLalu;
-  if (tombol != tombolLalu && tombol >= 4) Serial.printf("[sentuh] tombol %d (x %d, y %d)\n", tombol, (int)x, (int)y);
+  if (tombol != tombolLalu && tombol >= 0) Serial.printf("[sentuh] tombol %d (x %d, y %d)\n", tombol, (int)x, (int)y);
   if (tombol != tombolLalu) {
     gambarTombol(tombol <= 5 ? tombol : -1);
-    if (tombolLalu >= 0 && tombolLalu <= 3) kirimBadan("S");               // jari diangkat = berhenti
-    if (tombol == 4) { gantiMode(M_BIASA); kirimBadan("S"); kirimAudio(A_STOP); setStatus("Berhenti"); }
-    if (tombol == 5) { kirimAudio(A_STOP); mintaDengar = true; }   // BICARA: dengarkan tanpa perlu menyebut nama
-    tombolLalu = tombol; tKirim = 0;
+    if (tombol >= 0 && tombol <= 5) tekanTombol(tombol);
+    tombolLalu = tombol;
     if (tombol == 10) { lihatKameraDiLayar(); tombolLalu = -1; }
   }
-  if (tombol >= 0 && tombol <= 3 && millis() - tKirim > 200) {             // tahan = terus bergerak
-    tKirim = millis();
-    const int L[4] = {-150, 150, -150, 150}, R[4] = {150, 150, -150, -150};
-    gerak(L[tombol], R[tombol], 400);
+}
+
+void tekanTombol(int t) {
+  static int lagu = -1, radio = -1;
+  switch (t) {
+    case T_BICARA: kirimAudio(A_STOP); mintaDengar = true; break;   // dengarkan tanpa perlu menyebut nama
+    case T_LAGU: {                                                   // lagu berikutnya di SD card
+      String daftar = daftarLagu();
+      if (!adaSD || daftar.indexOf('.') < 0 || daftar.startsWith("Belum")) { setStatus("Tidak ada lagu di SD card"); break; }
+      int n = 0; for (char c : daftar) if (c == '\n') n++;
+      lagu = (lagu + 1) % n;
+      int a = 0; for (int i = 0; i < lagu; i++) a = daftar.indexOf('\n', a) + 1;
+      String nama = daftar.substring(a, daftar.indexOf('\n', a));
+      kirimAudio(A_FILE, "/" + nama); setStatus("Lagu " + String(lagu + 1) + "/" + String(n) + ": " + nama);
+      break;
+    }
+    case T_RADIO: {                                                  // stasiun berikutnya
+      const int n = sizeof(DAFTAR_RADIO) / sizeof(DAFTAR_RADIO[0]);
+      if (WiFi.status() != WL_CONNECTED) { setStatus("Radio butuh WiFi"); break; }
+      radio = (radio + 1) % n;
+      kirimAudio(A_URL, DAFTAR_RADIO[radio]); setStatus("Radio " + String(radio + 1) + "/" + String(n));
+      break;
+    }
+    case T_VOLKURANG: case T_VOLTAMBAH: {
+      int v = constrain(volSekarang + (t == T_VOLTAMBAH ? 2 : -2), 0, 21);
+      kirimAudio(A_VOL, String(v)); volSekarang = v; setStatus("Volume " + String(v) + " dari 21");
+      break;
+    }
+    case T_STOP: gantiMode(M_BIASA); kirimBadan("S"); kirimAudio(A_STOP); setStatus("Berhenti"); break;
   }
 }
 
