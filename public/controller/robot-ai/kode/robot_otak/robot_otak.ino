@@ -759,6 +759,27 @@ String jalankanJawaban(const String& jawaban, const String& pertanyaanAsli, bool
 enum JenisTugas { T_SUARA };
 struct Tugas { JenisTugas jenis; };
 
+// Pasang SD card. Kabel SD lewat breadboard dan berbagi jalur dengan layar, jadi kecepatan tinggi kadang gagal:
+// coba beberapa kali, makin pelan. 10 MHz pun masih jauh cukup untuk FLAC. Dipanggil lagi kalau SD belum terbaca.
+bool pasangSD() {
+  if (adaSD) return true;
+  const uint32_t frek[] = {16000000, 10000000, 4000000, 4000000};
+  xSemaphoreTake(kunciSPI, portMAX_DELAY);
+  for (uint32_t f : frek) {
+    SD.end();
+    digitalWrite(TFT_CS, HIGH); digitalWrite(TOUCH_CS, HIGH);   // layar dan sentuh tidak boleh ikut menjawab
+    delay(50);
+    if (SD.begin(SD_CS, SPI, f) && SD.cardType() != CARD_NONE) {
+      adaSD = true;
+      Serial.printf("SD card terbaca pada %u MHz (%llu MB)\n", (unsigned)(f / 1000000), SD.cardSize() / (1024 * 1024));
+      break;
+    }
+  }
+  xSemaphoreGive(kunciSPI);
+  if (!adaSD) Serial.println("SD card tidak terbaca (boleh, hanya untuk musik). Cek kartu terpasang penuh dan kabel SD_");
+  return adaSD;
+}
+
 // Lagu = file di folder utama SD dengan format yang bisa diputar library Audio. Huruf besar/kecil ekstensi tidak masalah.
 bool fileLagu(String n) {
   if (n.startsWith(".")) return false;                     // file sampah macOS (._lagu.mp3) dan file tersembunyi
@@ -770,7 +791,7 @@ bool fileLagu(String n) {
 
 // Semua lagu di folder utama SD, satu per baris.
 String daftarLagu() {
-  if (!adaSD) return "SD card tidak terbaca.";
+  if (!pasangSD()) return "SD card tidak terbaca. Cek kartu terpasang penuh, lalu coba lagi.";
   String s;
   xSemaphoreTake(kunciSPI, portMAX_DELAY);
   File root = SD.open("/");
@@ -1227,8 +1248,7 @@ void setup() {
   gambarTombol();
 
   SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI);
-  adaSD = SD.begin(SD_CS, SPI, 20000000);
-  Serial.println(adaSD ? "SD card terbaca" : "SD card tidak terbaca (boleh, hanya untuk musik)");
+  pasangSD();
 
   Audio::audio_info_callback = infoAudio;
   audio.setPinout(AMP_BCLK, AMP_LRC, AMP_DIN);
