@@ -210,6 +210,12 @@ void ucapkan(const String& teks) {
   }
 }
 
+// Pesan dari library Audio (format lagu, kesalahan baca, akhir lagu) dicetak ke Serial Monitor.
+void infoAudio(Audio::msg_t m) {
+  if (m.e == Audio::evt_vu || m.e == Audio::evt_spectrum) return;   // data meter, terlalu sering
+  Serial.printf("[audio] %s: %s\n", m.s ? m.s : "", m.msg ? m.msg : "");
+}
+
 void tugasAudio(void*) {
   std::vector<String> antreTTS;
   bool pakaiSD = false;          // kunci bus SPI hanya saat memutar dari SD (layar memakai bus yang sama)
@@ -1175,6 +1181,7 @@ void setup() {
   adaSD = SD.begin(SD_CS, SPI, 20000000);
   Serial.println(adaSD ? "SD card terbaca" : "SD card tidak terbaca (boleh, hanya untuk musik)");
 
+  Audio::audio_info_callback = infoAudio;
   audio.setPinout(AMP_BCLK, AMP_LRC, AMP_DIN);
   audio.setVolume(VOLUME_AWAL);
   mic.setPins(MIC_SCK, MIC_WS, -1, MIC_SD);
