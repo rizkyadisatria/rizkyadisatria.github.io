@@ -51,7 +51,7 @@ const char* KAMERA_ALAMAT   = "";                     // IP saja, contoh "192.16
 const char* NAMA_ROBOT      = "Zond";                 // nama robot; perintah suara harus menyebut nama ini
 const bool  DENGAR_NAMA     = true;                   // true = mendengar terus, menanggapi kalau namanya disebut
 const uint8_t ARAH_LAYAR    = 6;                      // 6 = slot SD di atas, 4 = slot SD di bawah. Tampilan terbalik? ganti 6 <-> 4
-const uint8_t LAYAR_MHZ     = 27;                     // kecepatan kirim ke layar. Layar putih/bergaris dengan kabel panjang? coba 10
+#define LAYAR_MHZ        27                       // kecepatan kirim ke layar. Layar putih/bergaris dengan kabel panjang? coba 10
                                                       // false = hanya mendengar setelah tombol BICARA
 const char* NAMA_PEMILIK    = "Rizky";
 const int   VOLUME_AWAL     = 12;                     // 0..21
@@ -119,6 +119,10 @@ protected:
     endWrite();
   }
 };
+
+#ifndef LAYAR_MHZ                                     // kalau baris LAYAR_MHZ tidak ada di pengaturan atas
+#define LAYAR_MHZ 27
+#endif
 
 class LGFX : public lgfx::LGFX_Device {
   PanelKu _panel;
