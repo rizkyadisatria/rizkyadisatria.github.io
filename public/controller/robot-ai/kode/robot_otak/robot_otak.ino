@@ -47,6 +47,7 @@ const char* GROQ_MODEL      = "qwen/qwen3.8-27b";     // model Groq yang bisa me
 const char* KAMERA_ALAMAT   = "";                     // IP saja, contoh "192.168.1.50". Kosong = cari robotcam.local
 const char* NAMA_ROBOT      = "Zond";                 // nama robot; perintah suara harus menyebut nama ini
 const bool  DENGAR_NAMA     = true;                   // true = mendengar terus, menanggapi kalau namanya disebut
+const uint8_t ARAH_LAYAR    = 6;                      // 6 = slot SD di atas, 4 = slot SD di bawah. Tampilan terbalik? ganti 6 <-> 4
                                                       // false = hanya mendengar setelah tombol BICARA
 const char* NAMA_PEMILIK    = "Rizky";
 const int   VOLUME_AWAL     = 12;                     // 0..21
@@ -1117,7 +1118,8 @@ void setup() {
   antrianTugas = xQueueCreate(2, sizeof(Tugas));
 
   pref.begin("robot", false);
-  uint8_t arah = pref.getUChar("rot", 6), geo = pref.getUChar("geo", 1), rgb = pref.getUChar("rgb", 1);   // pilihan di tes_layar
+  uint8_t arah = ARAH_LAYAR, geo = pref.getUChar("geo", 1), rgb = pref.getUChar("rgb", 1);   // geo dan rgb: pilihan di tes_layar
+  if (pref.getUChar("rot", 255) != arah) pref.putUChar("rot", arah);   // tes_media, tes_sd, tes_musik ikut arah ini
   pref.end();
   lcd.aturPanel(geo != 0, rgb != 0);
   muatLayar();
