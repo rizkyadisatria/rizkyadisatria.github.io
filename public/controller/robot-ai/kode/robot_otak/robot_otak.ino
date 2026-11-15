@@ -1126,7 +1126,13 @@ void tanganiSentuh() {
   ada = lcd.getTouch(&x, &y);
   xSemaphoreGive(kunciSPI);
   // zona: 0..5 = tombol bawah, 10 = area wajah, -1 = tidak disentuh
-  int tombol = !ada ? -1 : (y >= TOMBOL_Y) ? constrain(x / TOMBOL_W, 0, TOMBOL_N - 1) : (y < TOMBOL_Y - 20) ? 10 : -1;
+  int baca = !ada ? -1 : (y >= TOMBOL_Y) ? constrain(x / TOMBOL_W, 0, TOMBOL_N - 1) : (y < TOMBOL_Y - 20) ? 10 : -1;
+  // Sentuhan palsu (bising listrik dari speaker yang keras) hanya terbaca sesaat. Zona baru dianggap
+  // sungguhan setelah terbaca sama 4 kali berturut-turut (sekitar 40 milidetik).
+  static int calon = -1, ulang = 0;
+  if (baca == calon) ulang++; else { calon = baca; ulang = 1; }
+  int tombol = (ulang >= 4) ? calon : tombolLalu;
+  if (tombol != tombolLalu && tombol >= 4) Serial.printf("[sentuh] tombol %d (x %d, y %d)\n", tombol, (int)x, (int)y);
   if (tombol != tombolLalu) {
     gambarTombol(tombol <= 5 ? tombol : -1);
     if (tombolLalu >= 0 && tombolLalu <= 3) kirimBadan("S");               // jari diangkat = berhenti
