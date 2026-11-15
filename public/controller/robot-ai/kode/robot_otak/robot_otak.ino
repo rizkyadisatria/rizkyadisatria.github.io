@@ -740,23 +740,48 @@ String jalankanJawaban(const String& jawaban, const String& pertanyaanAsli, bool
 enum JenisTugas { T_SUARA };
 struct Tugas { JenisTugas jenis; };
 
+// Lagu = file di folder utama SD dengan format yang bisa diputar library Audio. Huruf besar/kecil ekstensi tidak masalah.
+bool fileLagu(String n) {
+  if (n.startsWith(".")) return false;                     // file sampah macOS (._lagu.mp3) dan file tersembunyi
+  n.toLowerCase();
+  const char* eks[] = {".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".opus"};
+  for (const char* e : eks) if (n.endsWith(e)) return true;
+  return false;
+}
+
+// Semua lagu di folder utama SD, satu per baris.
 String daftarLagu() {
   if (!adaSD) return "SD card tidak terbaca.";
   String s;
   xSemaphoreTake(kunciSPI, portMAX_DELAY);
   File root = SD.open("/");
-  for (File f = root.openNextFile(); f; f = root.openNextFile()) {
-    String n = f.name();
-    if (n.endsWith(".mp3") || n.endsWith(".MP3") || n.endsWith(".wav") || n.endsWith(".m4a")) s += n + "\n";
-  }
+  for (File f = root.openNextFile(); f; f = root.openNextFile())
+    if (!f.isDirectory() && fileLagu(f.name())) s += String(f.name()) + "\n";
+  root.close();
   xSemaphoreGive(kunciSPI);
-  return s.length() ? s : "Belum ada lagu (.mp3) di folder utama SD card.";
+  return s.length() ? s : "Belum ada lagu di folder utama SD card (mp3, flac, wav, m4a, aac, ogg, opus).";
+}
+
+// Cari lagu dari sebagian namanya, tanpa peduli huruf besar/kecil: "/putar hujan" menemukan "Hujan_Bulan_Juni.flac".
+String cariLagu(String kata) {
+  kata.trim(); kata.toLowerCase();
+  if (!adaSD || kata.isEmpty()) return "";
+  String daftar = daftarLagu(), hasil;
+  int i = 0;
+  while (i < (int)daftar.length()) {
+    int j = daftar.indexOf('\n', i); if (j < 0) j = daftar.length();
+    String n = daftar.substring(i, j), k = n; k.toLowerCase();
+    if (k == kata) return n;                                 // nama persis selalu menang
+    if (hasil.isEmpty() && k.indexOf(kata) >= 0) hasil = n;
+    i = j + 1;
+  }
+  return hasil;
 }
 
 const char* BANTUAN =
   "Perintah:\n/status  data sensor\n/maju /mundur /kiri /kanan [ms]\n/stop\n/kepala pan tilt  (90 90 = lurus)\n"
   "/foto  kirim foto kamera\n/lihat [pertanyaan]  AI melihat lewat kamera\n/bilang teks  robot mengucapkan teks\n"
-  "/lagu  daftar lagu di SD\n/putar nama.mp3\n/radio url\n/diam  hentikan suara\n/volume 0-21\n"
+  "/lagu  daftar lagu di SD\n/putar nama lagu (cukup sebagian)\n/radio url\n/diam  hentikan suara\n/volume 0-21\n"
   "/ikuti  ikuti benda di depan\n/jaga  berjaga, kirim foto kalau ada gerakan\n/biasa  kembali normal\n\n"
   "Pesan biasa tanpa / = ngobrol dengan AI (bisa menyuruh bergerak).";
 
@@ -813,7 +838,11 @@ void tanganiPesan(const telegramMessage& m) {
   else if (cmd == "/biasa")  { gantiMode(M_BIASA); bot.sendMessage(chat, "Kembali ke mode biasa."); }
   else if (cmd == "/bilang") { ucapkan(arg); bot.sendMessage(chat, "Oke."); }
   else if (cmd == "/lagu")   bot.sendMessage(chat, daftarLagu());
-  else if (cmd == "/putar")  { kirimAudio(A_FILE, "/" + arg); bot.sendMessage(chat, "Memutar " + arg); }
+  else if (cmd == "/putar")  {
+    String lagu = cariLagu(arg);
+    if (lagu.isEmpty()) bot.sendMessage(chat, "Lagu \"" + arg + "\" tidak ditemukan. Ketik /lagu untuk melihat daftarnya.");
+    else { kirimAudio(A_FILE, "/" + lagu); bot.sendMessage(chat, "Memutar " + lagu); }
+  }
   else if (cmd == "/radio")  { kirimAudio(A_URL, arg); bot.sendMessage(chat, "Memutar radio"); }
   else if (cmd == "/diam")   { kirimAudio(A_STOP); bot.sendMessage(chat, "Diam."); }
   else if (cmd == "/volume") { kirimAudio(A_VOL, arg); bot.sendMessage(chat, "Volume " + arg); }

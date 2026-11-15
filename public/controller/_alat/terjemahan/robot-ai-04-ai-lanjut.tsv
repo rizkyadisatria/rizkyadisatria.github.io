@@ -7,8 +7,6 @@ d5d866aae7f1	Telegram: <code>/lihat ada apa di depanmu?</code>
 218efd969db1	the photo is sent and the AI describes it
 3be60d32c52f	Telegram: a normal message, for example "maju sedikit lalu lihat ke kiri"
 57d9549b1df4	the AI replies and moves the body
-234d2bd5c1fd	Telegram: <code>/lagu</code>, <code>/putar lagu1.mp3</code>, <code>/volume 15</code>, <code>/diam</code>
-4c4f239d9b31	music from the SD card
 d72ed89ffc47	Telegram: <code>/radio</code> + stream address
 dae68ddb7d13	plays internet radio (an MP3/AAC stream address from a radio site)
 9f630e76b290	Telegram: <code>/bilang selamat pagi</code>

@@ -72,7 +72,7 @@ def halaman():
         ['Telegram: <code>/foto</code>', 'foto dari kamera'],
         ['Telegram: <code>/lihat ada apa di depanmu?</code>', 'foto dikirim, AI menjelaskan isinya'],
         ['Telegram: pesan biasa, misalnya "maju sedikit lalu lihat ke kiri"', 'AI menjawab dan menggerakkan badan'],
-        ['Telegram: <code>/lagu</code>, <code>/putar lagu1.mp3</code>, <code>/volume 15</code>, <code>/diam</code>', 'musik dari SD card'],
+        ['Telegram: <code>/lagu</code>, <code>/putar hujan</code> (cukup sebagian nama), <code>/volume 15</code>, <code>/diam</code>', 'musik dari SD card: mp3, flac, wav, m4a, aac, ogg, opus'],
         ['Telegram: <code>/radio</code> + alamat stream', 'memutar radio internet (alamat stream MP3/AAC dari situs radio)'],
         ['Telegram: <code>/bilang selamat pagi</code>', 'robot mengucapkan teks'],
         ['Telegram: <code>/ikuti</code>', 'robot menjaga jarak 35-70 cm ke benda di depannya, misalnya kakimu'],
