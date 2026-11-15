@@ -321,6 +321,19 @@ void jalankanMode() {
   }
 }
 
+// ======================= ALASAN RESTART =======================
+// Dikirim bersama pesan "menyala" supaya restart yang tidak disengaja langsung ketahuan penyebabnya.
+String alasanRestart() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: case ESP_RST_SW: case ESP_RST_USB: return "";   // dinyalakan, diupload, atau tombol RST
+    case ESP_RST_EXT:      return "";
+    case ESP_RST_BROWNOUT: return "\n(Restart: tegangan 5 V turun / brownout. Cek kabel 5 V dan GND papan S3.)";
+    case ESP_RST_PANIC:    return "\n(Restart: program crash. Lihat Serial Monitor S3 untuk detailnya.)";
+    case ESP_RST_INT_WDT: case ESP_RST_TASK_WDT: case ESP_RST_WDT: return "\n(Restart: program macet / watchdog.)";
+    default:               return "\n(Restart: kode " + String((int)esp_reset_reason()) + ")";
+  }
+}
+
 // ======================= KAMERA =======================
 uint8_t* fotoBuf = nullptr; size_t fotoLen = 0, fotoPos = 0;
 
@@ -775,6 +788,8 @@ void tanganiPesan(const telegramMessage& m) {
     if (ok) { kirimFotoTelegram(chat); b64 = base64::encode(fotoBuf, fotoLen); }
     xSemaphoreGive(kunciFoto);
     if (!ok) { bot.sendMessage(chat, "Kamera tidak bisa dihubungi: " + alasanFoto); ekspresi = NORMAL; return; }
+    Serial.printf("[lihat] foto %u byte, base64 %u, memori bebas %u, PSRAM bebas %u\n",
+                  (unsigned)fotoLen, (unsigned)b64.length(), (unsigned)ESP.getFreeHeap(), (unsigned)ESP.getFreePsram());
     String jaw = tanyaAI(q, b64);
     String kata = jalankanJawaban(jaw, q, false);
     bot.sendMessage(chat, kata.length() ? kata : "(tidak ada jawaban)");
@@ -1134,7 +1149,10 @@ void setup() {
     while (alamatKamera.endsWith("/")) alamatKamera.remove(alamatKamera.length() - 1);
     tgClient.setCACert(TELEGRAM_CERTIFICATE_ROOT);
     bot.waitForResponse = 6000;                        // unggah foto butuh lebih dari 1,5 detik bawaan
-    bot.sendMessage(TELEGRAM_CHATID, String(NAMA_ROBOT) + " menyala. Ketik /bantuan");
+    // Buang pesan Telegram lama yang belum dikonfirmasi. Tanpa ini, perintah yang membuat
+    // otak restart (misalnya kehabisan memori) akan dijalankan lagi setiap kali menyala: restart berulang.
+    if (bot.getUpdates(-1) > 0) Serial.println("[telegram] pesan lama dilewati: " + bot.messages[0].text);
+    bot.sendMessage(TELEGRAM_CHATID, String(NAMA_ROBOT) + " menyala. Ketik /bantuan" + alasanRestart());
     setStatus("Siap");
     ucapkan(String("Halo, aku ") + NAMA_ROBOT + ". Aku siap.");
   } else setStatus("WiFi gagal. Cek nama dan password");
