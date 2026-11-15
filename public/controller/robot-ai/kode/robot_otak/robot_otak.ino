@@ -384,6 +384,9 @@ bool kirimFotoTelegram(const String& chat) {
   if (!fotoBuf || !fotoLen) return false;
   fotoPos = 0; potAwal = 0; potLen = 0;
   String r = bot.sendPhotoByBinary(chat, "image/jpeg", fotoLen, fotoMasihAda, nullptr, fotoBufferBerikut, fotoPanjangBerikut);
+  // Library menunggu balasan dengan loop tanpa jeda (bawaan 1,5 detik). Jangan dinaikkan: di atas 5 detik
+  // watchdog me-restart S3. Balasan kosong = Telegram belum sempat menjawab, fotonya biasanya tetap sampai.
+  if (r.length() == 0) { Serial.println("[telegram] foto terkirim, balasan Telegram belum datang"); return true; }
   if (r.indexOf("\"ok\":true") < 0) Serial.println("[telegram] kirim foto gagal: " + r.substring(0, 200));
   return r.indexOf("\"ok\":true") >= 0;
 }
@@ -1148,7 +1151,6 @@ void setup() {
     alamatKamera.replace("http://", ""); alamatKamera.replace("https://", ""); alamatKamera.trim();
     while (alamatKamera.endsWith("/")) alamatKamera.remove(alamatKamera.length() - 1);
     tgClient.setCACert(TELEGRAM_CERTIFICATE_ROOT);
-    bot.waitForResponse = 6000;                        // unggah foto butuh lebih dari 1,5 detik bawaan
     // Buang pesan Telegram lama yang belum dikonfirmasi. Tanpa ini, perintah yang membuat
     // otak restart (misalnya kehabisan memori) akan dijalankan lagi setiap kali menyala: restart berulang.
     if (bot.getUpdates(-1) > 0) Serial.println("[telegram] pesan lama dilewati: " + bot.messages[0].text);
