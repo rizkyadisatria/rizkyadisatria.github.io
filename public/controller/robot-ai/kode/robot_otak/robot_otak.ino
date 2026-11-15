@@ -1182,7 +1182,11 @@ void setup() {
   pref.end();
   lcd.aturPanel(geo != 0, rgb != 0);
   muatLayar();
-  lcd.init(); lcd.setRotation(arah > 7 ? 6 : arah);
+  // Saat saklar baru dinyalakan, tegangan layar naik lebih lambat dari S3. Kalau perintah awal dikirim terlalu cepat,
+  // layar tidak menerimanya dan hanya tampil putih. Tunggu daya stabil, lalu kirim pengaturan awal dua kali.
+  if (esp_reset_reason() == ESP_RST_POWERON || esp_reset_reason() == ESP_RST_BROWNOUT) delay(600);
+  lcd.init(); delay(150); lcd.init();
+  lcd.setRotation(arah > 7 ? 6 : arah);
   if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 6 : 1);   // robot memakai layar mendatar 320 x 240
   lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
   int32_t tx, ty; bool paksa = lcd.getTouchRaw(&tx, &ty);    // sentuh layar saat menyala = kalibrasi ulang
