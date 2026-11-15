@@ -441,7 +441,7 @@ void tugasDengar(void*) {
     int rms = sqrt(jum / k);
 
     if (suaraSiap || audioJalan || sedangBicara) { tSibuk = millis(); merekam = false; atas = 0; continue; }
-    if (millis() - tSibuk < 600) continue;               // tunggu gema speaker hilang
+    if (millis() - tSibuk < 1000) continue;              // tunggu gema speaker hilang
     if (mintaDengar) {
       mintaDengar = false; jendelaSampai = millis() + 6000;
       ekspresi = DENGAR; setStatus("Mendengarkan...");
@@ -513,6 +513,15 @@ bool cariNama(const String& kalimat, String& sisa) {
   return ketemu;
 }
 
+// Whisper kadang "mengarang" kalimat dari bising: mengulang petunjuknya, atau kalimat penutup video.
+bool karanganWhisper(String t) {
+  t.toLowerCase();
+  const char* karangan[] = {"percakapan dengan robot", "terima kasih telah menonton", "terima kasih sudah menonton",
+                            "jangan lupa subscribe", "subtitle"};
+  for (const char* k : karangan) if (t.indexOf(k) >= 0) return true;
+  return false;
+}
+
 // Batasi kiriman suara ke Groq saat robot mendengar terus (obrolan orang lain, TV), supaya jatah harian tidak habis.
 bool izinSuaraKeTeks() {
   static unsigned long awalMenit = 0; static int jumlah = 0;
@@ -526,7 +535,7 @@ String suaraKeTeks() {
   String awal = String("--") + batas + "\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-large-v3-turbo\r\n" +
                 "--" + batas + "\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nid\r\n" +
                 "--" + batas + "\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\ntext\r\n" +
-                "--" + batas + "\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\n" + NAMA_ROBOT + "\r\n" +
+                "--" + batas + "\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nPercakapan dengan robot bernama " + NAMA_ROBOT + ".\r\n" +
                 "--" + batas + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"suara.wav\"\r\nContent-Type: audio/wav\r\n\r\n";
   String akhir = String("\r\n--") + batas + "--\r\n";
   size_t total = awal.length() + wavLen + akhir.length();
@@ -830,6 +839,7 @@ void tugasJaringan(void*) {
         kata = suaraKeTeks();
       } else Serial.println("[dengar] terlalu banyak suara dalam semenit, dilewati");
       suaraSiap = false;                                  // wavBuf boleh dipakai lagi
+      if (karanganWhisper(kata)) { Serial.println("[dengar] karangan Whisper dari bising, diabaikan: " + kata); kata = ""; }
       String sisa;
       bool adaNama = kata.length() && cariNama(kata, sisa);
       if (kata.length() == 0) {
@@ -837,7 +847,8 @@ void tugasJaringan(void*) {
       } else if (butuhNama && !adaNama) {
         Serial.println("[dengar] tanpa nama, diabaikan: " + kata);
       } else if (adaNama && sisa.length() == 0) {         // hanya memanggil nama: tunggu perintahnya
-        ucapkan("Ya?");
+        if (butuhNama) ucapkan("Ya?");                    // sudah menunggu perintah: jangan jawab "Ya?" lagi,
+        else Serial.println("[dengar] hanya nama lagi, diabaikan");   // supaya gema/bising tidak membuat putaran
         jendelaSampai = millis() + 9000;
         ekspresi = DENGAR; setStatus("Ya? Silakan bicara");
       } else {
