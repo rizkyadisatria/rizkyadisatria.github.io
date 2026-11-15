@@ -44,6 +44,7 @@ def halaman():
         'Kode otak memotong suaramu per kalimat (WAV 16 kHz, paling lama 6 detik), mengirimnya ke model <code>whisper-large-v3-turbo</code> dengan bahasa Indonesia, dan menerima teksnya. Robot hanya menanggapi kalimat yang menyebut namanya.',
         'Kunci yang sama juga jadi cadangan otak AI: kalau Gemini menolak (misalnya jatah harian habis), kode otak bertanya ke model <code>GROQ_MODEL</code> di Groq, yang juga bisa melihat foto.',
         'Rekamanmu dikirim ke server Groq. Baca kebijakan privasi mereka kalau itu penting bagimu. Tidak mengisi kunci ini juga tidak apa-apa: tombol BICARA tidak berfungsi dan tidak ada cadangan AI.',
+        'Opsional dan <b>berbayar</b>: Claude Haiku dari Anthropic. Buat kunci di <a href="https://console.anthropic.com">console.anthropic.com</a> (perlu mengisi saldo), lalu isi <code>ANTHROPIC_API_KEY</code> di kode otak. Biaya dihitung per pemakaian, foto ikut dihitung. Haiku hanya dipakai kalau kamu memilihnya di panel web (bagian Otak AI) atau dengan <code>/ai haiku</code> di Telegram. Kalau saldonya habis, robot kembali ke AI gratis.',
     ], ok_='Kamu punya kunci gsk_ yang siap diisi di kode otak.')
 
     t += stage(S, 4, 'Pasang library audio dan upload kode otak', ['Semua rangkaian Bagian 3', 'Badan dan kamera menyala'], [
@@ -60,7 +61,8 @@ def halaman():
                '"badan belum terhubung" di layar: cek kabel UART dan GND (Bagian 3 Tahap 6).', 'Tidak bersuara tapi tes speaker berhasil: Google TTS mungkin sedang menolak. Jawaban tetap dikirim lewat Telegram.'])
 
     fitur = table(['Coba ini', 'Yang terjadi'], [
-        ['Buka alamat panel di HP atau laptop (satu WiFi dengan robot). Alamatnya dikirim bot saat robot menyala, atau ketik <code>/panel</code>', 'panel kontrol: tahan tombol arah untuk jalan, lepas untuk berhenti; kamera langsung, arah kepala, lagu, radio, volume, dan kotak teks untuk menyuruh robot bicara. Di laptop, tombol panah atau W A S D juga bisa'],
+        ['Buka alamat panel di HP atau laptop (satu WiFi dengan robot). Alamatnya dikirim bot saat robot menyala, atau ketik <code>/panel</code>', 'panel kontrol: tahan tombol arah untuk jalan, lepas untuk berhenti; kamera langsung, arah kepala, lagu, radio, volume, kotak teks untuk menyuruh robot bicara, dan pilihan otak AI. Di laptop, tombol panah atau W A S D juga bisa'],
+        ['Telegram: <code>/ai</code>, <code>/ai gemma</code>, <code>/ai haiku</code>, <code>/ai otomatis</code>', 'melihat atau mengganti otak AI. Pilihan tersimpan walau robot dimatikan. Otomatis = Gemini, lalu Gemma, lalu Groq (semua gratis)'],
         ['Ketuk LAGU di layar', 'memutar lagu di SD card; ketuk lagi untuk lagu berikutnya'],
         ['Ketuk RADIO di layar', 'memutar radio internet dari <code>DAFTAR_RADIO</code> di kode; ketuk lagi untuk stasiun berikutnya'],
         ['Ketuk VOL - / VOL + di layar', 'volume turun atau naik 2 langkah (0 sampai 21)'],

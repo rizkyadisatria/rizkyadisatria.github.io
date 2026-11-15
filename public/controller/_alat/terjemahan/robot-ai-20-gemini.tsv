@@ -38,4 +38,7 @@ eeece1c39a7f	plays internet radio from <code>DAFTAR_RADIO</code> in the code; ta
 ec5bc0f8ef2f	Tap VOL - / VOL + on the screen
 b59b5c08098c	volume down or up by 2 steps (0 to 21)
 b8740653dc4f	Open the panel address on a phone or laptop (same WiFi as the robot). The bot sends the address when the robot starts, or type <code>/panel</code>
-ab32a84ef887	control panel: hold an arrow button to drive, release to stop; live camera, head direction, songs, radio, volume, and a text box to make the robot speak. On a laptop, the arrow keys or W A S D also work
+a5334bb4dc07	Optional and <b>paid</b>: Claude Haiku from Anthropic. Create a key at <a href="https://console.anthropic.com">console.anthropic.com</a> (you need to add credit), then fill in <code>ANTHROPIC_API_KEY</code> in the brain code. You pay per use, photos included. Haiku is only used when you pick it in the web panel (the AI brain section) or with <code>/ai haiku</code> in Telegram. If the credit runs out, the robot goes back to the free AI.
+7d6559bd1e26	control panel: hold an arrow button to drive, release to stop; live camera, head direction, songs, radio, volume, a text box to make the robot speak, and the AI brain choice. On a laptop, the arrow keys or W A S D also work
+7eb78b1168ec	Telegram: <code>/ai</code>, <code>/ai gemma</code>, <code>/ai haiku</code>, <code>/ai otomatis</code>
+21ef1a16e420	view or change the AI brain. The choice is kept even when the robot is turned off. Otomatis = Gemini, then Gemma, then Groq (all free)

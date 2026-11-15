@@ -14,6 +14,29 @@
     status: string
     kamera: string
     mode: string
+    ai: string
+    aiTerakhir: string
+    aiTersedia: Record<string, boolean>
+  }
+
+  const PILIHAN_AI: { id: string; nama: string; ket: string }[] = [
+    { id: 'otomatis', nama: 'Otomatis', ket: 'gratis: Gemini, lalu Gemma, lalu Groq' },
+    { id: 'gemini', nama: 'Gemini', ket: 'gratis, jatah harian kecil' },
+    { id: 'gemma', nama: 'Gemma', ket: 'gratis, jatah besar' },
+    { id: 'groq', nama: 'Groq', ket: 'gratis, cepat' },
+    { id: 'haiku', nama: 'Claude Haiku', ket: 'berbayar per pemakaian' },
+  ]
+  let aiMenunggu = $state('')
+  let aiPesan = $state('')
+
+  async function pilihAI(id: string) {
+    aiMenunggu = id
+    aiPesan = ''
+    const r = await api(`/api/ai?m=${id}`)
+    if (!r) aiPesan = 'Robot tidak menjawab'
+    else if (!r.ok) aiPesan = await r.text()
+    await ambilStatus()
+    aiMenunggu = ''
   }
 
   let s = $state<Status | null>(null)
@@ -269,6 +292,24 @@
     </form>
   </section>
 
+  <section>
+    <h2>Otak AI {#if s?.aiTerakhir}<small>terakhir menjawab: {s.aiTerakhir}</small>{/if}</h2>
+    <div class="ai">
+      {#each PILIHAN_AI as p (p.id)}
+        <button
+          class:pilih={s?.ai === p.id}
+          disabled={!s?.aiTersedia?.[p.id] || aiMenunggu !== ''}
+          onclick={() => pilihAI(p.id)}
+        >
+          <b>{p.nama}</b>
+          <span>{s?.aiTersedia?.[p.id] === false ? 'API key belum diisi' : p.ket}</span>
+        </button>
+      {/each}
+    </div>
+    {#if aiPesan}<p class="ket">{aiPesan}</p>{/if}
+    <p class="ket kecil-ket">Kalau pilihanmu gagal (jatah habis atau saldo kosong), robot otomatis memakai yang gratis.</p>
+  </section>
+
   {#if s?.status}<p class="status">{s.status}</p>{/if}
 </main>
 
@@ -423,6 +464,39 @@
     background: #10141a;
     color: inherit;
     font-size: 1rem;
+  }
+  .ai {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .ai button {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ai button:first-child {
+    grid-column: 1 / -1;
+  }
+  .ai button span {
+    font-size: 0.75rem;
+    color: #8a94a3;
+  }
+  .ai button.pilih {
+    background: #2f6a3a;
+    outline: 2px solid #5fcf72;
+  }
+  .ai button.pilih span {
+    color: #cfe9d4;
+  }
+  .ai button:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  .kecil-ket {
+    font-size: 0.8rem;
+    margin-bottom: 0;
   }
   .status {
     text-align: center;
