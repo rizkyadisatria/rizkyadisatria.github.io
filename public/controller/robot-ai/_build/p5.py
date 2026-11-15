@@ -52,6 +52,7 @@ def halaman():
         'Pastikan LovyanGFX, UniversalTelegramBot, dan ArduinoJson sudah terpasang.',
         'Buka <a href="../kode/robot_otak/robot_otak.ino" download>robot_otak.ino</a>. Isi bagian KONFIGURASI: WiFi, token, chat ID, API key Gemini, API key Groq (boleh kosong, tapi disarankan sebagai cadangan), dan <code>KAMERA_ALAMAT</code> dengan IP kamera dari Bagian 4.',
         'Ganti <code>NAMA_ROBOT</code> (bawaan <code>Zond</code>) dan <code>NAMA_PEMILIK</code> sesukamu. Pilih nama robot yang pendek dan jarang muncul di obrolan sehari-hari, karena dalam mode dengar terus robot hanya menanggapi perintah suara yang menyebut namanya.',
+        'Jam, hari, dan tanggal di layar diambil dari internet setelah WiFi tersambung. Sesuaikan <code>ZONA_WAKTU</code>: <code>WIB-7</code> untuk Jawa dan Sumatra, <code>WITA-8</code> untuk Bali, NTB, dan Sulawesi, <code>WIT-9</code> untuk Maluku dan Papua. Suhu hanya tampil kalau badan punya sensor suhu.',
         'Atur Tools seperti Bagian 3 Tahap 1 (<b>PSRAM: OPI PSRAM</b>, <b>Huge APP</b>). Upload. Kompilasi pertama bisa beberapa menit.',
         'Setelah menyala pertama kali, layar meminta kalibrasi sentuh: sentuh ujung panah di tiap sudut. Hasilnya disimpan. Untuk kalibrasi ulang, sentuh layar saat S3 baru dinyalakan.',
     ], code=kode_teks(open(KODE + 'robot_otak/robot_otak.ino', encoding='utf-8').read().split('// ======================= PIN')[0], 'robot_otak.ino (bagian atas: pengaturan dan konfigurasi)')

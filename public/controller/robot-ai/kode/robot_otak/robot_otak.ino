@@ -22,6 +22,7 @@
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 #include <WiFi.h>
+#include <time.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ESPmDNS.h>
@@ -51,6 +52,7 @@ const char* KAMERA_ALAMAT   = "";                     // IP saja, contoh "192.16
 const char* NAMA_ROBOT      = "Zond";                 // nama robot; perintah suara harus menyebut nama ini
 const uint8_t ARAH_LAYAR    = 6;                      // 6 = slot SD di atas, 4 = slot SD di bawah. Tampilan terbalik? ganti 6 <-> 4
 #define LAYAR_MHZ        27                       // kecepatan kirim ke layar. Layar putih/bergaris dengan kabel panjang? coba 10
+#define ZONA_WAKTU       "WITA-8"                 // jam di layar: WIB-7 (Jawa, Sumatra), WITA-8 (Bali, NTB, Sulawesi), WIT-9 (Papua)
                                                       // false = hanya mendengar setelah tombol BICARA
 const char* NAMA_PEMILIK    = "Rizky";
 const int   VOLUME_AWAL     = 12;                     // 0..21
@@ -121,6 +123,9 @@ protected:
 
 #ifndef LAYAR_MHZ                                     // kalau baris LAYAR_MHZ tidak ada di pengaturan atas
 #define LAYAR_MHZ 27
+#endif
+#ifndef ZONA_WAKTU
+#define ZONA_WAKTU "WITA-8"
 #endif
 
 class LGFX : public lgfx::LGFX_Device {
@@ -320,14 +325,43 @@ void bacaBadan() {
   }
 }
 
+// Sensor suhu/lembap tidak wajib: badan mengirim -1 kalau tidak ada.
+bool adaSensorSuhu() { return badan.suhu > -40 && fabsf(badan.suhu + 1) > 0.05f; }
+
 String ringkasSensor() {
-  char b[160];
+  char b[200];
   bool hidup = badan.terakhir && millis() - badan.terakhir < 2000;
   if (!hidup) return "badan tidak terhubung";
-  snprintf(b, sizeof(b), "jarak depan %d cm, belakang %d cm, baterai %.2f V, suhu %.1f C, lembap %.0f%%, miring %d/%d derajat%s",
-           badan.depan, badan.belakang, badan.baterai, badan.suhu, badan.lembap, badan.pitch, badan.roll,
+  char cuaca[40] = "";
+  if (adaSensorSuhu()) snprintf(cuaca, sizeof(cuaca), ", suhu %.1f C, lembap %.0f%%", badan.suhu, badan.lembap);
+  snprintf(b, sizeof(b), "jarak depan %d cm, belakang %d cm, baterai %.2f V%s, miring %d/%d derajat%s",
+           badan.depan, badan.belakang, badan.baterai, cuaca, badan.pitch, badan.roll,
            (badan.flag & 1) ? ", TOMBOL STOP DIKUNCI" : "");
   return String(b);
+}
+
+// ======================= JAM (dari internet, NTP) =======================
+const char* NAMA_HARI[]  = {"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"};
+const char* NAMA_BULAN[] = {"Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
+                            "Agustus", "September", "Oktober", "November", "Desember"};
+
+bool jamSiap(struct tm& t) {
+  time_t s = time(nullptr);
+  if (s < 1700000000) return false;            // belum tersinkron dari internet
+  localtime_r(&s, &t);
+  return true;
+}
+
+// "Minggu, 15 November 2026" dan "19:04"; kosong kalau jam belum tersinkron.
+String teksTanggal() {
+  struct tm t; if (!jamSiap(t)) return "";
+  char b[40]; snprintf(b, sizeof(b), "%s, %d %s %d", NAMA_HARI[t.tm_wday], t.tm_mday, NAMA_BULAN[t.tm_mon], t.tm_year + 1900);
+  return b;
+}
+String teksJam() {
+  struct tm t; if (!jamSiap(t)) return "";
+  char b[8]; snprintf(b, sizeof(b), "%02d:%02d", t.tm_hour, t.tm_min);
+  return b;
 }
 
 // ======================= MODE IKUTI & JAGA =======================
@@ -633,7 +667,8 @@ String promptSistem() {
     "{\"diam\":1} hentikan musik; {\"mode\":\"ikuti\"} ikuti benda di depanmu (misalnya kaki pemilik), "
     "{\"mode\":\"jaga\"} diam dan berjaga, {\"mode\":\"biasa\"} kembali normal. Kosongkan aksi kalau tidak perlu. "
     "Badanmu otomatis menolak maju kalau ada halangan dekat, jadi tidak perlu khawatir menabrak. "
-    "Data sensor terbaru: " + ringkasSensor() + ".";
+    "Data sensor terbaru: " + ringkasSensor() + "." +
+    (teksJam().length() ? String(" Sekarang ") + teksTanggal() + ", jam " + teksJam() + "." : String());
 }
 
 // Buang bagian "berpikir" <think>...</think> yang kadang ditulis model cadangan, lalu rapikan.
@@ -1102,11 +1137,14 @@ void gambarWajah() {
   wajah.setFont(&fonts::Font2); wajah.setTextDatum(top_left); wajah.setTextColor(0x9CF3);
   char atas[80];
   bool hidup = badan.terakhir && millis() - badan.terakhir < 2000;
-  if (hidup) snprintf(atas, sizeof(atas), "%.1fV  depan %dcm  %.0fC", badan.baterai, badan.depan, badan.suhu);
+  if (hidup && adaSensorSuhu()) snprintf(atas, sizeof(atas), "%.1fV  depan %dcm  %.0fC", badan.baterai, badan.depan, badan.suhu);
+  else if (hidup) snprintf(atas, sizeof(atas), "%.1fV  depan %dcm", badan.baterai, badan.depan);
   else snprintf(atas, sizeof(atas), "badan belum terhubung");
   wajah.drawString(atas, 4, 2);
   wajah.setTextDatum(top_right);
-  wajah.drawString(WiFi.status() == WL_CONNECTED ? "WiFi" : "no WiFi", 316, 2);
+  String jam = teksJam();                                   // jam di kanan atas, tanggal di baris kedua
+  wajah.drawString(jam.length() ? jam.c_str() : (WiFi.status() == WL_CONNECTED ? "WiFi" : "no WiFi"), 316, 2);
+  if (jam.length()) { wajah.setTextDatum(top_center); wajah.drawString(teksTanggal().c_str(), 160, 20); }
 
   uint16_t warna = (ekspresi == KAGET) ? TFT_ORANGE : (ekspresi == LEMAH) ? 0x7BEF : (ekspresi == DENGAR) ? TFT_GREEN : TFT_CYAN;
   int geser = arahMata * 14;
@@ -1552,6 +1590,7 @@ void setup() {
   for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) delay(500);
   if (WiFi.status() == WL_CONNECTED) {
     Serial.print("IP otak: "); Serial.println(WiFi.localIP());
+    configTzTime(ZONA_WAKTU, "pool.ntp.org", "time.google.com");   // jam dari internet, berjalan sendiri di latar
     MDNS.begin("robototak");
     MDNS.addService("http", "tcp", 80);
     siapkanWeb();
