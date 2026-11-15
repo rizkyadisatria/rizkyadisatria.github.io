@@ -51,6 +51,7 @@ const char* KAMERA_ALAMAT   = "";                     // IP saja, contoh "192.16
 const char* NAMA_ROBOT      = "Zond";                 // nama robot; perintah suara harus menyebut nama ini
 const bool  DENGAR_NAMA     = true;                   // true = mendengar terus, menanggapi kalau namanya disebut
 const uint8_t ARAH_LAYAR    = 6;                      // 6 = slot SD di atas, 4 = slot SD di bawah. Tampilan terbalik? ganti 6 <-> 4
+const uint8_t LAYAR_MHZ     = 27;                     // kecepatan kirim ke layar. Layar putih/bergaris dengan kabel panjang? coba 10
                                                       // false = hanya mendengar setelah tombol BICARA
 const char* NAMA_PEMILIK    = "Rizky";
 const int   VOLUME_AWAL     = 12;                     // 0..21
@@ -126,7 +127,7 @@ class LGFX : public lgfx::LGFX_Device {
 public:
   LGFX() {
     { auto c = _bus.config();
-      c.spi_host = SPI2_HOST; c.spi_mode = 0; c.freq_write = 27000000; c.freq_read = 16000000;
+      c.spi_host = SPI2_HOST; c.spi_mode = 0; c.freq_write = LAYAR_MHZ * 1000000UL; c.freq_read = 16000000;
       c.spi_3wire = false; c.use_lock = true; c.dma_channel = SPI_DMA_CH_AUTO;
       c.pin_sclk = TFT_SCK; c.pin_mosi = TFT_MOSI; c.pin_miso = TFT_MISO; c.pin_dc = TFT_DC;
       _bus.config(c); _panel.setBus(&_bus); }
@@ -1498,8 +1499,8 @@ void setup() {
   if (esp_reset_reason() == ESP_RST_POWERON || esp_reset_reason() == ESP_RST_BROWNOUT) delay(600);
   unsigned long tLayar = millis();
   bool okLayar = lcd.init(); delay(150); okLayar = lcd.init() && okLayar;
-  Serial.printf("[layar] init %s dalam %lu ms (jeda awal %s), kecepatan tulis 27 MHz\n", okLayar ? "selesai" : "GAGAL",
-                millis() - tLayar, (esp_reset_reason() == ESP_RST_POWERON || esp_reset_reason() == ESP_RST_BROWNOUT) ? "600 ms" : "tidak ada");
+  Serial.printf("[layar] init %s dalam %lu ms (jeda awal %s), kecepatan tulis %u MHz\n", okLayar ? "selesai" : "GAGAL",
+                millis() - tLayar, (esp_reset_reason() == ESP_RST_POWERON || esp_reset_reason() == ESP_RST_BROWNOUT) ? "600 ms" : "tidak ada", (unsigned)LAYAR_MHZ);
   lcd.setRotation(arah > 7 ? 6 : arah);
   if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 6 : 1);   // robot memakai layar mendatar 320 x 240
   lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
