@@ -14,7 +14,21 @@ const hasil = await Bun.build({
   entrypoints: [join(DIR, 'main.ts')],
   target: 'browser',
   minify: true,
-  plugins: [SveltePlugin({ development: false })],
+  plugins: [
+    // Bun memilih jalur "development" milik esm-env, jadi Svelte ikut membawa pemeriksaan mode pengembangan
+    // (lebih besar dan lebih lambat). Paksa DEV = false.
+    {
+      name: 'svelte-produksi',
+      setup(b) {
+        b.onResolve({ filter: /^esm-env$/ }, () => ({ path: 'esm-env', namespace: 'svelte-produksi' }))
+        b.onLoad({ filter: /.*/, namespace: 'svelte-produksi' }, () => ({
+          contents: 'export const BROWSER = true, DEV = false, NODE = false;',
+          loader: 'js',
+        }))
+      },
+    },
+    SveltePlugin({ development: false }),
+  ],
 })
 if (!hasil.success) {
   for (const log of hasil.logs) console.error(log)

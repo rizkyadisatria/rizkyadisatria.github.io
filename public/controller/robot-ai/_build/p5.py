@@ -41,7 +41,7 @@ def halaman():
 
     t += stage(S, 3, 'Groq: suara ke teks dan AI cadangan (opsional)', ['Akun Groq'], [
         'Buka <a href="https://console.groq.com">console.groq.com</a>, daftar, lalu <b>API Keys → Create API Key</b>. Salin kuncinya (diawali <code>gsk_</code>).',
-        'Kode otak memotong suaramu per kalimat (WAV 16 kHz, paling lama 6 detik), mengirimnya ke model <code>whisper-large-v3-turbo</code> dengan bahasa Indonesia, dan menerima teksnya. Robot hanya menanggapi kalimat yang menyebut namanya.',
+        'Kode otak memotong suaramu per kalimat (WAV 16 kHz, paling lama 6 detik), mengirimnya ke model <code>whisper-large-v3-turbo</code> dengan bahasa Indonesia, dan menerima teksnya. Secara bawaan robot hanya merekam setelah kamu menekan BICARA (di layar atau panel web), supaya jatah Groq tidak habis.',
         'Kunci yang sama juga jadi cadangan otak AI: kalau Gemini menolak (misalnya jatah harian habis), kode otak bertanya ke model <code>GROQ_MODEL</code> di Groq, yang juga bisa melihat foto.',
         'Rekamanmu dikirim ke server Groq. Baca kebijakan privasi mereka kalau itu penting bagimu. Tidak mengisi kunci ini juga tidak apa-apa: tombol BICARA tidak berfungsi dan tidak ada cadangan AI.',
         'Opsional dan <b>berbayar</b>: Claude Haiku dari Anthropic. Buat kunci di <a href="https://console.anthropic.com">console.anthropic.com</a> (perlu mengisi saldo), lalu isi <code>ANTHROPIC_API_KEY</code> di kode otak. Biaya dihitung per pemakaian, foto ikut dihitung. Haiku hanya dipakai kalau kamu memilihnya di panel web (bagian Otak AI) atau dengan <code>/ai haiku</code> di Telegram. Kalau saldonya habis, robot kembali ke AI gratis.',
@@ -51,7 +51,7 @@ def halaman():
         'Library <b>ESP32-audioI2S</b> tidak ada di Library Manager. Buka <a href="https://github.com/schreibfaul1/ESP32-audioI2S/releases">halaman rilisnya</a>, unduh ZIP versi <b>4.0.0</b> (Source code zip). Di Arduino IDE: <b>Sketch → Include Library → Add .ZIP Library</b>, pilih file ZIP itu.',
         'Pastikan LovyanGFX, UniversalTelegramBot, dan ArduinoJson sudah terpasang.',
         'Buka <a href="../kode/robot_otak/robot_otak.ino" download>robot_otak.ino</a>. Isi bagian KONFIGURASI: WiFi, token, chat ID, API key Gemini, API key Groq (boleh kosong, tapi disarankan sebagai cadangan), dan <code>KAMERA_ALAMAT</code> dengan IP kamera dari Bagian 4.',
-        'Ganti <code>NAMA_ROBOT</code> (bawaan <code>Zond</code>) dan <code>NAMA_PEMILIK</code> sesukamu. Pilih nama robot yang pendek dan jarang muncul di obrolan sehari-hari, karena robot hanya menanggapi perintah suara yang menyebut namanya.',
+        'Ganti <code>NAMA_ROBOT</code> (bawaan <code>Zond</code>) dan <code>NAMA_PEMILIK</code> sesukamu. Pilih nama robot yang pendek dan jarang muncul di obrolan sehari-hari, karena dalam mode dengar terus robot hanya menanggapi perintah suara yang menyebut namanya.',
         'Atur Tools seperti Bagian 3 Tahap 1 (<b>PSRAM: OPI PSRAM</b>, <b>Huge APP</b>). Upload. Kompilasi pertama bisa beberapa menit.',
         'Setelah menyala pertama kali, layar meminta kalibrasi sentuh: sentuh ujung panah di tiap sudut. Hasilnya disimpan. Untuk kalibrasi ulang, sentuh layar saat S3 baru dinyalakan.',
     ], code=kode_teks(open(KODE + 'robot_otak/robot_otak.ino', encoding='utf-8').read().split('// ======================= PIN')[0], 'robot_otak.ino (bagian atas: pengaturan dan konfigurasi)')
@@ -68,9 +68,8 @@ def halaman():
         ['Ketuk VOL - / VOL + di layar', 'volume turun atau naik 2 langkah (0 sampai 21)'],
         ['Ketuk STOP di layar', 'motor dan suara berhenti, mode kembali biasa'],
         ['Ketuk wajah robot', 'layar menampilkan kamera selama 10 detik (ketuk lagi untuk keluar)'],
-        ['Ucapkan "Zond, maju sedikit"', 'robot mendengar namanya, menjawab, bergerak, dan mengirim percakapan ke Telegram'],
-        ['Ucapkan "Zond" saja, tunggu robot berkata "Ya?", lalu bicara', 'perintah sesudah "Ya?" tidak perlu menyebut nama lagi (selama sekitar 8 detik)'],
-        ['Ketuk BICARA, lalu bicara', 'sama, tanpa perlu menyebut nama'],
+        ['Ketuk BICARA (di layar atau tombol besar di panel web), lalu bicara, misalnya "maju sedikit"', 'robot merekam satu kalimat sampai kamu diam (paling lama 6 detik), menjawab, bergerak, dan mengirim percakapan ke Telegram. Cara bawaan, paling hemat'],
+        ['Dengar terus: nyalakan di panel web atau <code>/dengar on</code>, lalu ucapkan "Zond, maju sedikit"', 'robot mendengar terus dan menanggapi kalimat yang menyebut namanya. Boros: setiap suara di ruangan dikirim ke Groq. <code>/dengar off</code> untuk kembali'],
         ['Telegram: <code>/status</code>', 'jarak, baterai, suhu, kelembapan, kemiringan'],
         ['Telegram: <code>/maju 800</code>, <code>/kiri</code>, <code>/stop</code>', 'gerak langsung tanpa AI'],
         ['Telegram: <code>/kepala 45 90</code>', 'kepala menoleh'],
@@ -100,7 +99,7 @@ def halaman():
     isi += section('aman', 'Penting', 'Keamanan dan privasi', ul([
         'Token bot, API key Gemini, dan API key Groq sama dengan password. Jangan unggah ke GitHub atau kirim ke orang lain. Kalau bocor, hapus kuncinya di AI Studio atau console Groq dan buat yang baru.',
         'Robot hanya menurut ke chat ID-mu. Orang lain yang menemukan bot-mu akan dibalas "aku hanya menurut ke pemilikku".',
-        'Kamera dan mikrofon bisa merekam orang lain di rumah. Dengan <code>DENGAR_NAMA</code> aktif, setiap kalimat yang terdengar dikirim ke Groq untuk dicek apakah menyebut nama robot (paling banyak 10 kalimat per menit). Beritahu orang di rumah, matikan robot kalau tidak dipakai, atau isi <code>DENGAR_NAMA = false</code> supaya robot hanya mendengar setelah tombol BICARA.',
+        'Kamera dan mikrofon bisa merekam orang lain di rumah. Kalau dengar terus dinyalakan, setiap kalimat yang terdengar dikirim ke Groq untuk dicek apakah menyebut nama robot (paling banyak 10 kalimat per menit). Beritahu orang di rumah, dan matikan robot kalau tidak dipakai. Secara bawaan dengar terus mati: robot hanya mendengar setelah tombol BICARA.',
         'Mode jaga bukan alarm keamanan sungguhan: sensor ultrasonik bisa terkecoh tirai yang bergerak, dan bisa melewatkan orang di samping.',
     ]))
     lead = 'Bagian ini menyalakan kecerdasan robot: Telegram untuk perintah dari HP, Gemini untuk berpikir dan melihat, Groq untuk mendengar dan sebagai AI cadangan. Setiap layanan dites sendiri sebelum kode otak lengkap di-upload.'

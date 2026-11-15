@@ -17,6 +17,21 @@
     ai: string
     aiTerakhir: string
     aiTersedia: Record<string, boolean>
+    dengarTerus: boolean
+    mendengar: boolean
+  }
+
+  // ---------- bicara: robot merekam satu kalimat lewat mikrofonnya sendiri ----------
+  let mintaBicara = $state(false)
+  async function bicara() {
+    mintaBicara = true
+    await api('/api/bicara')
+    setTimeout(() => (mintaBicara = false), 1500)
+  }
+  async function aturDengar(e: Event) {
+    const nyala = (e.currentTarget as HTMLInputElement).checked
+    await api(`/api/dengar?on=${nyala ? 1 : 0}`)
+    await ambilStatus()
   }
 
   const PILIHAN_AI: { id: string; nama: string; ket: string }[] = [
@@ -228,6 +243,17 @@
       {#each teksFlag(s.flag) as t (t)}<span>{t}</span>{/each}
     </div>
   {/if}
+
+  <section class="bicara">
+    <button class="mik" class:dengar={s?.mendengar || mintaBicara} onclick={bicara} disabled={!tersambung}>
+      {s?.mendengar ? 'Mendengarkan... bicara sekarang' : 'Bicara ke ' + (s?.nama ?? 'robot')}
+    </button>
+    <p class="ket kecil-ket">Ketuk, lalu bicara ke mikrofon robot. Robot berhenti merekam saat kamu diam (paling lama 6 detik).</p>
+    <label class="saklar">
+      <input type="checkbox" checked={s?.dengarTerus ?? false} onchange={aturDengar} disabled={!tersambung} />
+      Dengar terus (cukup sebut "{s?.nama ?? 'nama robot'}"). Boros: setiap suara di ruangan memakai jatah suara-ke-teks.
+    </label>
+  </section>
 
   <section class="kamera">
     {#if kameraNyala && s?.kamera}
@@ -464,6 +490,36 @@
     background: #10141a;
     color: inherit;
     font-size: 1rem;
+  }
+  .mik {
+    width: 100%;
+    padding: 16px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    background: #1f6f3a;
+    border-radius: 14px;
+  }
+  .mik.dengar {
+    background: #c2410c;
+    animation: denyut 1s ease-in-out infinite;
+  }
+  @keyframes denyut {
+    50% {
+      filter: brightness(1.3);
+    }
+  }
+  .mik:disabled {
+    opacity: 0.5;
+  }
+  .saklar {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    color: #8a94a3;
+    font-size: 0.8rem;
+  }
+  .saklar input {
+    margin-top: 2px;
   }
   .ai {
     display: grid;
