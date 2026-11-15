@@ -44,7 +44,7 @@ const char* GEMINI_MODEL    = "gemini-3.5-flash-lite"; // AI utama, bisa melihat
 const char* GEMMA_MODEL     = "gemma-4-31b-it";       // cadangan pertama, kunci yang sama (14.400/hari). Kosongkan untuk mematikan
 const char* GROQ_API_KEY    = "";                     // gsk_...: suara ke teks, dan cadangan AI kalau jatah Gemini habis
 const char* GROQ_MODEL      = "qwen/qwen3.8-27b";     // model Groq yang bisa melihat foto (cadangan)
-const char* KAMERA_ALAMAT   = "";                     // contoh "192.168.1.50". Kosong = cari robotcam.local
+const char* KAMERA_ALAMAT   = "";                     // IP saja, contoh "192.168.1.50". Kosong = cari robotcam.local
 const char* NAMA_ROBOT      = "Zond";                 // nama robot; perintah suara harus menyebut nama ini
 const bool  DENGAR_NAMA     = true;                   // true = mendengar terus, menanggapi kalau namanya disebut
                                                       // false = hanya mendengar setelah tombol BICARA
@@ -324,22 +324,29 @@ void jalankanMode() {
 // ======================= KAMERA =======================
 uint8_t* fotoBuf = nullptr; size_t fotoLen = 0, fotoPos = 0;
 
+String alasanFoto;                  // kenapa foto terakhir gagal (dikirim ke Telegram)
+
 bool ambilFoto(const char* res) {
+  alasanFoto = "";
   if (alamatKamera.isEmpty()) {
     IPAddress ip = MDNS.queryHost("robotcam", 2000);
-    if (ip == IPAddress()) return false;
+    if (ip == IPAddress()) { alasanFoto = "robotcam.local tidak ditemukan. Isi KAMERA_ALAMAT dengan IP kamera."; return false; }
     alamatKamera = ip.toString();
   }
   HTTPClient http;
   http.begin("http://" + alamatKamera + "/capture?res=" + res);
   http.setTimeout(8000);
   int code = http.GET();
-  if (code != 200) { http.end(); return false; }
+  if (code != 200) {
+    alasanFoto = code < 0 ? "tidak bisa tersambung ke " + alamatKamera + " (" + http.errorToString(code) + "). Kamera menyala, satu WiFi, dan tidak ada tab /stream yang terbuka?"
+                          : "kamera menjawab kode " + String(code);
+    http.end(); return false;
+  }
   int len = http.getSize();
-  if (len <= 0 || len > 400000) { http.end(); return false; }
+  if (len <= 0 || len > 400000) { alasanFoto = "ukuran foto aneh: " + String(len); http.end(); return false; }
   if (fotoBuf) free(fotoBuf);
   fotoBuf = (uint8_t*)ps_malloc(len);
-  if (!fotoBuf) { http.end(); return false; }
+  if (!fotoBuf) { alasanFoto = "PSRAM tidak ada. Tools > PSRAM harus OPI PSRAM, lalu upload ulang."; http.end(); return false; }
   WiFiClient* s = http.getStreamPtr();
   size_t got = 0; unsigned long t0 = millis();
   while (got < (size_t)len && millis() - t0 < 8000) {
@@ -348,6 +355,8 @@ bool ambilFoto(const char* res) {
   }
   http.end();
   fotoLen = got; fotoPos = 0;
+  if (got != (size_t)len) alasanFoto = "foto terputus: " + String(got) + " dari " + String(len) + " byte. Sinyal WiFi kamera lemah?";
+  Serial.println(alasanFoto.length() ? "[kamera] gagal: " + alasanFoto : "[kamera] foto " + String(len) + " byte");
   return got == (size_t)len;
 }
 
@@ -750,9 +759,11 @@ void tanganiPesan(const telegramMessage& m) {
   else if (cmd == "/foto") {
     bot.sendChatAction(chat, "upload_photo");
     xSemaphoreTake(kunciFoto, portMAX_DELAY);
-    bool ok = ambilFoto("vga") && kirimFotoTelegram(chat);
+    bool ok = ambilFoto("vga");
+    bool terkirim = ok && kirimFotoTelegram(chat);
     xSemaphoreGive(kunciFoto);
-    if (!ok) bot.sendMessage(chat, "Gagal mengambil foto. Kamera menyala dan satu WiFi?");
+    if (!ok) bot.sendMessage(chat, "Gagal mengambil foto: " + alasanFoto);
+    else if (!terkirim) bot.sendMessage(chat, "Foto berhasil diambil (" + String(fotoLen) + " byte) tapi gagal dikirim ke Telegram. Coba lagi.");
   }
   else if (cmd == "/lihat") {
     String q = arg.length() ? arg : "Apa yang kamu lihat?";
@@ -763,7 +774,7 @@ void tanganiPesan(const telegramMessage& m) {
     String b64 = "";
     if (ok) { kirimFotoTelegram(chat); b64 = base64::encode(fotoBuf, fotoLen); }
     xSemaphoreGive(kunciFoto);
-    if (!ok) { bot.sendMessage(chat, "Kamera tidak bisa dihubungi."); ekspresi = NORMAL; return; }
+    if (!ok) { bot.sendMessage(chat, "Kamera tidak bisa dihubungi: " + alasanFoto); ekspresi = NORMAL; return; }
     String jaw = tanyaAI(q, b64);
     String kata = jalankanJawaban(jaw, q, false);
     bot.sendMessage(chat, kata.length() ? kata : "(tidak ada jawaban)");
@@ -1118,7 +1129,9 @@ void setup() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.print("IP otak: "); Serial.println(WiFi.localIP());
     MDNS.begin("robototak");
-    alamatKamera = KAMERA_ALAMAT;
+    alamatKamera = KAMERA_ALAMAT;                      // terima juga "http://1.2.3.4/"
+    alamatKamera.replace("http://", ""); alamatKamera.replace("https://", ""); alamatKamera.trim();
+    while (alamatKamera.endsWith("/")) alamatKamera.remove(alamatKamera.length() - 1);
     tgClient.setCACert(TELEGRAM_CERTIFICATE_ROOT);
     bot.sendMessage(TELEGRAM_CHATID, String(NAMA_ROBOT) + " menyala. Ketik /bantuan");
     setStatus("Siap");
