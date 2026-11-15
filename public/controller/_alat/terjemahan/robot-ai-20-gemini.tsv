@@ -37,3 +37,5 @@ c4b79a83845d	plays songs from the SD card; tap again for the next song
 eeece1c39a7f	plays internet radio from <code>DAFTAR_RADIO</code> in the code; tap again for the next station
 ec5bc0f8ef2f	Tap VOL - / VOL + on the screen
 b59b5c08098c	volume down or up by 2 steps (0 to 21)
+b8740653dc4f	Open the panel address on a phone or laptop (same WiFi as the robot). The bot sends the address when the robot starts, or type <code>/panel</code>
+ab32a84ef887	control panel: hold an arrow button to drive, release to stop; live camera, head direction, songs, radio, volume, and a text box to make the robot speak. On a laptop, the arrow keys or W A S D also work
