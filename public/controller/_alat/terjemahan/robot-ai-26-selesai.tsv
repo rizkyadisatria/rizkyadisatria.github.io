@@ -1,0 +1,15 @@
+dbf3c757b325	A four-wheeled robot you can talk to, drive from a web panel on your phone or from Telegram, that sees through a camera, plays music and radio, follows the object in front of it, and keeps watch. Built step by step from the battery to the AI, with a small test at every step.
+f659f4cb89bd	Tested
+dde7b57cb640	The robot has been <b>fully assembled and tested on real hardware</b>: driving and the safety stop, sensors, head, touch screen, two-way voice, camera, music and radio, Telegram, the web panel, and the AI.
+5d0e5fd4b0ed	The three full sketches and 17 test sketches are written for the Arduino ESP32 core 3.3.12.
+39337f2d996f	Pins were chosen to avoid the boot, PSRAM, and USB pins on both ESP32s, and every module's voltage was checked against its datasheet.
+30e048a962b6	Still fussy
+77e7d8506001	<b>Screen and SD card</b>: both share the long SPI wires on the breadboard. The symptoms are a white screen or an SD card that is not read. The fixes are in the "if it fails" part of Part 3 Steps 2 and 3: lower <code>LAYAR_MHZ</code>, turn off all power including USB and turn it back on, and add a capacitor on the 3.3 V rail.
+be70c1062cc8	The TB6612 and screen pin order differ between sellers. Match the pin <b>names</b> printed on the board when wiring.
+7f961a40e0b1	The robot's voice uses an unofficial Google TTS service that can stop at any time. Free AI quotas can change at any time.
+ca18efb32011	Items the robot uses
+d03670845f8b	Made for learning. The complete robot has been assembled and tested on real hardware.
+88d07625b38c	The complete robot has been assembled and tested on real hardware. Unplug power before changing wires.
+ab29a9d52eb6	Plain white screen: RESET, DC, or CS is not connected, or SCK/MOSI are swapped. If the wiring is right but it stays white (or is sometimes white when the switch is turned on), the long jumper wires cannot keep up at 27 MHz: in <code>robot_otak</code> set <code>#define LAYAR_MHZ 20</code> (or 10), in the test sketch lower <code>freq_write</code> to 20000000. The <code>robot_otak</code> Serial Monitor also prints <code>[layar]</code> lines: if "chip sentuh menjawab ... HIDUP" appears but the screen is white, the problem is in the screen's own wires (SCK, SDI, CS, DC, RESET), not the module power.
+dab04e844be9	Sometimes read, sometimes not, even though the wires beep in the continuity test: turn on <b>Tools → Core Debug Level → Error</b>. If <code>Card Failed! cmd: 0x37</code> or <code>0x29</code> appears, the wires are fine but the card will not get ready. The RST button and uploading do not cut power to the card, so unplug USB and turn the switch off for 10 seconds, then turn it back on. Add a 100-470 µF electrolytic capacitor on the 3.3 V rail near the screen module (+ leg to the red rail), because the card draws a large current when it starts. If it still fails, reformat with SD Card Formatter (FAT32) or replace the card.
+c21a7636dfda	Song stops midway or the screen flickers while a song plays from SD: SD reading is being disturbed. <code>robot_otak</code> already uses 10 MHz and resumes the song by itself if the SD stalls; a capacitor on the 3.3 V rail also helps.

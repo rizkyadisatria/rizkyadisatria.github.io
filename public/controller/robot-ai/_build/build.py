@@ -132,7 +132,7 @@ def halaman_bagian(slug, judul_h1, lead, isi, desc):
     out += isi
     out += (f'<div class="pager"><a href="{prev[0]}"><span>← Sebelumnya</span>{prev[1]}</a>'
             f'<a class="next" href="{nxt[0]}"><span>Berikutnya →</span>{nxt[1]}</a></div>')
-    out += ('<footer><span>Kode sudah dikompilasi untuk ESP32 core 3.3.12, tapi robot lengkapnya belum diuji di perangkat nyata. '
+    out += ('<footer><span>Robot lengkapnya sudah dirakit dan diuji di perangkat nyata. '
             'Cabut daya sebelum mengubah kabel.</span><a href="../../">Semua panduan</a></footer>')
     out += '</div><script src="../../assets/panduan.js"></script></body></html>\n'
     os.makedirs(ROOT + slug, exist_ok=True)
@@ -144,7 +144,7 @@ def halaman_utama(isi):
                       desc='Panduan lengkap merakit robot AI 4WD dengan ESP32-S3, ESP32 DevKit dan ESP32-CAM: daya baterai, motor, sensor, layar sentuh, suara, Telegram dan AI Gemini. Bertahap untuk pemula.',
                       a='../assets/')
     out += '<body data-key="robot-ai/utama"><div class="wrap">' + isi
-    out += ('<footer><span>Dibuat untuk belajar. Kode sudah dikompilasi, robot lengkapnya belum diuji di perangkat nyata.</span>'
+    out += ('<footer><span>Dibuat untuk belajar. Robot lengkapnya sudah dirakit dan diuji di perangkat nyata.</span>'
             '<a href="../">Semua panduan</a></footer></div><script src="../assets/panduan.js"></script></body></html>\n')
     open(ROOT + 'index.html', 'w', encoding='utf-8').write(out)
 

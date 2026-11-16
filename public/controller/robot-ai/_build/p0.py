@@ -77,13 +77,6 @@ BELI = [
 ]
 
 
-def punya(id_, default, solo=False):
-    """Kotak centang "sudah punya". Status disimpan di browser (kunci halaman ini), bukan ditulis di HTML.
-    solo: teksnya disembunyikan secara visual (tetap terbaca pembaca layar), untuk kolom tabel yang sudah berjudul."""
-    return (f'<label class="own{" own-solo" if solo else ""}"><input type="checkbox" class="have" id="have-{id_}" data-default="{default}">'
-            f'<span data-en="I have it">sudah punya</span></label>')
-
-
 def kartu(g, n, f, s):
     en_n, en_f = BARANG_EN.get(g, (n, f))
     b, c, b_en = BADGE[s]
@@ -92,21 +85,21 @@ def kartu(g, n, f, s):
     return (f'<article class="card" data-nama="{esc(n)}" data-nama-en="{esc(en_n)}"{opsional} tabindex="0">{im}'
             f'<div class="body"><span class="name" data-en="{esc(en_n)}">{esc(n)}</span>'
             f'<p class="what" data-en="{esc(en_f)}">{f}</p>'
-            f'<span class="badge {c}" data-en="{b_en}">{b}</span>{punya(g, 1)}</div></article>')
+            f'<span class="badge {c}" data-en="{b_en}">{b}</span></div></article>')
 
 
 def isi():
     import cover
     o = '<header class="top"><a class="back" href="../">← Semua panduan</a>' + cover.utama() + '<span class="eyebrow">ESP32-S3 · DevKit V1 · ESP32-CAM · Gemini</span>'
     o += '<h1>Robot AI 4WD</h1>'
-    o += ('<p class="lead">Robot beroda empat yang bisa diajak ngobrol, digerakkan dari layar sentuh atau Telegram, melihat lewat kamera, '
-          'memutar musik, mengikuti benda di depannya, dan berjaga. Dirakit bertahap dari baterai sampai AI, dengan tes kecil di setiap langkah.</p>')
+    o += ('<p class="lead">Robot beroda empat yang bisa diajak ngobrol, digerakkan dari panel web di HP atau dari Telegram, melihat lewat kamera, '
+          'memutar musik dan radio, mengikuti benda di depannya, dan berjaga. Dirakit bertahap dari baterai sampai AI, dengan tes kecil di setiap langkah.</p>')
     o += toc('', '') + '</header>'
 
     o += section('status', 'Jujur dulu', 'Status panduan ini', '''
 <div class="two">
-  <div class="panel"><h3>Sudah dicek</h3><ul class="plain"><li>Ketiga kode lengkap dan 13 kode tes <b>berhasil dikompilasi</b> dengan Arduino ESP32 core 3.3.12 dan library terbaru.</li><li>Pin dipilih untuk menghindari pin boot, PSRAM, dan USB di kedua ESP32.</li><li>Tegangan tiap modul dicocokkan dengan lembar datanya.</li></ul></div>
-  <div class="panel"><h3>Belum dicek</h3><ul class="plain"><li>Robot lengkapnya belum dirakit dan diuji di perangkat nyata.</li><li>Urutan pin TB6612 dan layar berbeda antar-penjual. Panduan ini sudah dicocokkan dengan foto modulmu, tapi tetap cocokkan <b>nama</b> pin yang tercetak saat menyambung.</li><li>Suara robot memakai layanan Google TTS tidak resmi yang bisa berhenti kapan saja.</li></ul></div>
+  <div class="panel"><h3>Sudah diuji</h3><ul class="plain"><li>Robotnya sudah <b>dirakit lengkap dan diuji di perangkat nyata</b>: gerak dan rem keselamatan, sensor, kepala, layar sentuh, suara dua arah, kamera, musik dan radio, Telegram, panel web, dan AI.</li><li>Ketiga kode lengkap dan 17 kode tes ditulis untuk Arduino ESP32 core 3.3.12.</li><li>Pin dipilih untuk menghindari pin boot, PSRAM, dan USB di kedua ESP32, dan tegangan tiap modul dicocokkan dengan lembar datanya.</li></ul></div>
+  <div class="panel"><h3>Yang masih sering rewel</h3><ul class="plain"><li><b>Layar dan SD card</b>: keduanya berbagi kabel SPI yang panjang di breadboard. Gejalanya layar putih atau SD card tidak terbaca. Solusinya ada di bagian "kalau gagal" Bagian 3 Tahap 2 dan 3: turunkan <code>LAYAR_MHZ</code>, matikan semua daya termasuk USB lalu nyalakan lagi, dan pasang kapasitor di rel 3,3 V.</li><li>Urutan pin TB6612 dan layar berbeda antar-penjual. Cocokkan <b>nama</b> pin yang tercetak saat menyambung.</li><li>Suara robot memakai layanan Google TTS tidak resmi yang bisa berhenti kapan saja. Jatah AI gratis bisa berubah sewaktu-waktu.</li></ul></div>
 </div>''')
 
     o += section('cara', 'Gambaran', 'Tiga board, satu robot', fig(diag.arsitektur()) + '''
@@ -134,27 +127,18 @@ def isi():
     baris_beli = ''
     for id_, nama, jumlah, untuk, tanpa in BELI:
         en_n, en_u, en_t = BELI_EN[id_]
-        baris_beli += (f'<tr data-nama="{esc(nama)}" data-nama-en="{esc(en_n)}" data-opsional="1">'
-                       f'<td>{punya(id_, 0, True)}</td><td data-en="{esc(en_n)}">{esc(nama)}</td>'
+        baris_beli += (f'<tr><td data-en="{esc(en_n)}">{esc(nama)}</td>'
                        f'<td data-en="{esc(JUMLAH_EN[jumlah])}">{esc(jumlah)}</td>'
                        f'<td data-en="{esc(en_u)}">{esc(untuk)}</td><td data-en="{esc(en_t)}">{esc(tanpa)}</td></tr>')
     tambahan = ('<div class="tbl"><table><thead><tr>'
-                '<th data-en="Have it">Sudah punya</th><th data-en="Item">Barang</th><th data-en="Qty">Jumlah</th>'
+                '<th data-en="Item">Barang</th><th data-en="Qty">Jumlah</th>'
                 '<th data-en="For">Untuk</th><th data-en="Without it">Tanpa barang ini</th>'
                 f'</tr></thead><tbody>{baris_beli}</tbody></table></div>')
     kartu_html = ''.join(kartu(*k) for k in KIT_ROBOT)
-    o += section('barang', 'Barang', 'Yang sudah kamu punya, dan yang masih kurang', f'''
-<div class="panel" id="beli"><h3 data-en="Still to buy">Masih perlu dibeli</h3>
-<p class="cap" id="barang-ringkas" aria-live="polite"></p>
-<ul class="plain" id="beli-list"></ul>
-<noscript><p class="cap">Aktifkan JavaScript untuk mencentang barang yang sudah kamu punya.</p></noscript>
-<p class="cap" data-en="Tick what you already have in the cards and the table below. This list updates on its own and is saved in your browser; nothing is written here by hand.">Centang barang yang sudah kamu punya di kartu dan tabel di bawah. Daftar ini mengikuti centangmu dan tersimpan di browser; tidak ada yang ditulis manual di sini.</p></div>
-<div class="panel"><h3 data-en="Optional extras">Tambahan opsional</h3>{tambahan}</div>
-<div class="toolbar"><div class="chips" role="group" aria-label="Saring barang" data-en-aria-label="Filter items">
-<button type="button" class="chip" data-filter="semua" aria-pressed="true" data-en="All">Semua</button>
-<button type="button" class="chip" data-filter="belum" aria-pressed="false" data-en="Not yet">Belum punya</button>
-<button type="button" class="chip" data-filter="sudah" aria-pressed="false" data-en="Have it">Sudah punya</button></div>
-<button id="quizbtn" aria-pressed="false" type="button" data-en="Guess-the-name mode">Mode tebak nama</button></div>
+    o += section('barang', 'Barang', 'Barang yang dipakai robot', f'''
+<div class="panel"><h3 data-en="Optional extras">Tambahan opsional</h3>
+<p class="cap" data-en="Not needed for the robot to work; each one makes something better.">Tidak wajib supaya robot jalan; masing-masing membuat satu hal lebih baik.</p>{tambahan}</div>
+<div class="toolbar"><button id="quizbtn" aria-pressed="false" type="button" data-en="Guess-the-name mode">Mode tebak nama</button></div>
 <p class="cap" id="quizhint"></p>
 <div class="grid" id="kit">{kartu_html}</div>
 <p class="cap" data-en="Photos of your own items. Items from your kit that the robot does not use are left out on purpose. Guess-the-name mode blurs each name; tap the card to check.">Foto dari barang milikmu sendiri. Barang kit yang tidak dipakai robot sengaja tidak ditampilkan. Mode tebak nama menyamarkan nama tiap barang; ketuk kartunya untuk mengecek.</p>''')

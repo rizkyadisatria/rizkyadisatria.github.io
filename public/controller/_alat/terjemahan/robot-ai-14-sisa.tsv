@@ -23,7 +23,6 @@ b90a5c589ee5	Touch T_CS
 0dae52152598	=
 719ee5463827	Files
 3e25d43ab0d0	Code
-0f622e67b92c	Made for learning. The code compiles, but the complete robot has not been tested on real hardware.
 3673e1271ca5	Robot AI 4WD · Part 1 of 6
 e0bee15f9f04	0 / 0 steps
 eedbe69c5dd1	Basics
@@ -61,7 +60,6 @@ db28ee35523a	=
 144a352ed85c	Maintenance
 b353bc4831c0	← Previous
 ed4941918e08	Next →
-5749b2a72279	The code compiles for ESP32 core 3.3.12, but the complete robot has not been tested on real hardware. Disconnect power before changing wires.
 b1c18b1edabe	Robot AI 4WD · Part 2 of 6
 30c7273f32a2	Front HC-SR04
 ba9658baed4f	Rear HC-SR04
