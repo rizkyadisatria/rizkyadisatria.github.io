@@ -114,8 +114,6 @@ ea3adc9327ec	<span class="py">OK to lock in</span> The 26 AWG battery-gauge wire
 ad0796044212	Button always DITEKAN: the button legs used are not diagonal. Rotate the button 90 degrees.
 10a5694bc507	Upload the body code and run the safety test
 e1afeaf6e7f4	Full code: <a href="../kode/robot_badan/robot_badan.ino" download>download robot_badan.ino</a>.
-6676da62427a	<b>Why this way?</b> The D line holds the front distance, rear distance, battery, temperature, humidity, pitch, roll and flags. The brain reads the same line over UART every 250 ms. Every movement stops by itself when its time runs out (max 3 seconds), so if the brain hangs or the UART wire comes loose, the robot does not run away.
-8d8f012e9397	The body obeys commands and refuses dangerous movements. In the Serial Monitor a data line such as <code>D 45 120 7.92 29.5 70 1 -2 0</code> appears every second.
 ad8c68973936	<span class="py">OK to lock in</span> The BATERAI_FAKTOR value and the motor direction choices in robot_badan.ino. This code is used as is on the robot. Uploading the code is required before Part 3.
 19232551e4c6	<span class="pn">Not yet</span> JARAK_STOP_DEPAN, TILT_MIN and TILT_MAX are only tuned after the robot is finished (Part 6 Stage 8). The safety test may be postponed to Part 6, but do not let it be missed.
 4b82352d9422	Body breadboard wiring list

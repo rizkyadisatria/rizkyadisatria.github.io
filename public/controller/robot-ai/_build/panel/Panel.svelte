@@ -19,6 +19,61 @@
     aiTersedia: Record<string, boolean>
     dengarTerus: boolean
     mendengar: boolean
+    fiturKamera: boolean
+    skorKamu: number
+    skorZond: number
+    cuaca: string
+    jam: string
+    tanggal: string
+  }
+
+  // ---------- belok presisi (giroskop di badan) ----------
+  function belok(derajat: number) {
+    api(`/api/belok?d=${derajat}`)
+  }
+
+  // ---------- alarm dan pengingat ----------
+  type Alarm = { jam: string; hari: number; bunyi: number; pesan: string; kapan: string }
+  const NAMA_HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+  const BUNYI = ['suara', 'radio', 'lagu SD']
+  let alarm = $state<Alarm[]>([])
+  let alarmJam = $state('06:00')
+  let alarmUlang = $state('0') // '0' sekali, '127' tiap hari, '62' Sen-Jum, '65' Sab-Min, 'pilih'
+  let alarmHari = $state<boolean[]>([false, true, true, true, true, true, false])
+  let alarmPesan = $state('')
+  let alarmBunyi = $state(0)
+  let alarmPesanGagal = $state('')
+
+  async function ambilAlarm() {
+    const r = await api('/api/alarm')
+    if (r && r.ok) alarm = ((await r.json()) as { alarm: Alarm[] }).alarm
+  }
+  async function tambahAlarm(e: SubmitEvent) {
+    e.preventDefault()
+    const hari =
+      alarmUlang === 'pilih' ? alarmHari.reduce((m, on, i) => (on ? m | (1 << i) : m), 0) : Number(alarmUlang)
+    const q = new URLSearchParams({ jam: alarmJam, hari: String(hari), pesan: alarmPesan.trim(), bunyi: String(alarmBunyi) })
+    const r = await api(`/api/alarm/tambah?${q}`)
+    alarmPesanGagal = !r ? 'Robot tidak menjawab' : r.ok ? '' : await r.text()
+    if (r?.ok) alarmPesan = ''
+    await ambilAlarm()
+  }
+  async function hapusAlarm(i: number) {
+    await api(`/api/alarm/hapus?i=${i}`)
+    await ambilAlarm()
+  }
+
+  // ---------- fitur kamera AI: lihat sekeliling dan suit ----------
+  let kameraAIPesan = $state('')
+  async function aturFiturKamera(e: Event) {
+    const nyala = (e.currentTarget as HTMLInputElement).checked
+    await api(`/api/fiturkamera?on=${nyala ? 1 : 0}`)
+    await ambilStatus()
+  }
+  async function jalankanKameraAI(jalur: string, pesan: string) {
+    const r = await api(jalur)
+    kameraAIPesan = !r ? 'Robot tidak menjawab' : r.ok ? pesan : await r.text()
+    setTimeout(() => (kameraAIPesan = ''), 6000)
   }
 
   // ---------- bicara: robot merekam satu kalimat lewat mikrofonnya sendiri ----------
@@ -209,13 +264,16 @@
 
   onMount(() => {
     ambilStatus()
+    ambilAlarm()
     const id = setInterval(ambilStatus, 1000)
+    const idAlarm = setInterval(ambilAlarm, 30000) // alarm sekali hilang sendiri setelah berbunyi
     const henti = () => berhenti()
     const sembunyi = () => document.hidden && berhenti()
     window.addEventListener('blur', henti)
     document.addEventListener('visibilitychange', sembunyi)
     return () => {
       clearInterval(id)
+      clearInterval(idAlarm)
       window.removeEventListener('blur', henti)
       document.removeEventListener('visibilitychange', sembunyi)
       berhenti()
@@ -237,6 +295,7 @@
       {#if !tersambung}otak tidak terhubung{:else if !s?.hidup}badan tidak menjawab{:else}{s.baterai.toFixed(1)} V · depan {s.depan} cm · belakang {s.belakang} cm{/if}
     </span>
   </header>
+  {#if s?.jam}<p class="waktu">{s.jam} · {s.tanggal}{#if s.cuaca}<br />{s.cuaca}{/if}</p>{/if}
 
   {#if s && s.flag}
     <div class="peringatan">
@@ -295,6 +354,12 @@
       {/each}
     </div>
     <label>Kecepatan {kecepatan}<input type="range" min="100" max="255" bind:value={kecepatan} /></label>
+    <div class="baris belok">
+      <button onclick={() => belok(-90)}>⟲ 90° kiri</button>
+      <button onclick={() => belok(180)}>↻ balik</button>
+      <button onclick={() => belok(90)}>90° kanan ⟳</button>
+    </div>
+    <p class="ket kecil-ket">Belok tepat memakai giroskop di badan; sudutnya tidak berubah walau baterai melemah.</p>
   </section>
 
   <section>
@@ -316,6 +381,67 @@
       <input type="text" placeholder="Suruh Zond bilang..." bind:value={kalimat} maxlength="140" />
       <button type="submit">Bilang</button>
     </form>
+  </section>
+
+  <section>
+    <h2>Alarm dan pengingat</h2>
+    {#if alarm.length}
+      <ul class="alarm">
+        {#each alarm as a, i (i)}
+          <li>
+            <b>{a.jam}</b>
+            <span>{a.pesan}<small>{a.kapan} · {BUNYI[a.bunyi] ?? 'suara'}</small></span>
+            <button class="hapus" aria-label="Hapus alarm {a.jam}" onclick={() => hapusAlarm(i)}>✕</button>
+          </li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="ket">Belum ada alarm. Bisa juga lewat suara: "{s?.nama ?? 'Zond'}, ingatkan aku jam 5 sore minum obat".</p>
+    {/if}
+    <form class="form-alarm" onsubmit={tambahAlarm}>
+      <div class="baris">
+        <input type="time" bind:value={alarmJam} required />
+        <select bind:value={alarmUlang}>
+          <option value="0">Sekali</option>
+          <option value="127">Setiap hari</option>
+          <option value="62">Senin-Jumat</option>
+          <option value="65">Sabtu-Minggu</option>
+          <option value="pilih">Pilih hari</option>
+        </select>
+      </div>
+      {#if alarmUlang === 'pilih'}
+        <div class="hari">
+          {#each NAMA_HARI as h, i (h)}
+            <label><input type="checkbox" bind:checked={alarmHari[i]} />{h}</label>
+          {/each}
+        </div>
+      {/if}
+      <input type="text" placeholder="Pesan, misalnya: bangun, minum obat" maxlength="79" bind:value={alarmPesan} />
+      <div class="baris">
+        <select bind:value={alarmBunyi}>
+          <option value={0}>Suara saja</option>
+          <option value={1}>Suara + radio</option>
+          <option value={2}>Suara + lagu SD</option>
+        </select>
+        <button type="submit">Pasang</button>
+      </div>
+      {#if alarmPesanGagal}<p class="ket">{alarmPesanGagal}</p>{/if}
+    </form>
+    <p class="ket kecil-ket">Alarm sebelum jam 11 siang sekalian menyebut cuaca hari ini. Pengingat juga dikirim ke Telegram.</p>
+  </section>
+
+  <section>
+    <h2>Fitur kamera AI</h2>
+    <label class="saklar">
+      <input type="checkbox" checked={s?.fiturKamera ?? false} onchange={aturFiturKamera} disabled={!tersambung} />
+      Aktifkan "lihat sekeliling" dan "suit". Tiap kali dipakai, foto dikirim ke AI dan memakai jatah AI lebih cepat.
+    </label>
+    <div class="baris">
+      <button disabled={!s?.fiturKamera} onclick={() => jalankanKameraAI('/api/sekeliling', 'Zond menoleh dan memotret. Ceritanya dikirim ke Telegram.')}>Lihat sekeliling</button>
+      <button disabled={!s?.fiturKamera} onclick={() => jalankanKameraAI('/api/suit', 'Siapkan tanganmu di depan kamera!')}>Main suit</button>
+    </div>
+    {#if s?.fiturKamera && (s.skorKamu || s.skorZond)}<p class="ket">Skor suit: kamu {s.skorKamu}, {s.nama} {s.skorZond}</p>{/if}
+    {#if kameraAIPesan}<p class="ket">{kameraAIPesan}</p>{/if}
   </section>
 
   <section>
@@ -553,6 +679,71 @@
   .kecil-ket {
     font-size: 0.8rem;
     margin-bottom: 0;
+  }
+  .waktu {
+    margin: 6px 0 0;
+    color: #8a94a3;
+    font-size: 0.85rem;
+  }
+  .belok {
+    margin-top: 10px;
+  }
+  .alarm {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 8px;
+  }
+  .alarm li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid #243041;
+  }
+  .alarm li b {
+    font-size: 1.1rem;
+  }
+  .alarm li span {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .alarm li small {
+    color: #8a94a3;
+    font-size: 0.75rem;
+  }
+  .hapus {
+    padding: 4px 10px;
+    background: #3a2430;
+  }
+  .form-alarm {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .form-alarm .baris > * {
+    flex: 1;
+  }
+  input[type='time'],
+  select {
+    padding: 9px;
+    border-radius: 10px;
+    border: 1px solid #2a3a4d;
+    background: #10141a;
+    color: inherit;
+    font-size: 0.95rem;
+    min-width: 0;
+  }
+  .hari {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    font-size: 0.85rem;
+  }
+  .hari label {
+    margin: 0;
+    display: flex;
+    gap: 4px;
+    align-items: center;
   }
   .status {
     text-align: center;

@@ -212,13 +212,14 @@ def halaman():
         'Pastikan robot terangkat dan saklar baterai ON. Ketik <code>M 150 150 1000</code> lalu Enter: semua roda maju 1 detik lalu berhenti sendiri.',
         '<b>Boleh ditunda:</b> upload kode di atas wajib sebelum Bagian 3. Uji keselamatan di bawah (halangan, tombol STOP, batas waktu) boleh kamu jalankan nanti di Bagian 6 Tahap 7 dengan robot terangkat, kalau rangkaian meja sudah dibongkar. Jangan jalankan robot di lantai sebelum ketiganya terbukti jalan.',
         'Ketik <code>M 150 -150 500</code>: robot (kalau di lantai) akan berputar ke kanan. Ketik <code>P 45 90</code>: kepala menoleh.',
+        'Kalau MPU6050 sudah terpasang (Tahap 6), ketik <code>T 90</code>: roda berputar seperti belok kanan. Karena robot terangkat, giroskop tidak merasakan putaran, jadi setelah sekitar 4 detik roda berhenti sendiri dan muncul <code>E PUTAR_GAGAL</code> dengan angka kecil. Itu benar. Di lantai (Bagian 6) robot berhenti setelah tepat 90° dan menjawab <code>OK T 90</code>. Saat menyala, biarkan DevKit diam sekitar 1 detik: Serial Monitor menulis <code>Bias giroskop</code>, normalnya di bawah 5.',
         'Uji halangan: taruh tanganmu 10 cm di depan sensor depan, ketik <code>M 150 150 1000</code>. Harus muncul <code>E DITOLAK</code> dan roda diam. Mundur (<code>M -150 -150 1000</code>) tetap boleh.',
         'Uji tombol STOP: tekan sekali, muncul <code>E STOP_DIKUNCI</code> dan LED biru DevKit berkedip cepat. Semua perintah gerak ditolak. Tekan lagi untuk melepas.',
         'Uji batas waktu: ketik <code>M 150 150 3000</code> lalu jangan ketik apa-apa. Roda berhenti sendiri setelah 3 detik. Itulah yang terjadi kalau otak macet atau kabel UART lepas: perintah terakhir habis dan robot diam.',
     ], code=kode_teks(open(KODE + 'robot_badan/robot_badan.ino', encoding='utf-8').read().split('// ================== VARIABEL')[0], 'robot_badan.ino (bagian awal: penjelasan, pengaturan, pin)')
         + f'<p class="cap">Kode lengkap: <a href="../kode/robot_badan/robot_badan.ino" download>unduh robot_badan.ino</a>.</p>',
-        ok_='Badan menuruti perintah dan menolak gerakan berbahaya. Di Serial Monitor tiap detik muncul baris data seperti <code>D 45 120 7.92 29.5 70 1 -2 0</code>.',
-        learn='Baris D berisi jarak depan, jarak belakang, baterai, suhu, kelembapan, pitch, roll, dan flag. Otak membaca baris yang sama lewat UART tiap 250 ms. Semua gerakan berhenti sendiri setelah waktunya habis (maks 3 detik), jadi kalau otak macet atau kabel UART lepas, robot tidak lari.')
+        ok_='Badan menuruti perintah dan menolak gerakan berbahaya. Di Serial Monitor tiap detik muncul baris data seperti <code>D 45 120 7.92 29.5 70 1 -2 0 0</code>.',
+        learn='Baris D berisi jarak depan, jarak belakang, baterai, suhu, kelembapan, pitch, roll, flag, dan laju putar (derajat per detik). Otak membaca baris yang sama lewat UART tiap 250 ms. Semua gerakan berhenti sendiri setelah waktunya habis (maks 3 detik), jadi kalau otak macet atau kabel UART lepas, robot tidak lari.')
 
     isi += section('rakit', 'Langkah', 'Rakit badan', '<div class="parts" style="gap:16px">' + tahap + '</div>',
                    'Tahap 3 dan 4 butuh rel 6 V dari Bagian 1. Saat USB tercolok ke DevKit, kabel 5 V dari LM2596 ke papan 30P dilepas (mode meja).')

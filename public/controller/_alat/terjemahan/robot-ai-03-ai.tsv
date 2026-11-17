@@ -20,7 +20,6 @@ fc7e22eb8f90	WiFi does not connect: the ESP32 only supports 2.4 GHz.
 f5cbcf348305	<span class="py">OK to lock in</span> The Groq key (may be left empty).
 e37ff5517d31	<span class="pn">Not yet</span> Voice recordings are sent to Groq's servers. If you object, leave the key empty.
 ac91d4d16c1d	Install the audio library and upload the brain code
-56880b9d9735	The full code is about 770 lines: <a href="../kode/robot_otak/robot_otak.ino" download>download robot_otak.ino</a>. Do not upload a file that already contains the token and API key to a public place.
 31a370895297	<span class="py">OK to lock in</span> The filled-in robot_otak.ino (WiFi, token, chat ID, API key, KAMERA_ALAMAT, robot name). The touch calibration is stored on the S3.
 f009943db34f	<span class="pn">Not yet</span> A file that already contains keys must not be uploaded to a public place. The wheels stay lifted.
 8f18816b3307	Compile error "Audio.h: No such file": the audio library was not installed from the ZIP.

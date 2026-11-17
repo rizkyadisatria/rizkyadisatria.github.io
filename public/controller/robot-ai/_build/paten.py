@@ -64,7 +64,7 @@ PATEN = {
 
     # ---------------- Bagian 3: otak ----------------
     ('3-otak', 1): (
-        'Pengaturan Tools Arduino (OPI PSRAM, Huge APP) dan S3 yang tetap menancap di papan ekspansinya: keduanya naik ke lantai 3 sebagai satu unit.',
+        'Pengaturan Tools Arduino (OPI PSRAM, partition 3MB APP) dan S3 yang tetap menancap di papan ekspansinya: keduanya naik ke lantai 3 sebagai satu unit.',
         'Papan S3 belum dibaut. Di robot ia memakai spacer nilon 10 mm, port USB-C menghadap ke samping (Bagian 6 Tahap 4).'),
     ('3-otak', 2): (
         'Susunan kabel di breadboard 2 (bus SPI kolom 2, 5, 8 dan pin layar). Breadboard ini ikut naik ke lantai 3 bersama kabelnya.',

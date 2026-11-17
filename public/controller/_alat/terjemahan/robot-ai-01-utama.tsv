@@ -37,7 +37,6 @@ ea7dbbbf812c	TFT CS, DC, RESET
 524a39efa133	The ESP32-CAM needs no signal wires: only 5 V and GND. Its camera pins are already fixed on the board.
 92992adb7ae0	<a href="kode/robot-ai-kode.zip" download>robot-ai-kode.zip</a>: all the code in one file (3 full programs + 13 test programs, each in its own folder, ready to open in the Arduino IDE).
 7a4b7bed388f	<a href="kode/robot_badan/robot_badan.ino" download>robot_badan.ino</a>: for the DevKit V1 (board: ESP32 Dev Module).
-52a2d19a8bb6	<a href="kode/robot_otak/robot_otak.ino" download>robot_otak.ino</a>: for the ESP32-S3 (board: ESP32S3 Dev Module, PSRAM OPI, Huge APP).
 e4143d3836eb	<a href="kode/robot_mata/robot_mata.ino" download>robot_mata.ino</a>: for the ESP32-CAM (board: AI Thinker ESP32-CAM, Huge APP).
 1e217c265d1d	Fill in WiFi, tokens and API keys only on your own computer. Do not upload the filled-in file to GitHub.
 f9929e1c2446	Measure first, then connect

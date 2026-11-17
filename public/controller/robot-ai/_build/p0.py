@@ -155,7 +155,7 @@ def isi():
     o += section('kode', 'Berkas', 'Kode', ul([
         '<a href="kode/robot-ai-kode.zip" download>robot-ai-kode.zip</a>: semua kode dalam satu file (3 kode lengkap + 13 kode tes, masing-masing di foldernya sendiri, siap dibuka Arduino IDE).',
         '<a href="kode/robot_badan/robot_badan.ino" download>robot_badan.ino</a>: untuk DevKit V1 (board: ESP32 Dev Module).',
-        '<a href="kode/robot_otak/robot_otak.ino" download>robot_otak.ino</a>: untuk ESP32-S3 (board: ESP32S3 Dev Module, PSRAM OPI, Huge APP).',
+        '<a href="kode/robot_otak/robot_otak.ino" download>robot_otak.ino</a>: untuk ESP32-S3 (board: ESP32S3 Dev Module, PSRAM OPI, 16M Flash (3MB APP/9.9MB FATFS)).',
         '<a href="kode/robot_mata/robot_mata.ino" download>robot_mata.ino</a>: untuk ESP32-CAM (board: AI Thinker ESP32-CAM, Huge APP).',
         'Isi WiFi, token, dan API key hanya di komputermu. Jangan unggah file yang sudah terisi ke GitHub.',
     ]))

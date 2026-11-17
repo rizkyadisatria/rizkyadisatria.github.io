@@ -26,7 +26,6 @@ d9ab00ae764b	Install the <b>UniversalTelegramBot</b> (Brian Lough) and <b>Arduin
 f93737ae35a7	Open <a href="https://console.groq.com">console.groq.com</a>, sign up, then <b>API Keys → Create API Key</b>. Copy the key (it starts with <code>gsk_</code>).
 107252ecd103	The <b>ESP32-audioI2S</b> library is not in the Library Manager. Open <a href="https://github.com/schreibfaul1/ESP32-audioI2S/releases">its releases page</a>, download the ZIP of version <b>4.0.0</b> (Source code zip). In the Arduino IDE: <b>Sketch → Include Library → Add .ZIP Library</b>, choose that ZIP file.
 c3f9b87bdf91	Make sure LovyanGFX, UniversalTelegramBot and ArduinoJson are installed.
-d37ae9d75100	Set Tools as in Part 3 Stage 1 (<b>PSRAM: OPI PSRAM</b>, <b>Huge APP</b>). Upload. The first compile can take a few minutes.
 7e7163bb7822	After the first power-up, the display asks for touch calibration: touch the tip of the arrow in each corner. The result is saved. To recalibrate, touch the screen just after the S3 is switched on.
 3c2bb4a35a6c	Start with <code>/bantuan</code> in Telegram: the bot sends the list of commands.
 6a0637b44016	Try the features in the table below one by one. The wheels stay lifted until Part 6.

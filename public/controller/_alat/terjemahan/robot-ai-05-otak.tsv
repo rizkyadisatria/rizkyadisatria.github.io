@@ -26,12 +26,10 @@ f5c4a85913d5	ESP32S3 Dev Module
 f2f5ac23d234	Flash Size
 64ea59d1290a	<b>OPI PSRAM</b>
 ba8b0a10f468	Partition Scheme
-af9f09c2a8bd	Huge APP (3MB No OTA/1MB SPIFFS)
 ea8d69af766e	USB CDC On Boot
 cd40e1f77a7a	<b>Enabled</b> if the cable is in the chip's built-in USB port (the upload log says <code>USB mode: USB-Serial/JTAG</code>); Disabled if it is in the UART/COM port (the log says <code>USB mode: UART</code>)
 448fdcb274d2	Choosing the wrong PSRAM is the most common reason the brain code fails later.
 3b72a00c7fd4	You see <code>Flash: 16 MB</code> and <code>PSRAM: 8388608 byte</code> (about 8 million).
-0ca845548bfd	<span class="py">OK to lock in</span> The Arduino Tools settings (OPI PSRAM, Huge APP) and the S3 staying plugged into its expansion board: the two go up to level 3 as one unit.
 6784fb1247d6	<span class="pn">Not yet</span> The S3 board is not bolted down yet. On the robot it uses 10 mm nylon standoffs, with the USB-C port facing sideways (Part 6 Stage 4).
 5f09a09889b3	PSRAM 0: the PSRAM menu is not set to OPI PSRAM.
 6412e72668dd	Upload fails with "Connecting...": hold the BOOT button on the S3, press RST once, release BOOT, then upload again.

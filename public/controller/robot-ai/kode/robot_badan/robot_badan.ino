@@ -2,7 +2,7 @@
   ROBOT AI 4WD - BADAN (ESP32 DevKit V1)
   ---------------------------------------
   Mengurus: 4 motor TT lewat TB6612FNG, servo pan-tilt, 2 sensor jarak HC-SR04,
-  MPU6050 (kemiringan), BME280 atau DHT11 (cuaca), tombol STOP, dan tegangan baterai.
+  MPU6050 (kemiringan dan giroskop untuk belok presisi), BME280 atau DHT11 (cuaca), tombol STOP, dan tegangan baterai.
   Menerima perintah teks dari ESP32-S3 (otak) lewat UART2, atau dari Serial Monitor.
 
   Board di Arduino IDE : ESP32 Dev Module
@@ -13,10 +13,12 @@
     M <kiri> <kanan> [ms]   gerak. kiri/kanan -255..255. ms = lama (default 600, maks 3000)
     S                       berhenti
     P <pan> <tilt>          arahkan kepala, derajat 0..180
+    T <derajat> [kecepatan] putar di tempat sampai sudut itu (pakai giroskop). + = kanan, - = kiri.
+                            kecepatan 120..255 (default 170). Selesai: balas "OK T <sudut tercapai>"
     Q                       minta data sekarang
     PING                    balas PONG
   BALASAN otomatis tiap 250 ms:
-    D <depan_cm> <belakang_cm> <baterai_V> <suhu_C> <lembap_%> <pitch> <roll> <flag>
+    D <depan_cm> <belakang_cm> <baterai_V> <suhu_C> <lembap_%> <pitch> <roll> <flag> <putar_derajat_per_detik>
     flag: 1=STOP ditekan, 2=baterai lemah, 4=halangan depan, 8=halangan belakang, 16=miring
     Nilai -1 = sensor tidak terpasang / gagal baca.
 
@@ -77,6 +79,10 @@ float panNow = 90, tiltNow = 90;
 
 int   jarakDepan = -1, jarakBelakang = -1;
 float baterai = -1, suhu = -1, lembap = -1, pitch = 0, roll = 0;
+float lajuPutar = 0, biasGyro = 0;        // derajat per detik di sumbu Z (berputar di tempat)
+bool  sedangPutar = false;                // perintah T sedang berjalan
+float putarTarget = 0, putarSudut = 0;    // derajat yang diminta / yang sudah ditempuh
+int   putarKecepatan = 170;
 bool  kunciStop = false, bateraiLemah = false;
 
 String bufUSB, bufUART;
@@ -93,6 +99,7 @@ void tulisMotor(int pwmPin, int in1, int in2, int v) {
 void berhenti() {
   targetKiri = targetKanan = 0;
   gerakSampai = 0;
+  sedangPutar = false;
 }
 
 bool bolehGerak(int kiri, int kanan) {
@@ -159,11 +166,53 @@ void updateJarak() {
   giliranDepan = !giliranDepan;
 }
 
+void tulisMPU(uint8_t reg, uint8_t isi) { Wire.beginTransmission(0x68); Wire.write(reg); Wire.write(isi); Wire.endTransmission(); }
+
 bool mulaiMPU() {
   Wire.beginTransmission(0x68);
   if (Wire.endTransmission() != 0) return false;
-  Wire.beginTransmission(0x68); Wire.write(0x6B); Wire.write(0); Wire.endTransmission(); // bangunkan
+  tulisMPU(0x6B, 0);      // bangunkan
+  tulisMPU(0x1A, 3);      // saring getaran motor (sekitar 44 Hz)
+  tulisMPU(0x1B, 0x10);   // giroskop +-1000 derajat/detik: robot berputar bisa lebih dari 250 derajat/detik
   return true;
+}
+
+// Giroskop sumbu Z dalam derajat per detik (tanpa koreksi bias). NAN kalau gagal baca.
+float bacaGyroZ() {
+  Wire.beginTransmission(0x68); Wire.write(0x47);
+  if (Wire.endTransmission(false) != 0) return NAN;
+  if (Wire.requestFrom(0x68, 2) != 2) return NAN;
+  int16_t gz = (Wire.read() << 8) | Wire.read();
+  return gz / 32.8f;      // 32,8 angka per derajat/detik pada rentang +-1000
+}
+
+// Giroskop tidak pernah tepat nol saat diam. Rata-rata 1 detik saat menyala (robot harus diam) = bias.
+void kalibrasiGyro() {
+  float jumlah = 0; int n = 0;
+  for (int i = 0; i < 200; i++) { float g = bacaGyroZ(); if (!isnan(g)) { jumlah += g; n++; } delay(5); }
+  biasGyro = n ? jumlah / n : 0;
+}
+
+// Dibaca tiap 5 ms. Saat perintah T berjalan, laju putar dijumlahkan menjadi sudut.
+// Yang dihitung besar sudutnya saja, jadi arah pemasangan MPU (terbalik atau tidak) tidak berpengaruh.
+void updateGyro() {
+  static unsigned long tLalu = 0;
+  if (!adaMPU) return;
+  unsigned long now = micros();
+  if (now - tLalu < 5000) return;
+  float dt = tLalu ? (now - tLalu) / 1e6f : 0;
+  tLalu = now;
+  float g = bacaGyroZ();
+  if (isnan(g)) return;
+  lajuPutar = g - biasGyro;
+  if (!sedangPutar) return;
+  putarSudut += lajuPutar * dt;
+  float sudah = fabsf(putarSudut);
+  float meluncur = fabsf(lajuPutar) * 0.06f;          // robot masih meluncur sekitar 60 ms setelah motor dimatikan
+  if (sudah + meluncur >= fabsf(putarTarget)) {
+    berhenti();
+    kirimSemua("OK T " + String((int)roundf(sudah)));
+  }
 }
 
 void updateMPU() {
@@ -178,6 +227,20 @@ void updateMPU() {
   int16_t az = (Wire.read() << 8) | Wire.read();
   pitch = atan2(-ax, sqrt((float)ay * ay + (float)az * az)) * 57.3;
   roll  = atan2(ay, az) * 57.3;
+}
+
+// Jaga perintah T: berhenti kalau tidak boleh bergerak lagi (STOP, miring, baterai) atau terlalu lama.
+void updatePutar() {
+  if (!sedangPutar) return;
+  int v = putarTarget > 0 ? putarKecepatan : -putarKecepatan;
+  if (!bolehGerak(v, -v)) { berhenti(); kirimSemua("E DITOLAK " + String(flagSekarang())); return; }
+  if (millis() > gerakSampai) {                        // roda selip atau macet: sudutnya tidak pernah tercapai
+    int sudah = (int)roundf(fabsf(putarSudut));
+    berhenti();
+    kirimSemua("E PUTAR_GAGAL " + String(sudah));
+    return;
+  }
+  targetKiri = v; targetKanan = -v;                    // kanan: roda kiri maju, roda kanan mundur
 }
 
 void updateCuaca() {
@@ -235,10 +298,10 @@ int flagSekarang() {
 }
 
 String dataSekarang() {
-  char b[96];
-  snprintf(b, sizeof(b), "D %d %d %.2f %.1f %.0f %.0f %.0f %d",
+  char b[112];
+  snprintf(b, sizeof(b), "D %d %d %.2f %.1f %.0f %.0f %.0f %d %.0f",
            jarakDepan, jarakBelakang, baterai, suhu, lembap,
-           adaMPU ? pitch : -1.0f, adaMPU ? roll : -1.0f, flagSekarang());
+           adaMPU ? pitch : -1.0f, adaMPU ? roll : -1.0f, flagSekarang(), adaMPU ? lajuPutar : 0.0f);
   return String(b);
 }
 
@@ -250,11 +313,22 @@ void jalankan(String c) {
   int n = sscanf(c.c_str(), "%7s %d %d %d", cmd, &a, &b, &d);
   String k = String(cmd); k.toUpperCase();
   if (k == "M" && n >= 3) {
+    sedangPutar = false;
     if (!bolehGerak(a, b)) { kirimSemua("E DITOLAK " + String(flagSekarang())); berhenti(); return; }
     targetKiri = constrain(a, -255, 255);
     targetKanan = constrain(b, -255, 255);
     int ms = (n >= 4) ? constrain(d, 50, 3000) : 600;
     gerakSampai = millis() + ms;
+  } else if (k == "T" && n >= 2 && a != 0) {
+    if (!adaMPU) { kirimSemua("E TANPA_MPU"); return; }
+    int kec = (n >= 3) ? constrain(b, 120, 255) : 170;
+    if (!bolehGerak(kec, -kec)) { kirimSemua("E DITOLAK " + String(flagSekarang())); berhenti(); return; }
+    putarTarget = constrain(a, -720, 720);
+    putarKecepatan = kec;
+    putarSudut = 0;
+    sedangPutar = true;
+    gerakSampai = millis() + 3000 + (unsigned long)fabsf(putarTarget) * 15;   // batas waktu pengaman
+    updatePutar();
   } else if (k == "S") {
     berhenti();
   } else if (k == "P" && n >= 3) {
@@ -301,6 +375,7 @@ void setup() {
 
   Wire.begin(21, 22);
   adaMPU = mulaiMPU();
+  if (adaMPU) { delay(100); kalibrasiGyro(); }        // robot harus diam sekitar 1 detik saat menyala
   adaBME = bme.begin(0x76) || bme.begin(0x77);
   if (!adaBME) dht.begin();
 
@@ -308,7 +383,8 @@ void setup() {
   Serial.println("=== ROBOT BADAN SIAP ===");
   Serial.printf("MPU6050: %s | BME280: %s (kalau tidak, pakai DHT11 di GPIO %d)\n",
                 adaMPU ? "ada" : "TIDAK ADA", adaBME ? "ada" : "TIDAK ADA", PIN_DHT);
-  Serial.println("Coba ketik: M 150 150 1000   lalu Enter");
+  if (adaMPU) Serial.printf("Bias giroskop: %.2f derajat/detik (normalnya di bawah 5)\n", biasGyro);
+  Serial.println("Coba ketik: M 150 150 1000   atau   T 90   lalu Enter");
   kirimSemua("E SIAP");
 }
 
@@ -318,6 +394,8 @@ void loop() {
   updateTombol();
   updateJarak();
   updateMPU();
+  updateGyro();
+  updatePutar();
   updateCuaca();
   updateBaterai();
   updateMotor();
