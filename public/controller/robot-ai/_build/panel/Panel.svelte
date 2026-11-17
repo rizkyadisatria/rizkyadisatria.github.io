@@ -25,6 +25,54 @@
     cuaca: string
     jam: string
     tanggal: string
+    jelajahSisa: number
+    bateraiPersen: number
+    sisaMenit: number
+    suara: string
+    azureSiap: boolean
+    azureHuruf: number
+    azureGalat: number
+  }
+
+  // ---------- jelajah sendiri ----------
+  let jelajahMenit = $state(5)
+  async function aturJelajah(menit: number) {
+    await api(`/api/jelajah?menit=${menit}`)
+    await ambilStatus()
+  }
+  function mmss(detik: number): string {
+    const d = Math.max(0, detik)
+    return `${Math.floor(d / 60)}:${String(d % 60).padStart(2, '0')}`
+  }
+
+  // ---------- baterai: riwayat tegangan per menit (6 jam terakhir) ----------
+  let riwayat = $state<number[]>([]) // volt x 100, paling lama dulu
+  async function ambilBaterai() {
+    const r = await api('/api/baterai')
+    if (r && r.ok) riwayat = ((await r.json()) as { v: number[] }).v
+  }
+  const V_BAWAH = 6.4
+  const V_ATAS = 8.4
+  const LEBAR = 320
+  const TINGGI = 120
+  function yVolt(v: number): number {
+    const p = (Math.min(V_ATAS, Math.max(V_BAWAH, v)) - V_BAWAH) / (V_ATAS - V_BAWAH)
+    return TINGGI - 4 - p * (TINGGI - 8)
+  }
+  const garisBaterai = $derived.by(() => {
+    const n = riwayat.length
+    if (n < 2) return ''
+    return riwayat.map((v, i) => `${i ? 'L' : 'M'}${((i / (n - 1)) * LEBAR).toFixed(1)},${yVolt(v / 100).toFixed(1)}`).join('')
+  })
+  function durasi(menit: number): string {
+    if (menit < 60) return `${menit} menit`
+    return `${Math.floor(menit / 60)} jam${menit % 60 ? ` ${menit % 60} menit` : ''}`
+  }
+
+  // ---------- suara bicara ----------
+  async function pilihSuara(e: Event) {
+    await api(`/api/suara?pakai=${(e.currentTarget as HTMLSelectElement).value}`)
+    await ambilStatus()
   }
 
   // ---------- belok presisi (giroskop di badan) ----------
@@ -265,8 +313,10 @@
   onMount(() => {
     ambilStatus()
     ambilAlarm()
+    ambilBaterai()
     const id = setInterval(ambilStatus, 1000)
     const idAlarm = setInterval(ambilAlarm, 30000) // alarm sekali hilang sendiri setelah berbunyi
+    const idBaterai = setInterval(ambilBaterai, 60000)
     const henti = () => berhenti()
     const sembunyi = () => document.hidden && berhenti()
     window.addEventListener('blur', henti)
@@ -274,6 +324,7 @@
     return () => {
       clearInterval(id)
       clearInterval(idAlarm)
+      clearInterval(idBaterai)
       window.removeEventListener('blur', henti)
       document.removeEventListener('visibilitychange', sembunyi)
       berhenti()
@@ -292,7 +343,7 @@
     <h1>{s?.nama ?? 'Robot'}</h1>
     <span class="titik" class:on={tersambung && s?.hidup}></span>
     <span class="kecil">
-      {#if !tersambung}otak tidak terhubung{:else if !s?.hidup}badan tidak menjawab{:else}{s.baterai.toFixed(1)} V · depan {s.depan} cm · belakang {s.belakang} cm{/if}
+      {#if !tersambung}otak tidak terhubung{:else if !s?.hidup}badan tidak menjawab{:else}{s.bateraiPersen >= 0 ? `${s.bateraiPersen}% · ` : ''}{s.baterai.toFixed(1)} V · depan {s.depan} cm · belakang {s.belakang} cm{/if}
     </span>
   </header>
   {#if s?.jam}<p class="waktu">{s.jam} · {s.tanggal}{#if s.cuaca}<br />{s.cuaca}{/if}</p>{/if}
@@ -360,6 +411,40 @@
       <button onclick={() => belok(90)}>90° kanan ⟳</button>
     </div>
     <p class="ket kecil-ket">Belok tepat memakai giroskop di badan; sudutnya tidak berubah walau baterai melemah.</p>
+    <div class="baris jelajah">
+      {#if s?.mode === 'jelajah'}
+        <button class="aktif-jelajah" onclick={() => aturJelajah(0)}>Berhenti menjelajah (sisa {mmss(s.jelajahSisa)})</button>
+      {:else}
+        <select bind:value={jelajahMenit} aria-label="Lama jelajah">
+          <option value={5}>5 menit</option>
+          <option value={10}>10 menit</option>
+          <option value={15}>15 menit</option>
+          <option value={30}>30 menit</option>
+        </select>
+        <button disabled={!tersambung || !s?.hidup} onclick={() => aturJelajah(jelajahMenit)}>Jelajah sendiri</button>
+      {/if}
+    </div>
+    <p class="ket kecil-ket">Maju sampai ada halangan, lalu belok ke arah acak. Berhenti sendiri kalau waktunya habis, baterai tinggal 10%, atau tombol STOP ditekan. Tombol arah juga menghentikannya.</p>
+  </section>
+
+  <section>
+    <h2>Baterai {#if s && s.bateraiPersen >= 0}<small>{s.bateraiPersen}% · {s.baterai.toFixed(2)} V</small>{/if}</h2>
+    {#if riwayat.length >= 2}
+      <svg class="grafik" viewBox="0 0 {LEBAR} {TINGGI}" role="img" aria-label="Tegangan baterai {durasi(riwayat.length)} terakhir">
+        {#each [8.4, 7.8, 7.2, 6.6] as v (v)}
+          <line x1="0" x2={LEBAR} y1={yVolt(v)} y2={yVolt(v)} />
+          <text x="2" y={v === V_ATAS ? yVolt(v) + 11 : yVolt(v) - 3}>{v.toFixed(1)} V</text>
+        {/each}
+        <path d={garisBaterai} />
+      </svg>
+      <div class="sumbu"><span>{durasi(riwayat.length)} lalu</span><span>sekarang</span></div>
+    {:else}
+      <p class="ket">Grafik muncul setelah robot menyala 2 menit (satu titik per menit, paling lama 6 jam).</p>
+    {/if}
+    <p class="ket kecil-ket">
+      {#if s && s.sisaMenit >= 0}Perkiraan sisa {durasi(s.sisaMenit)}, kalau pemakaiannya seperti setengah jam terakhir.{:else}Perkiraan sisa waktu muncul setelah sekitar 10 menit menyala.{/if}
+      Peringatan dikirim ke Telegram saat tinggal 20% dan 10%.
+    </p>
   </section>
 
   <section>
@@ -377,6 +462,15 @@
       <button onclick={() => api('/api/diam')}>Diam</button>
     </div>
     <label>Volume {volume}<input type="range" min="0" max="21" bind:value={volume} onchange={aturVolume} /></label>
+    <label class="suara">Suara bicara
+      <select value={s?.suara ?? 'azure'} onchange={pilihSuara} disabled={!tersambung}>
+        <option value="azure" disabled={!s?.azureSiap}>Cowok (Azure)</option>
+        <option value="google">Google</option>
+      </select>
+    </label>
+    <p class="ket kecil-ket">
+      {#if !s?.azureSiap}Suara cowok belum aktif: isi AZURE_KUNCI di kode.{:else}Azure bulan ini {s.azureHuruf.toLocaleString('id-ID')} dari 500.000 huruf gratis.{#if s.azureGalat} Galat terakhir: kode {s.azureGalat}, sementara memakai suara Google.{/if}{/if}
+    </p>
     <form onsubmit={bilang}>
       <input type="text" placeholder="Suruh Zond bilang..." bind:value={kalimat} maxlength="140" />
       <button type="submit">Bilang</button>
@@ -744,6 +838,51 @@
     display: flex;
     gap: 4px;
     align-items: center;
+  }
+  .jelajah {
+    margin-top: 12px;
+  }
+  .jelajah select {
+    flex: 0 0 auto;
+  }
+  .aktif-jelajah {
+    background: #3d7bd9;
+  }
+  .grafik {
+    width: 100%;
+    height: auto;
+    display: block;
+    background: #10141a;
+    border-radius: 8px;
+  }
+  .grafik line {
+    stroke: #243041;
+    stroke-width: 1;
+  }
+  .grafik text {
+    fill: #8a94a3;
+    font-size: 9px;
+  }
+  .grafik path {
+    fill: none;
+    stroke: #5fcf72;
+    stroke-width: 2;
+    stroke-linejoin: round;
+  }
+  .sumbu {
+    display: flex;
+    justify-content: space-between;
+    color: #8a94a3;
+    font-size: 0.75rem;
+    margin-top: 4px;
+  }
+  .suara {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .suara select {
+    flex: 1;
   }
   .status {
     text-align: center;
