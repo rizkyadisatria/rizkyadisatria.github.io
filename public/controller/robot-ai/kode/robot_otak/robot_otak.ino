@@ -4191,7 +4191,9 @@ void setup() {
 
   setStatus("Menyambung WiFi...");
   perbaruiLayar();
-  WiFi.mode(WIFI_STA); WiFi.begin(WIFI_NAMA, WIFI_PASSWORD);
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);   // WiFi tidak tidur: pengumuman mDNS (port jaringan di Arduino IDE) dan panel web lebih andal
+  WiFi.begin(WIFI_NAMA, WIFI_PASSWORD);
   for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) delay(500);
   if (WiFi.status() == WL_CONNECTED) {
     Serial.print("IP otak: "); Serial.println(WiFi.localIP());
