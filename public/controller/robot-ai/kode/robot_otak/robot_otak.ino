@@ -281,6 +281,9 @@ bool pasangSD();
 int mintaSuaraGemini(const String& teks, int tingkat);
 void tambahPesan(const String& dari, const String& isi);
 String namaHost();
+void buka(int h);
+void gambarIsi();
+void ucapkanBahasa(const String& teks, const char* kode);
 
 void setStatus(const String& s) { strlcpy(teksStatus, s.c_str(), sizeof(teksStatus)); Serial.println("[status] " + s); tAktif = millis(); }
 
@@ -308,6 +311,7 @@ String potongDepan(String& t, int maks) {
     for (int i = maks; i > maks * 2 / 5; i--) if (t[i] == '.' || t[i] == ',' || t[i] == '?' || t[i] == '!') { potong = i + 1; break; }
     if (potong == maks) for (int i = maks; i > maks * 2 / 5; i--) if (t[i] == ' ') { potong = i; break; }
   }
+  while (potong > 0 && potong < (int)t.length() && ((uint8_t)t[potong] & 0xC0) == 0x80) potong--;   // jangan memotong di tengah huruf UTF-8
   String depan = t.substring(0, potong);
   t = t.substring(potong); t.trim();
   return depan;
@@ -325,6 +329,15 @@ void ucapkan(const String& teks) {
   String t = teks; t.trim();
   int maks = suaraAIAktif() ? 300 : 150;
   while (t.length()) kirimAudio(A_TTS, potongDepan(t, maks));
+}
+
+// Kalimat bahasa lain (penerjemah). Ditandai "\x01kode|" supaya suara Google memakai logat bahasa itu.
+// Suara Gemini mengenali bahasanya sendiri.
+void ucapkanBahasa(const String& teks, const char* kode) {
+  String t = teks; t.trim();
+  int maks = suaraAIAktif() ? 300 : 150;
+  String awal = String("\x01") + kode + "|";
+  while (t.length()) kirimAudio(A_TTS, awal + potongDepan(t, maks));
 }
 
 // ======================= SUARA GEMINI TTS (cowok) =======================
@@ -537,15 +550,18 @@ void tugasAudio(void*) {
     }
     if (!audio.isRunning() && !antreTTS.empty()) {
       String s = antreTTS.front(); antreTTS.erase(antreTTS.begin());
+      String bhs = "id";                                 // "\x01kode|teks" = kalimat bahasa lain (penerjemah)
+      if (s.length() && s[0] == '\x01') { int b = s.indexOf('|'); bhs = s.substring(1, b); s = s.substring(b + 1); }
       pakaiSD = false; sedangBicara = true; audioJalan = true;
       if (!bicaraSuaraAI(s)) {
         if (s.length() > 150) {                          // Google hanya mau potongan pendek: pecah lagi
           std::vector<String> pecahan;
           while (s.length()) pecahan.push_back(potongDepan(s, 150));
+          if (bhs != "id") for (size_t i = 1; i < pecahan.size(); i++) pecahan[i] = "\x01" + bhs + "|" + pecahan[i];
           antreTTS.insert(antreTTS.begin(), pecahan.begin() + 1, pecahan.end());
           s = pecahan[0];
         }
-        audio.connecttospeech(s.c_str(), "id");
+        audio.connecttospeech(s.c_str(), bhs.c_str());
       }
     }
     if (!audio.isRunning() && antreTTS.empty()) sedangBicara = false;
@@ -776,6 +792,7 @@ const int ALARM_MAKS = 12;
 Alarm daftarAlarm[ALARM_MAKS];
 int jumlahAlarm = 0;
 volatile int bunyiTertunda = 0; volatile unsigned long tBunyiTertunda = 0;   // radio/lagu diputar setelah pengingat diucapkan
+String deringTeks; volatile bool deringBaru = false; int deringBunyi = 0;      // layar alarm berbunyi (Tunda / Matikan)
 
 uint32_t angkaTanggal(int tahun, int bulan, int hari) { return (uint32_t)tahun * 10000 + bulan * 100 + hari; }
 
@@ -902,6 +919,7 @@ void cekAlarm() {
   char jm[8]; snprintf(jm, sizeof(jm), "%02d:%02d", j.tm_hour, j.tm_min);
   kirimTelegram(String("Pengingat ") + jm + ": " + bunyikan);
   if (bunyi) { bunyiTertunda = bunyi; tBunyiTertunda = millis(); }
+  deringTeks = bunyikan; deringBunyi = bunyi; deringBaru = true;   // layar menampilkan tombol Tunda dan Matikan
 }
 
 // ======================= EKSPRESI OTOMATIS =======================
@@ -1185,7 +1203,7 @@ String teksKurs() {
 
 // ---- Wikipedia di layar: hasil pencarian terakhir (dari suara, /wiki, atau AI) ----
 String wikiJudul, wikiIsi;
-volatile int tujuanDengar = 0;                      // 1 = kalimat berikutnya dipakai untuk mencari di Wikipedia
+volatile int tujuanDengar = 0;                      // kalimat berikutnya untuk: 1 Wikipedia, 2 Penerjemah, 3 Catatan
 
 // hasil dari cariWikipedia(): "Judul (Wikipedia id): isi"
 void simpanWiki(const String& cari, const String& hasil) {
@@ -1529,6 +1547,13 @@ void aturDengarTerus(bool nyala) {
 }
 
 volatile bool suaraSiap = false;           // satu kalimat sudah ada di wavBuf
+
+// Rekam suara (memo): sampel ditulis ke PSRAM, lalu disimpan ke SD oleh layar (loop).
+const size_t MEMO_MAKS = (size_t)MIC_RATE * 60;   // paling lama 60 detik (1,9 MB)
+uint8_t* memoBuf = nullptr;                // 44 byte kepala WAV + sampel
+volatile size_t memoN = 0;                 // jumlah sampel
+volatile bool rekamMemo = false, memoSelesai = false;
+volatile int memoLevel = 0;                // keras suara, untuk meter di layar
 volatile bool suaraButuhNama = true;       // kalimat itu harus menyebut nama robot supaya ditanggapi
 volatile unsigned long jendelaSampai = 0;  // sampai kapan boleh bicara tanpa menyebut nama
 
@@ -1556,6 +1581,13 @@ void tugasDengar(void*) {
     }
     int rms = sqrt(jum / k);
 
+    if (rekamMemo && memoBuf) {                          // sedang merekam memo: semua suara disimpan
+      size_t m = min(k, MEMO_MAKS - memoN);
+      memcpy(memoBuf + 44 + memoN * 2, f, m * 2); memoN += m; memoLevel = rms;
+      if (memoN >= MEMO_MAKS) { rekamMemo = false; memoSelesai = true; }
+      tSibuk = millis(); merekam = false; atas = 0;
+      continue;
+    }
     if (suaraSiap || audioJalan || sedangBicara) { tSibuk = millis(); merekam = false; atas = 0; continue; }
     if (millis() - tSibuk < 1000) continue;              // tunggu gema speaker hilang
     if (mintaDengar) {
@@ -1567,6 +1599,7 @@ void tugasDengar(void*) {
       if (jendelaSampai && millis() > jendelaSampai) {   // waktu menunggu perintah habis
         jendelaSampai = 0;
         if (ekspresi == DENGAR) { ekspresi = NORMAL; setStatus(""); }
+        if (tujuanDengar) { tujuanDengar = 0; infoBaru = true; }   // layar Wikipedia/Penerjemah/Catatan berhenti menunggu
       }
       memcpy(cincin + (posCincin % PRAROL) * FRAME, f, k * 2); posCincin++;
       int ambang = max(AMBANG_MIN, (int)(lantai * 3));
@@ -2032,6 +2065,128 @@ String jalankanJawaban(const String& jawaban, const String& pertanyaanAsli, bool
   return bicara;
 }
 
+// ======================= ALAT: CATATAN, SENTER, PENERJEMAH, KIRIM FOTO GALERI =======================
+// ---- catatan / daftar tugas (tersimpan di memori S3, bisa diisi dari layar, panel web, Telegram, atau suara) ----
+struct Catatan { char teks[80]; uint8_t selesai; };
+const int CATATAN_MAKS = 20;
+Catatan daftarCatatan[CATATAN_MAKS]; int jumlahCatatan = 0;
+SemaphoreHandle_t kunciCatatan;
+
+void muatCatatan() {
+  Preferences q; q.begin("robot", true);
+  size_t n = q.getBytesLength("catat");
+  if (n && n % sizeof(Catatan) == 0 && n <= sizeof(daftarCatatan)) { q.getBytes("catat", daftarCatatan, n); jumlahCatatan = n / sizeof(Catatan); }
+  q.end();
+}
+
+void simpanCatatan() {                                   // dipanggil saat kunciCatatan dipegang
+  Preferences q; q.begin("robot", false);
+  if (jumlahCatatan) q.putBytes("catat", daftarCatatan, jumlahCatatan * sizeof(Catatan)); else q.remove("catat");
+  q.end();
+}
+
+String tambahCatatan(const String& teks) {
+  String t = teks; t.trim();
+  if (!t.length()) return "catatannya kosong";
+  xSemaphoreTake(kunciCatatan, portMAX_DELAY);
+  String galat;
+  if (jumlahCatatan >= CATATAN_MAKS) galat = "catatan sudah penuh (paling banyak 20)";
+  else {
+    strlcpy(daftarCatatan[jumlahCatatan].teks, t.c_str(), sizeof(daftarCatatan[0].teks));
+    daftarCatatan[jumlahCatatan].selesai = 0;
+    jumlahCatatan++;
+    simpanCatatan();
+  }
+  xSemaphoreGive(kunciCatatan);
+  return galat;
+}
+
+void centangCatatan(int i) {
+  xSemaphoreTake(kunciCatatan, portMAX_DELAY);
+  if (i >= 0 && i < jumlahCatatan) { daftarCatatan[i].selesai = !daftarCatatan[i].selesai; simpanCatatan(); }
+  xSemaphoreGive(kunciCatatan);
+}
+
+void hapusCatatan(int i) {                               // i = -1: hapus semua yang sudah dicentang
+  xSemaphoreTake(kunciCatatan, portMAX_DELAY);
+  int j = 0;
+  for (int k = 0; k < jumlahCatatan; k++) {
+    bool buang = i < 0 ? daftarCatatan[k].selesai : k == i;
+    if (!buang) daftarCatatan[j++] = daftarCatatan[k];
+  }
+  jumlahCatatan = j;
+  simpanCatatan();
+  xSemaphoreGive(kunciCatatan);
+}
+
+String teksCatatan() {
+  String s;
+  xSemaphoreTake(kunciCatatan, portMAX_DELAY);
+  for (int i = 0; i < jumlahCatatan; i++) s += String(i + 1) + (daftarCatatan[i].selesai ? ". [x] " : ". [ ] ") + daftarCatatan[i].teks + "\n";
+  xSemaphoreGive(kunciCatatan);
+  return s.length() ? s : String("Belum ada catatan.\n");
+}
+
+// ---- senter: lampu flash ESP32-CAM (perintah /flash di kode mata) ----
+volatile int mintaSenter = 0;                           // 1 nyalakan, 2 matikan (dikerjakan tugas jaringan)
+volatile bool senterNyala = false, senterGagal = false;
+unsigned long tSenter = 0;
+
+bool aturSenterKamera(bool nyala) {
+  if (!alamatKamera.length()) return false;
+  WiFiClient c; HTTPClient http;
+  http.begin(c, "http://" + alamatKamera + "/flash?on=" + String(nyala ? 1 : 0));
+  http.setTimeout(3000);
+  int kode = http.GET();
+  http.end();
+  if (kode == 200) { senterNyala = nyala; tSenter = millis(); }
+  return kode == 200;
+}
+
+// ---- penerjemah: kalimat bahasa Indonesia -> bahasa lain, diucapkan dengan logat bahasa itu ----
+const char* BAHASA_TERJEMAH[][2] = {{"Inggris", "en"}, {"Arab", "ar"}, {"Jepang", "ja"}, {"Mandarin", "zh-CN"},
+                                    {"Korea", "ko"}, {"Jawa", "jw"}, {"Sasak", "id"}};
+const int JUMLAH_BAHASA = sizeof(BAHASA_TERJEMAH) / sizeof(BAHASA_TERJEMAH[0]);
+int bahasaTerjemah = 0;
+String terjemahAsal, terjemahHasil, terjemahLatin;      // dibaca layar lewat kunciInfo
+
+void terjemahkan(const String& kalimat) {
+  String q = String("Terjemahkan kalimat berikut ke bahasa ") + BAHASA_TERJEMAH[bahasaTerjemah][0] +
+             ". Jawab JSON {\"bicara\":\"terjemahannya dalam huruf aslinya\",\"aksi\":[],\"latin\":\"cara bacanya dengan huruf latin\"}. "
+             "Jangan menambah penjelasan. Kalimatnya: " + kalimat;
+  String jaw = tanyaAI(q, "", false);
+  int a = jaw.indexOf('{'), b = jaw.lastIndexOf('}');
+  JsonDocument j;
+  String hasil, latin;
+  if (a >= 0 && b > a && !deserializeJson(j, jaw.substring(a, b + 1))) { hasil = j["bicara"] | ""; latin = j["latin"] | ""; }
+  else hasil = jaw;
+  if (!latin.length()) latin = hasil;
+  xSemaphoreTake(kunciInfo, portMAX_DELAY); terjemahAsal = kalimat; terjemahHasil = hasil; terjemahLatin = latin; xSemaphoreGive(kunciInfo);
+  infoBaru = true;
+  if (hasil.length()) ucapkanBahasa(hasil, BAHASA_TERJEMAH[bahasaTerjemah][1]);
+}
+
+// ---- kirim foto dari galeri SD ke Telegram (dikerjakan tugas jaringan) ----
+String fotoDikirim;                                      // path di SD; kosong = tidak ada permintaan
+volatile bool mintaKirimFoto = false;
+
+bool kirimFotoSD(const String& path) {
+  bool ok = false;
+  xSemaphoreTake(kunciFoto, portMAX_DELAY);
+  kunciSD();
+  File f = SD.open(path);
+  if (f && f.size() > 0 && f.size() < 600000) {
+    if (fotoBuf) free(fotoBuf);
+    fotoBuf = (uint8_t*)ps_malloc(f.size());
+    if (fotoBuf) { fotoLen = f.read(fotoBuf, f.size()); ok = fotoLen == f.size(); }
+  }
+  if (f) f.close();
+  lepasSD();
+  if (ok) ok = kirimFotoTelegram(TELEGRAM_CHATID);
+  xSemaphoreGive(kunciFoto);
+  return ok;
+}
+
 // ======================= FITUR KAMERA AI: LIHAT SEKELILING DAN SUIT =======================
 // Keduanya memakai AI dengan foto (jatah AI lebih cepat habis), jadi harus diaktifkan dulu di panel web.
 // Dijalankan oleh tugas jaringan; chat = tujuan pesan Telegram.
@@ -2202,7 +2357,8 @@ const char* BANTUAN =
   "/foto  kirim foto kamera\n/lihat [pertanyaan]  AI melihat lewat kamera\n/bilang teks  robot mengucapkan teks\n"
   "/panel  alamat panel kontrol web\n/dengar on|off  mendengar terus (boros) atau hanya saat BICARA\n/ai  pilih otak AI (gemini, gemma, groq, haiku)\n/lagu  daftar lagu di SD\n/putar nama lagu (cukup sebagian)\n/radio url\n/diam  hentikan suara\n/volume 0-21\n"
   "/ikuti  ikuti benda di depan\n/jaga  berjaga, kirim foto kalau ada gerakan\n/jelajah [menit]  jalan-jalan sendiri (bawaan 5 menit)\n/biasa  kembali normal\n"
-  "/baterai  isi dan perkiraan sisa baterai\n/pesan teks  tampilkan pesan di layar\n/sholat  jadwal sholat hari ini\n/kurs  kurs rupiah\n/wiki topik  cari di Wikipedia\n/suara  suara bicara (/suara gemini atau /suara google)\n\n"
+  "/baterai  isi dan perkiraan sisa baterai\n/pesan teks  tampilkan pesan di layar\n/catat [teks]  catatan dan daftar tugas\n"
+  "/senter on|off  lampu kamera\n/terjemah [bahasa] kalimat  (inggris, arab, jepang, mandarin, korea, jawa, sasak)\n/sholat  jadwal sholat hari ini\n/kurs  kurs rupiah\n/wiki topik  cari di Wikipedia\n/suara  suara bicara (/suara gemini atau /suara google)\n\n"
   "Pesan biasa tanpa / = ngobrol dengan AI (bisa menyuruh bergerak).";
 
 void tanganiPesan(const telegramMessage& m) {
@@ -2335,6 +2491,41 @@ void tanganiPesan(const telegramMessage& m) {
     if (!arg.length()) bot.sendMessage(chat, "Tulis isinya, misalnya: /pesan Makan malam sudah siap");
     else { tambahPesan(m.from_name.length() ? m.from_name : String("Telegram"), arg); bot.sendMessage(chat, "Pesan tampil di layar Zond."); }
   }
+  else if (cmd == "/catat") {
+    String a = arg, al = arg; al.toLowerCase();
+    if (!a.length()) bot.sendMessage(chat, teksCatatan() + "\nTambah: /catat beli susu\nCentang: /catat selesai 2\nHapus: /catat hapus 2 atau /catat hapus selesai");
+    else if (al.startsWith("selesai ")) { centangCatatan(a.substring(8).toInt() - 1); bot.sendMessage(chat, teksCatatan()); }
+    else if (al.startsWith("hapus")) {
+      String n = al.substring(5); n.trim();
+      int i = n == "selesai" ? -1 : n.toInt() - 1;
+      if (n != "selesai" && (i < 0 || i >= jumlahCatatan)) bot.sendMessage(chat, "Nomor catatan tidak ada.\n\n" + teksCatatan());
+      else { hapusCatatan(i); bot.sendMessage(chat, "Dihapus.\n\n" + teksCatatan()); }
+    } else { String g = tambahCatatan(a.substring(0, 79)); bot.sendMessage(chat, g.length() ? "Gagal: " + g : "Dicatat.\n\n" + teksCatatan()); }
+    infoBaru = true;
+  }
+  else if (cmd == "/senter") {
+    bool nyala = !(arg == "off" || arg == "mati");
+    bool ok = aturSenterKamera(nyala); infoBaru = true;
+    bot.sendMessage(chat, !alamatKamera.length() ? String("Alamat kamera belum diketahui.") : !ok ? String("Kamera tidak menjawab.") :
+                    nyala ? String("Senter menyala (mati sendiri setelah 5 menit). /senter off untuk mematikan.") : String("Senter mati."));
+  }
+  else if (cmd == "/terjemah") {
+    String a = arg, kata = a; kata.toLowerCase();
+    int sp2 = kata.indexOf(' ');
+    String depan = sp2 > 0 ? kata.substring(0, sp2) : kata;
+    for (int i = 0; i < JUMLAH_BAHASA; i++) {
+      String n = BAHASA_TERJEMAH[i][0]; n.toLowerCase();
+      if (depan == n) { bahasaTerjemah = i; a = sp2 > 0 ? a.substring(sp2 + 1) : String(); break; }
+    }
+    a.trim();
+    if (!a.length()) bot.sendMessage(chat, "Contoh: /terjemah jepang selamat pagi\nBahasa sekarang: " + String(BAHASA_TERJEMAH[bahasaTerjemah][0]));
+    else {
+      bot.sendChatAction(chat, "typing");
+      terjemahkan(a);
+      xSemaphoreTake(kunciInfo, portMAX_DELAY); String h = terjemahHasil, l = terjemahLatin; xSemaphoreGive(kunciInfo);
+      bot.sendMessage(chat, String(BAHASA_TERJEMAH[bahasaTerjemah][0]) + ": " + h + (l != h ? "\n(" + l + ")" : String()));
+    }
+  }
   else if (cmd == "/lagu")   bot.sendMessage(chat, daftarLagu());
   else if (cmd == "/putar")  {
     String lagu = cariLagu(arg);
@@ -2384,6 +2575,17 @@ void tugasJaringan(void*) {
         ekspresi = PIKIR; setStatus("Mencari: " + kata);
         simpanWiki(kata, cariWikipedia(kata));
         ekspresi = NORMAL; setStatus("Wikipedia: " + kata);
+      } else if (tujuanDengar == 2 && !butuhNama) {          // layar Penerjemah menunggu kalimat
+        tujuanDengar = 0; jendelaSampai = 0;
+        ekspresi = PIKIR; setStatus("Menerjemahkan: " + kata);
+        terjemahkan(kata);
+        ekspresi = NORMAL; setStatus("Terjemahan siap");
+      } else if (tujuanDengar == 3 && !butuhNama) {          // layar Catatan menunggu isi catatan
+        tujuanDengar = 0; jendelaSampai = 0;
+        String g = tambahCatatan(kata);
+        ucapkan(g.length() ? "Gagal: " + g : "Dicatat: " + kata);
+        setStatus(g.length() ? g : "Dicatat: " + kata); ekspresi = NORMAL;
+        infoBaru = true;
       } else {
         jendelaSampai = 0;
         ekspresi = PIKIR; setStatus("Kamu: " + kata);
@@ -2417,6 +2619,16 @@ void tugasJaringan(void*) {
       if (m & INFO_BERITA) ambilBerita();
       if (m & INFO_KURS) ambilKurs();
       infoBaru = true;
+    }
+    if (mintaSenter) {                                   // tombol senter di layar
+      int s = mintaSenter;
+      senterGagal = !aturSenterKamera(s == 1);
+      mintaSenter = 0; infoBaru = true;
+    }
+    if (senterNyala && millis() - tSenter > 300000UL) { aturSenterKamera(false); infoBaru = true; }   // mati sendiri 5 menit
+    if (mintaKirimFoto) {                                // galeri: kirim foto dari SD
+      mintaKirimFoto = false;
+      if (!kirimFotoSD(fotoDikirim)) bot.sendMessage(TELEGRAM_CHATID, "Gagal mengirim foto dari galeri: " + fotoDikirim);
     }
     static unsigned long tSholat = 0;                    // jadwal sholat sekali sehari; coba lagi 2 menit kalau gagal
     uint32_t hariIni = tanggalHariIni();
@@ -2579,7 +2791,8 @@ const int BILAH_H = 28, ISI_Y = 28, ISI_H = 212, MUKA_H = 144;
 LGFX_Sprite bilah(&lcd), kanvas(&lcd), muka(&lcd), bawah(&lcd);   // muka dan bawah: khusus Beranda
 
 enum { H_BERANDA, H_MENU, H_SUB, H_MUSIK, H_DAFTARLAGU, H_RADIO, H_STATUS, H_PESAN, H_SETELAN, H_MODE, H_HITUNG, H_BERGERAK,
-       H_CUACA, H_SHOLAT, H_BERITA, H_BACA, H_KALENDER, H_KURS, H_WIKI };
+       H_CUACA, H_SHOLAT, H_BERITA, H_BACA, H_KALENDER, H_KURS, H_WIKI,
+       H_ALARM, H_ALARMBARU, H_DERING, H_TIMER, H_KALKU, H_SENTER, H_TERJEMAH, H_CATATAN, H_REKAM, H_GALERI };
 // id tombol: 1-9 umum, 10-99 khusus halaman, 100 ke atas = baris daftar
 enum { B_KEMBALI = 1, B_STOP, B_MUKA, B_BICARA, B_MENU, B_ATAS, B_BAWAH };
 int halaman = H_BERANDA, halamanSub = 0, halamanHal = 0, tabStatus = 0;
@@ -2817,6 +3030,16 @@ String judulHalaman() {
     case H_KALENDER: return "Kalender";
     case H_KURS: return "Kurs rupiah";
     case H_WIKI: return "Wikipedia";
+    case H_ALARM: return "Alarm";
+    case H_ALARMBARU: return "Alarm baru";
+    case H_DERING: return "Alarm";
+    case H_TIMER: return "Timer";
+    case H_KALKU: return "Kalkulator";
+    case H_SENTER: return "Senter";
+    case H_TERJEMAH: return "Penerjemah";
+    case H_CATATAN: return "Catatan";
+    case H_REKAM: return "Rekam suara";
+    case H_GALERI: return "Galeri foto";
     default: return "";
   }
 }
@@ -2949,8 +3172,9 @@ struct ItemMenu { const char* nama; int16_t tujuan; };        // tujuan: halaman
 const ItemMenu MENU_MUSIK[] = {{"Lagu SD", H_MUSIK}, {"Radio", H_RADIO}, {"Podcast", -1}, {"Murottal", -1}};
 const ItemMenu MENU_INFO[]  = {{"Status robot", H_STATUS}, {"Cuaca", H_CUACA}, {"Jadwal sholat", H_SHOLAT}, {"Berita", H_BERITA},
                                {"Kalender", H_KALENDER}, {"Kurs", H_KURS}, {"Wikipedia", H_WIKI}};
-const ItemMenu MENU_ALAT[]  = {{"Mode gerak", H_MODE}, {"Kamera", -2}, {"Alarm", -1}, {"Timer", -1}, {"Kalkulator", -1},
-                               {"Senter", -1}, {"Penerjemah", -1}, {"Catatan", -1}, {"Rekam suara", -1}, {"Galeri foto", -1}};
+const ItemMenu MENU_ALAT[]  = {{"Mode gerak", H_MODE}, {"Kamera", -2}, {"Alarm", H_ALARM}, {"Timer", H_TIMER}, {"Kalkulator", H_KALKU},
+                               {"Senter", H_SENTER}, {"Penerjemah", H_TERJEMAH}, {"Catatan", H_CATATAN}, {"Rekam suara", H_REKAM},
+                               {"Galeri foto", H_GALERI}};
 const ItemMenu MENU_MAIN[]  = {{"Suit", -3}, {"Tic-tac-toe", -1}, {"2048", -1}, {"Ketuk terbang", -1}};
 const ItemMenu* MENU_SUB[4] = {MENU_MUSIK, MENU_INFO, MENU_ALAT, MENU_MAIN};
 const int JUMLAH_SUB[4] = {sizeof(MENU_MUSIK) / sizeof(ItemMenu), sizeof(MENU_INFO) / sizeof(ItemMenu),
@@ -3530,6 +3754,657 @@ void gambarWiki() {
   tombol(kanvas, ISI_Y, 89, 162, 180, 86, 30, "CARI", W_HIJAU, true);
 }
 
+// ---- halaman Alat: alarm, timer, kalkulator, senter, penerjemah, catatan, rekam suara, galeri foto ----
+bool tanyaHapus = false;                                   // tombol HAPUS harus ditekan dua kali
+struct FileSD { String nama; uint32_t ukuran; };
+std::vector<FileSD> daftarRekaman, daftarFoto;           // isi folder /rekaman dan /foto di SD, terbaru dulu
+
+void angkaBesar(const String& t, int x, int y, uint16_t w) {
+  kanvas.setFont(&fonts::Font7); kanvas.setTextDatum(middle_center); kanvas.setTextColor(w);
+  kanvas.drawString(t.c_str(), x, y);
+}
+
+void tulisTengah(const String& t, int y, const lgfx::IFont* f, uint16_t w) {
+  kanvas.setFont(f); kanvas.setTextDatum(middle_center); kanvas.setTextColor(w);
+  kanvas.drawString(potongLebar(kanvas, t, 304).c_str(), 160, y);
+}
+
+String namaWaktu() {                                      // nama file dari jam: 2026-11-18_09-30-15
+  struct tm t;
+  if (!jamSiap(t)) return "tanpa-jam-" + String(millis());
+  char b[24]; strftime(b, sizeof(b), "%Y-%m-%d_%H-%M-%S", &t);
+  return String(b);
+}
+
+String tanggalBerkas(const String& n) {                   // "2026-11-18_09-30-15.wav" -> "18/11/2026 09:30:15"
+  if (n.length() < 19 || n[4] != '-' || n[10] != '_') return n;
+  return n.substring(8, 10) + "/" + n.substring(5, 7) + "/" + n.substring(0, 4) + " " + n.substring(11, 13) + ":" +
+         n.substring(14, 16) + ":" + n.substring(17, 19);
+}
+
+void muatBerkas(int jenis) {                              // 0 = rekaman (.wav), 1 = foto (.jpg)
+  std::vector<FileSD>& v = jenis ? daftarFoto : daftarRekaman;
+  v.clear();
+  if (!pasangSD()) return;
+  kunciSD();
+  File d = SD.open(jenis ? "/foto" : "/rekaman");
+  if (d && d.isDirectory())
+    for (File f = d.openNextFile(); f; f = d.openNextFile()) {
+      String n = f.name(), k = n; k.toLowerCase();
+      if (!f.isDirectory() && !n.startsWith(".") && k.endsWith(jenis ? ".jpg" : ".wav")) v.push_back({n, (uint32_t)f.size()});
+    }
+  if (d) d.close();
+  lepasSD();
+  std::sort(v.begin(), v.end(), [](const FileSD& a, const FileSD& b) { return a.nama > b.nama; });
+}
+
+bool hapusBerkas(const String& path) {
+  kunciSD(); bool ok = SD.remove(path); lepasSD();
+  return ok;
+}
+
+void kembaliKeSub(int sub) {                              // kembali ke sub-menu, di halaman tempat item ini berada
+  int dari = halaman;
+  halamanSub = sub; buka(H_SUB);
+  for (int i = 0; i < JUMLAH_SUB[sub]; i++) if (MENU_SUB[sub][i].tujuan == dari) halamanHal = i / 6;
+}
+
+// ---- Alarm ----
+int alarmDipilih = -1;
+int baruJam = 6, baruMenit = 0, baruUlang = 0, baruBunyi = 0;
+const uint8_t ULANG_ALARM[4] = {0, 0x7F, 0x3E, 0x41};
+const char* NAMA_ULANG[4] = {"Sekali", "Setiap hari", "Senin-Jumat", "Sabtu-Minggu"};
+const char* NAMA_BUNYI[3] = {"Suara", "Radio", "Lagu SD"};
+unsigned long tDeringMulai = 0, tDeringUcap = 0; int deringKali = 0;
+
+String teksBarisAlarm(int i) {
+  char b[8]; snprintf(b, sizeof(b), "%02d:%02d", daftarAlarm[i].jam, daftarAlarm[i].menit);
+  return String(b) + "  " + daftarAlarm[i].pesan + "\t" + teksHariAlarm(daftarAlarm[i].hari, daftarAlarm[i].tanggal);
+}
+bool sorotAlarm(int i) { return i == alarmDipilih; }
+
+void gambarAlarm() {
+  if (!jumlahAlarm) {
+    tulisTengah("Belum ada alarm", 40, &fonts::FreeSansBold9pt7b, TFT_WHITE);
+    tulisTengah("Tambah di sini, lewat Telegram /alarm,", 76, &fonts::Font2, W_REDUP);
+    tulisTengah("atau bilang \"ingatkan aku jam 7 pagi\"", 96, &fonts::Font2, W_REDUP);
+  } else gambarDaftar(jumlahAlarm, 3, teksBarisAlarm, sorotAlarm);
+  tombol(kanvas, ISI_Y, 40, 6, 138, 151, 36, "+ TAMBAH", W_HIJAU, jumlahAlarm < ALARM_MAKS);
+  tombol(kanvas, ISI_Y, 41, 163, 138, 151, 36, tanyaHapus ? "YAKIN HAPUS?" : "HAPUS", W_MERAH, alarmDipilih >= 0 && alarmDipilih < jumlahAlarm);
+}
+
+void gambarAlarmBaru() {
+  char b[4];
+  tombol(kanvas, ISI_Y, 42, 40, 4, 100, 36, "+", W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 43, 40, 104, 100, 36, "-", W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 44, 180, 4, 100, 36, "+", W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 45, 180, 104, 100, 36, "-", W_TOMBOL, true);
+  snprintf(b, sizeof(b), "%02d", baruJam); angkaBesar(b, 90, 72, TFT_WHITE);
+  angkaBesar(":", 160, 72, TFT_WHITE);
+  snprintf(b, sizeof(b), "%02d", baruMenit); angkaBesar(b, 230, 72, TFT_WHITE);
+  String u = String("Ulang: ") + NAMA_ULANG[baruUlang], bn = String("Bunyi: ") + NAMA_BUNYI[baruBunyi];
+  tombol(kanvas, ISI_Y, 46, 6, 146, 151, 30, u.c_str(), W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 47, 163, 146, 151, 30, bn.c_str(), W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 48, 6, 180, 151, 30, "BATAL", W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 49, 163, 180, 151, 30, "SIMPAN", W_HIJAU, true);
+}
+
+void gambarDering() {
+  kanvas.fillScreen(WARNA(110, 50, 0));
+  struct tm t;
+  if (jamSiap(t)) { char b[8]; snprintf(b, sizeof(b), "%02d:%02d", t.tm_hour, t.tm_min); angkaBesar(b, 160, 44, TFT_YELLOW); }
+  kanvas.setFont(&fonts::FreeSansBold12pt7b); kanvas.setTextColor(TFT_WHITE);
+  tulisBungkus(kanvas, deringTeks, 16, 84, 288, 26, 2);
+  tombol(kanvas, ISI_Y, 50, 6, 150, 151, 52, "TUNDA 5 MENIT", W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 51, 163, 150, 151, 52, "MATIKAN", W_MERAH, true);
+}
+
+// ---- Timer, Pomodoro (25 menit fokus, 5 menit istirahat), Stopwatch. Tetap berjalan walau halaman ditutup. ----
+int tabTimer = 0;
+uint32_t timerSetel = 300, timerSisaJeda = 0; unsigned long timerSampai = 0;
+int pomoFase = 0, pomoKe = 1; uint32_t pomoSisaJeda = 0; unsigned long pomoSampai = 0;
+bool swJalan = false; unsigned long swMulai = 0, swSimpan = 0;
+std::vector<uint32_t> swPutaran;
+
+uint32_t pomoDurasi() { return pomoFase == 0 ? 25 * 60 : (pomoKe % 4 == 0 ? 15 * 60 : 5 * 60); }
+uint32_t sisaDetik(unsigned long sampai) { long s = (long)(sampai - millis()); return s > 0 ? (s + 999) / 1000 : 0; }
+unsigned long swWaktu() { return swSimpan + (swJalan ? millis() - swMulai : 0); }
+bool timerJalan() { return timerSampai || pomoSampai || swJalan; }
+
+String jamMenitDetik(uint32_t d) { char b[12]; snprintf(b, sizeof(b), "%02u:%02u", (unsigned)(d / 60), (unsigned)(d % 60)); return b; }
+String waktuStopwatch(unsigned long ms) {
+  char b[16]; snprintf(b, sizeof(b), "%02lu:%02lu.%lu", (ms / 60000) % 100, (ms / 1000) % 60, (ms / 100) % 10); return b;
+}
+
+void cekTimer() {
+  if (timerSampai && (long)(millis() - timerSampai) >= 0) {
+    timerSampai = 0;
+    deringTeks = "Waktu timer habis"; deringBunyi = 0; deringBaru = true;
+    ucapkan("Waktu habis.");
+  }
+  if (pomoSampai && (long)(millis() - pomoSampai) >= 0) {
+    if (pomoFase == 0) { pomoFase = 1; ucapkan(pomoKe % 4 == 0 ? "Kerja bagus. Istirahat panjang lima belas menit." : "Kerja bagus. Istirahat lima menit."); }
+    else { pomoFase = 0; pomoKe++; ucapkan("Istirahat selesai. Ayo fokus lagi."); }
+    pomoSampai = millis() + pomoDurasi() * 1000UL;
+    gambarUlang = true;
+  }
+}
+
+void gambarTimer() {
+  const char* TAB[3] = {"Timer", "Pomodoro", "Stopwatch"};
+  for (int i = 0; i < 3; i++) tombol(kanvas, ISI_Y, 10 + i, 6 + i * 104, 4, 100, 30, TAB[i], tabTimer == i ? W_BIRU : W_TOMBOL, true);
+  if (tabTimer == 0) {
+    uint32_t d = timerSampai ? sisaDetik(timerSampai) : timerSisaJeda ? timerSisaJeda : timerSetel;
+    angkaBesar(jamMenitDetik(d), 160, 72, timerSampai ? TFT_YELLOW : TFT_WHITE);
+    bool diam = !timerSampai && !timerSisaJeda;
+    const char* L[4] = {"-1 mnt", "+1 mnt", "+5 mnt", "+10 mnt"};
+    for (int i = 0; i < 4; i++) tombol(kanvas, ISI_Y, 13 + i, 6 + i * 78, 110, 74, 36, L[i], W_TOMBOL, diam);
+    tombol(kanvas, ISI_Y, 17, 6, 160, 151, 44, timerSampai ? "JEDA" : timerSisaJeda ? "LANJUT" : "MULAI", W_HIJAU, true);
+    tombol(kanvas, ISI_Y, 18, 163, 160, 151, 44, "ULANG", W_TOMBOL, !diam);
+  } else if (tabTimer == 1) {
+    uint32_t d = pomoSampai ? sisaDetik(pomoSampai) : pomoSisaJeda ? pomoSisaJeda : pomoDurasi();
+    angkaBesar(jamMenitDetik(d), 160, 72, pomoFase == 0 ? WARNA(255, 120, 100) : WARNA(90, 220, 120));
+    tulisTengah(pomoFase == 0 ? "Fokus ke-" + String(pomoKe) : String("Istirahat"), 116, &fonts::FreeSansBold9pt7b, TFT_WHITE);
+    tulisTengah("25 mnt fokus, 5 mnt istirahat (ke-4: 15 mnt)", 140, &fonts::Font2, W_REDUP);
+    tombol(kanvas, ISI_Y, 17, 6, 160, 151, 44, pomoSampai ? "JEDA" : pomoSisaJeda ? "LANJUT" : "MULAI", W_HIJAU, true);
+    tombol(kanvas, ISI_Y, 18, 163, 160, 151, 44, "ULANG", W_TOMBOL, pomoSampai || pomoSisaJeda || pomoKe > 1 || pomoFase);
+  } else {
+    unsigned long w = swWaktu();
+    angkaBesar(waktuStopwatch(w), 160, 72, swJalan ? TFT_YELLOW : TFT_WHITE);
+    kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP);
+    int n = swPutaran.size();
+    for (int k = 0; k < 3 && k < n; k++) {
+      int i = n - 1 - k;
+      uint32_t lap = swPutaran[i] - (i ? swPutaran[i - 1] : 0);
+      String t = "Putaran " + String(i + 1) + "   " + waktuStopwatch(lap) + "   (total " + waktuStopwatch(swPutaran[i]) + ")";
+      kanvas.setTextDatum(middle_center); kanvas.drawString(t.c_str(), 160, 112 + k * 16);
+    }
+    tombol(kanvas, ISI_Y, 17, 6, 160, 100, 44, swJalan ? "JEDA" : w ? "LANJUT" : "MULAI", W_HIJAU, true);
+    tombol(kanvas, ISI_Y, 19, 110, 160, 100, 44, "PUTARAN", W_TOMBOL, swJalan && n < 99);
+    tombol(kanvas, ISI_Y, 18, 214, 160, 100, 44, "ULANG", W_TOMBOL, !swJalan && w > 0);
+  }
+}
+
+// ---- Kalkulator: + - x / dan persen, perkalian/pembagian dihitung lebih dulu ----
+String kalkuEks, kalkuHasil;                              // ekspresi memakai . sebagai koma dan * untuk kali
+bool kalkuSelesai = false;                                // baru saja menekan =
+const char* KALKU_TOMBOL[20] = {"C", "<", "%", "/", "7", "8", "9", "x", "4", "5", "6", "-", "1", "2", "3", "+", "+/-", "0", ",", "="};
+int kalkuPos = 0; bool kalkuGalat = false;
+
+double kalkuJumlah();
+double kalkuAngka() {
+  bool neg = false;
+  while (kalkuPos < (int)kalkuEks.length() && kalkuEks[kalkuPos] == '-') { neg = !neg; kalkuPos++; }
+  int a = kalkuPos;
+  while (kalkuPos < (int)kalkuEks.length() && (isdigit(kalkuEks[kalkuPos]) || kalkuEks[kalkuPos] == '.')) kalkuPos++;
+  if (kalkuPos == a) { kalkuGalat = true; return 0; }
+  double v = kalkuEks.substring(a, kalkuPos).toDouble();
+  while (kalkuPos < (int)kalkuEks.length() && kalkuEks[kalkuPos] == '%') { v /= 100; kalkuPos++; }
+  return neg ? -v : v;
+}
+double kalkuSuku() {
+  double v = kalkuAngka();
+  while (!kalkuGalat && kalkuPos < (int)kalkuEks.length() && (kalkuEks[kalkuPos] == '*' || kalkuEks[kalkuPos] == '/')) {
+    char op = kalkuEks[kalkuPos++];
+    double b = kalkuAngka();
+    if (op == '*') v *= b; else if (b == 0) kalkuGalat = true; else v /= b;
+  }
+  return v;
+}
+double kalkuJumlah() {
+  double v = kalkuSuku();
+  while (!kalkuGalat && kalkuPos < (int)kalkuEks.length() && (kalkuEks[kalkuPos] == '+' || kalkuEks[kalkuPos] == '-')) {
+    char op = kalkuEks[kalkuPos++];
+    double b = kalkuSuku();
+    v = op == '+' ? v + b : v - b;
+  }
+  return v;
+}
+bool hitungKalku(double& v) {
+  kalkuPos = 0; kalkuGalat = false;
+  v = kalkuJumlah();
+  return !kalkuGalat && kalkuPos == (int)kalkuEks.length() && std::isfinite(v);
+}
+
+String angkaKalku(double v) {                             // angka mentah (titik sebagai koma), tanpa nol di belakang
+  char b[40];
+  if (fabs(v) >= 1e13 || (v != 0 && fabs(v) < 1e-7)) snprintf(b, sizeof(b), "%.6e", v);
+  else {
+    snprintf(b, sizeof(b), "%.9f", v);
+    char* t = strchr(b, '.');
+    if (t) { char* e = b + strlen(b) - 1; while (e > t && *e == '0') *e-- = 0; if (e == t) *e = 0; }
+    if (!strcmp(b, "-0")) strcpy(b, "0");
+  }
+  return b;
+}
+
+String tampilKalku(const String& s) {                     // cara tulis Indonesia: 1.234.567,5 dan x untuk kali
+  String o;
+  for (int i = 0; i < (int)s.length();) {
+    if (isdigit(s[i]) && !(i > 0 && s[i - 1] == 'e')) {
+      int a = i; while (i < (int)s.length() && isdigit(s[i])) i++;
+      String bulat = s.substring(a, i);
+      for (int k = 0; k < (int)bulat.length(); k++) { if (k && (bulat.length() - k) % 3 == 0) o += '.'; o += bulat[k]; }
+      if (i < (int)s.length() && s[i] == '.') {
+        o += ','; i++;
+        while (i < (int)s.length() && isdigit(s[i])) o += s[i++];
+      }
+    } else { char c = s[i++]; o += c == '*' ? 'x' : c == '.' ? ',' : c; }
+  }
+  return o;
+}
+
+bool operatorKalku(char c) { return c == '+' || c == '-' || c == '*' || c == '/'; }
+
+void tekanKalku(int k) {
+  String t = KALKU_TOMBOL[k];
+  char akhir = kalkuEks.length() ? kalkuEks[kalkuEks.length() - 1] : 0;
+  if (t == "C") { kalkuEks = ""; kalkuSelesai = false; return; }
+  if (t == "<") { if (kalkuEks.length()) kalkuEks.remove(kalkuEks.length() - 1); kalkuSelesai = false; return; }
+  if (t == "=") {
+    double v;
+    if (kalkuEks.length() && hitungKalku(v)) { kalkuHasil = angkaKalku(v); kalkuSelesai = true; }
+    else toast(kalkuGalat && kalkuEks.indexOf("/0") >= 0 ? "Tidak bisa dibagi nol" : "Belum lengkap");
+    return;
+  }
+  if (kalkuSelesai) { kalkuEks = (isdigit(t[0]) || t == ",") ? String() : kalkuHasil; kalkuSelesai = false; akhir = kalkuEks.length() ? kalkuEks[kalkuEks.length() - 1] : 0; }
+  if (kalkuEks.length() >= 40) return;
+  if (isdigit(t[0])) { if (akhir != '%') kalkuEks += t; }
+  else if (t == ",") {
+    int i = kalkuEks.length(); while (i > 0 && (isdigit(kalkuEks[i - 1]))) i--;
+    if (i > 0 && kalkuEks[i - 1] == '.') return;           // angka ini sudah punya koma
+    if (akhir == '%') return;
+    kalkuEks += isdigit(akhir) ? "." : "0.";
+  } else if (t == "%") { if (isdigit(akhir)) kalkuEks += '%'; }
+  else if (t == "+/-") {
+    int i = kalkuEks.length();
+    while (i > 0 && (isdigit(kalkuEks[i - 1]) || kalkuEks[i - 1] == '.' || kalkuEks[i - 1] == '%')) i--;
+    if (i > 0 && kalkuEks[i - 1] == '-' && (i == 1 || operatorKalku(kalkuEks[i - 2]))) kalkuEks.remove(i - 1, 1);
+    else kalkuEks = kalkuEks.substring(0, i) + "-" + kalkuEks.substring(i);
+  } else {
+    char op = t == "x" ? '*' : t[0];
+    if (!kalkuEks.length()) { if (op == '-') kalkuEks = "-"; return; }
+    if (operatorKalku(akhir)) {
+      if (kalkuEks.length() == 1) return;                   // hanya tanda minus di depan
+      kalkuEks.remove(kalkuEks.length() - 1);
+    }
+    kalkuEks += op;
+  }
+}
+
+void tulisKanan(const String& t, int y, const lgfx::IFont* f, uint16_t w) {   // potong dari depan kalau terlalu panjang
+  kanvas.setFont(f); kanvas.setTextDatum(middle_right); kanvas.setTextColor(w);
+  String s = t;
+  while (s.length() > 1 && kanvas.textWidth(s.c_str()) > 300) s.remove(0, 1);
+  if (s != t) s = ".." + s;
+  kanvas.drawString(s.c_str(), 310, y);
+}
+
+void gambarKalku() {
+  kanvas.fillRoundRect(6, 2, 308, 44, 6, WARNA(14, 18, 24));
+  double v;
+  if (kalkuSelesai) {
+    tulisKanan(tampilKalku(kalkuEks) + " =", 11, &fonts::Font2, W_REDUP);
+    tulisKanan(tampilKalku(kalkuHasil), 32, &fonts::FreeSansBold12pt7b, TFT_WHITE);
+  } else {
+    bool adaOp = false;
+    for (int i = 1; i < (int)kalkuEks.length(); i++) if (operatorKalku(kalkuEks[i]) || kalkuEks[i] == '%') adaOp = true;
+    if (adaOp && hitungKalku(v)) tulisKanan("= " + tampilKalku(angkaKalku(v)), 11, &fonts::Font2, W_REDUP);
+    tulisKanan(kalkuEks.length() ? tampilKalku(kalkuEks) : String("0"), 32, &fonts::FreeSansBold12pt7b, TFT_WHITE);
+  }
+  for (int k = 0; k < 20; k++) {
+    int r = k / 4, c = k % 4;
+    uint16_t w = k == 19 ? W_HIJAU : k == 0 ? W_MERAH : (c == 3 || k == 1 || k == 2) ? W_BIRU : W_TOMBOL;
+    tombol(kanvas, ISI_Y, 20 + k, 6 + c * 78, 50 + r * 32, 74, 30, KALKU_TOMBOL[k], w, true);
+  }
+}
+
+// ---- Senter: lampu flash ESP32-CAM, atau layar putih ----
+bool layarPutih = false;
+
+void gambarSenter() {
+  if (layarPutih) {
+    kanvas.fillScreen(TFT_WHITE);
+    tulisTengah("Sentuh untuk menutup", 196, &fonts::Font2, WARNA(150, 150, 150));
+    daftarkan(54, 0, ISI_Y, 320, ISI_H);
+    return;
+  }
+  bool ada = alamatKamera.length() > 0, tekan = tombolDitekan == 52;
+  uint16_t w = !ada ? W_MATI : tekan ? W_TEKAN : senterNyala ? WARNA(250, 210, 40) : W_TOMBOL;
+  kanvas.fillCircle(160, 66, 58, w);
+  kanvas.fillCircle(160, 66, 50, senterNyala && !tekan ? WARNA(255, 235, 120) : w);
+  tulisTengah(mintaSenter ? "..." : senterNyala ? "NYALA" : "MATI", 66, &fonts::FreeSansBold12pt7b, senterNyala || tekan ? TFT_BLACK : TFT_WHITE);
+  if (ada) daftarkan(52, 100, ISI_Y + 6, 120, 120);
+  String k = !ada ? "KAMERA_ALAMAT belum diisi di kode" : senterGagal ? "Kamera tidak menjawab. Coba lagi." :
+             senterNyala ? "Menyala. Mati sendiri setelah 5 menit." : String("Ketuk untuk menyalakan lampu kamera (mata).");
+  tulisTengah(k, 140, &fonts::Font2, senterGagal ? TFT_ORANGE : W_REDUP);
+  tombol(kanvas, ISI_Y, 53, 60, 162, 200, 42, "LAYAR PUTIH", W_TOMBOL, true);
+}
+
+// ---- Penerjemah ----
+void gambarTerjemah() {
+  String b = String("Ke bahasa: ") + BAHASA_TERJEMAH[bahasaTerjemah][0] + "  (ganti)";
+  tombol(kanvas, ISI_Y, 55, 6, 4, 308, 34, b.c_str(), W_BIRU, true);
+  xSemaphoreTake(kunciInfo, portMAX_DELAY);
+  String asal = terjemahAsal, latin = terjemahLatin, hasil = terjemahHasil;
+  xSemaphoreGive(kunciInfo);
+  if (tujuanDengar == 2) {
+    tulisTengah("Ucapkan kalimat dalam bahasa Indonesia...", 90, &fonts::FreeSansBold9pt7b, TFT_GREEN);
+  } else if (!latin.length()) {
+    tulisTengah("Tekan BICARA, ucapkan kalimatnya,", 80, &fonts::Font2, W_REDUP);
+    tulisTengah("lalu Zond mengucapkan terjemahannya.", 100, &fonts::Font2, W_REDUP);
+  } else {
+    kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP);
+    tulisBungkus(kanvas, "Kamu: " + asal, 10, 46, 300, 16, 2);
+    kanvas.setFont(&fonts::FreeSansBold12pt7b); kanvas.setTextColor(TFT_WHITE);
+    tulisBungkus(kanvas, latin, 10, 84, 300, 24, 3);
+  }
+  tombol(kanvas, ISI_Y, 56, 6, 160, 200, 44, tujuanDengar == 2 ? "MENDENGAR..." : "BICARA", W_HIJAU, tujuanDengar != 2);
+  tombol(kanvas, ISI_Y, 57, 212, 160, 102, 44, "ULANGI", W_TOMBOL, hasil.length() > 0);
+}
+
+// ---- Catatan / daftar tugas ----
+String teksBarisCatatan(int i) { return String(daftarCatatan[i].teks) + (daftarCatatan[i].selesai ? "\tselesai" : ""); }
+bool sorotCatatan(int i) { return daftarCatatan[i].selesai; }
+
+void gambarCatatan() {
+  if (tujuanDengar == 3) tulisTengah("Ucapkan catatannya...", 60, &fonts::FreeSansBold9pt7b, TFT_GREEN);
+  else if (!jumlahCatatan) {
+    tulisTengah("Belum ada catatan", 40, &fonts::FreeSansBold9pt7b, TFT_WHITE);
+    tulisTengah("Tambah dengan suara, panel web,", 76, &fonts::Font2, W_REDUP);
+    tulisTengah("atau Telegram: /catat beli susu", 96, &fonts::Font2, W_REDUP);
+  } else gambarDaftar(jumlahCatatan, 3, teksBarisCatatan, sorotCatatan);
+  bool adaSelesai = false;
+  for (int i = 0; i < jumlahCatatan; i++) if (daftarCatatan[i].selesai) adaSelesai = true;
+  tombol(kanvas, ISI_Y, 58, 6, 138, 190, 36, tujuanDengar == 3 ? "MENDENGAR..." : "+ DENGAN SUARA", W_HIJAU, tujuanDengar != 3 && jumlahCatatan < CATATAN_MAKS);
+  tombol(kanvas, ISI_Y, 59, 202, 138, 112, 36, "BERSIHKAN", W_TOMBOL, adaSelesai);
+}
+
+// ---- Rekam suara: sampai 60 detik di PSRAM, lalu disimpan sebagai WAV di SD /rekaman ----
+int rekamDipilih = -1;
+
+String teksBarisRekaman(int i) {
+  uint32_t u = daftarRekaman[i].ukuran;
+  return tanggalBerkas(daftarRekaman[i].nama) + "\t" + waktuMenit(u > 44 ? (u - 44) / (MIC_RATE * 2) : 0);
+}
+bool sorotRekaman(int i) { return i == rekamDipilih; }
+
+bool simpanMemo() {
+  delay(40);                                              // tugas mikrofon selesai menulis potongan terakhir
+  size_t n = memoN; bool ok = false;
+  if (memoBuf && n > MIC_RATE / 2 && pasangSD()) {        // kurang dari setengah detik: dibuang
+    tulisHeaderWav(memoBuf, n * 2);
+    kunciSD();
+    if (!SD.exists("/rekaman")) SD.mkdir("/rekaman");
+    File f = SD.open("/rekaman/" + namaWaktu() + ".wav", FILE_WRITE);
+    if (f) { ok = f.write(memoBuf, 44 + n * 2) == 44 + n * 2; f.close(); }
+    lepasSD();
+  }
+  free(memoBuf); memoBuf = nullptr; memoN = 0;
+  return ok;
+}
+
+void gambarRekam() {
+  if (rekamMemo) {
+    kanvas.fillScreen(WARNA(60, 0, 0));
+    if ((millis() / 500) % 2) kanvas.fillCircle(70, 56, 10, TFT_RED);
+    angkaBesar(waktuMenit(memoN / MIC_RATE), 170, 56, TFT_WHITE);
+    tulisTengah("Merekam, paling lama 1:00", 98, &fonts::Font2, W_REDUP);
+    kanvas.fillRect(20, 114, 280, 10, W_GARIS);
+    kanvas.fillRect(20, 114, constrain(memoLevel / 20, 0, 280), 10, TFT_GREEN);
+    tombol(kanvas, ISI_Y, 62, 60, 140, 200, 56, "SELESAI", W_MERAH, true);
+    return;
+  }
+  if (!adaSD) tulisTengah("SD card tidak terbaca", 60, &fonts::FreeSansBold9pt7b, TFT_WHITE);
+  else if (daftarRekaman.empty()) {
+    tulisTengah("Belum ada rekaman", 40, &fonts::FreeSansBold9pt7b, TFT_WHITE);
+    tulisTengah("Tekan REKAM lalu bicara.", 76, &fonts::Font2, W_REDUP);
+    tulisTengah("Disimpan di SD card, folder /rekaman.", 96, &fonts::Font2, W_REDUP);
+  } else gambarDaftar(daftarRekaman.size(), 3, teksBarisRekaman, sorotRekaman);
+  tombol(kanvas, ISI_Y, 60, 6, 138, 151, 36, "REKAM", WARNA(170, 40, 40), adaSD);
+  tombol(kanvas, ISI_Y, 61, 163, 138, 151, 36, tanyaHapus ? "YAKIN HAPUS?" : "HAPUS", W_TOMBOL, rekamDipilih >= 0);
+}
+
+// ---- Galeri foto: foto dari kamera disimpan di SD /foto ----
+int fotoKe = 0, fotoDimuat = -1;
+LGFX_Sprite fotoLayar(&lcd);                              // foto yang sedang dilihat, sudah dikecilkan (dibuat saat perlu)
+
+void muatFotoLayar() {
+  if (!fotoLayar.getBuffer()) { fotoLayar.setPsram(true); fotoLayar.setColorDepth(16); if (!fotoLayar.createSprite(320, 172)) return; }
+  fotoLayar.fillScreen(TFT_BLACK);
+  fotoDimuat = fotoKe;
+  if (fotoKe >= (int)daftarFoto.size()) return;
+  kunciSD();
+  File f = SD.open("/foto/" + daftarFoto[fotoKe].nama);
+  size_t n = f ? f.size() : 0;
+  uint8_t* b = (n > 0 && n < 600000) ? (uint8_t*)ps_malloc(n) : nullptr;
+  bool ok = b && f.read(b, n) == n;
+  if (f) f.close();
+  lepasSD();
+  if (ok) fotoLayar.drawJpg(b, n, 45, 0, 230, 172, 0, 0, 0.3584f, 0.3584f);   // 640x480 -> 229x172
+  else { fotoLayar.setFont(&fonts::Font2); fotoLayar.setTextDatum(middle_center); fotoLayar.setTextColor(W_REDUP); fotoLayar.drawString("Foto tidak bisa dibaca", 160, 86); }
+  if (b) free(b);
+}
+
+void ambilFotoGaleri() {
+  if (!pasangSD()) { toast("SD card tidak terbaca"); return; }
+  toast("Memotret..."); gambarIsi();
+  xSemaphoreTake(kunciFoto, portMAX_DELAY);
+  bool ok = ambilFoto("vga"), simpan = false;
+  if (ok) {
+    kunciSD();
+    if (!SD.exists("/foto")) SD.mkdir("/foto");
+    File f = SD.open("/foto/" + namaWaktu() + ".jpg", FILE_WRITE);
+    simpan = f && f.write(fotoBuf, fotoLen) == fotoLen;
+    if (f) f.close();
+    lepasSD();
+  }
+  xSemaphoreGive(kunciFoto);
+  muatBerkas(1); fotoKe = 0; fotoDimuat = -1;
+  toast(!ok ? "Kamera tidak bisa dihubungi" : simpan ? "Foto disimpan" : "Gagal menyimpan ke SD");
+}
+
+void gambarGaleri() {
+  int n = daftarFoto.size();
+  if (!adaSD) tulisTengah("SD card tidak terbaca", 70, &fonts::FreeSansBold9pt7b, TFT_WHITE);
+  else if (!n) {
+    tulisTengah("Belum ada foto", 50, &fonts::FreeSansBold9pt7b, TFT_WHITE);
+    tulisTengah("Tekan FOTO untuk memotret lewat kamera robot.", 86, &fonts::Font2, W_REDUP);
+    tulisTengah("Disimpan di SD card, folder /foto.", 106, &fonts::Font2, W_REDUP);
+  } else {
+    fotoKe = constrain(fotoKe, 0, n - 1);
+    if (fotoDimuat != fotoKe) muatFotoLayar();
+    fotoLayar.pushSprite(&kanvas, 0, 0);
+    kanvas.setFont(&fonts::Font2); kanvas.setTextDatum(top_left); kanvas.setTextColor(TFT_WHITE, TFT_BLACK);
+    kanvas.drawString((String(fotoKe + 1) + "/" + String(n) + "  " + tanggalBerkas(daftarFoto[fotoKe].nama)).c_str(), 4, 2);
+  }
+  const char* L[5] = {"<", "FOTO", ">", "KIRIM", tanyaHapus ? "YAKIN?" : "HAPUS"};
+  bool aktif[5] = {n > 0 && fotoKe > 0, adaSD && alamatKamera.length() > 0, n > 0 && fotoKe < n - 1, n > 0, n > 0};
+  for (int i = 0; i < 5; i++) tombol(kanvas, ISI_Y, 63 + i, 6 + i * 62, 176, 58, 32, L[i], i == 1 ? W_BIRU : i == 4 ? W_MERAH : W_TOMBOL, aktif[i]);
+}
+
+// ---- bersama untuk semua halaman Alat ----
+void gambarAlat() {
+  switch (halaman) {
+    case H_ALARM: gambarAlarm(); break;
+    case H_ALARMBARU: gambarAlarmBaru(); break;
+    case H_DERING: gambarDering(); break;
+    case H_TIMER: gambarTimer(); break;
+    case H_KALKU: gambarKalku(); break;
+    case H_SENTER: gambarSenter(); break;
+    case H_TERJEMAH: gambarTerjemah(); break;
+    case H_CATATAN: gambarCatatan(); break;
+    case H_REKAM: gambarRekam(); break;
+    case H_GALERI: gambarGaleri(); break;
+  }
+}
+
+// Tombol yang diulang selama ditahan (jam/menit alarm, menit timer).
+bool bisaUlang(int id) { return (halaman == H_ALARMBARU && id >= 42 && id <= 45) || (halaman == H_TIMER && (id == 13 || id == 14)); }
+
+// Halaman yang tidak kembali ke Beranda sendiri setelah 45 detik.
+bool alatTetap() {
+  return halaman == H_DERING || (halaman == H_REKAM && rekamMemo) || (halaman == H_TIMER && timerJalan()) ||
+         (halaman == H_SENTER && layarPutih);
+}
+
+unsigned long jedaAlat() {                                // jeda gambar ulang otomatis (0 = hanya kalau ada perubahan)
+  if (halaman == H_TIMER) return timerJalan() ? 200 : 0;
+  if (halaman == H_REKAM) return rekamMemo ? 250 : 0;
+  if (halaman == H_DERING) return 5000;
+  if (halaman == H_ALARM) return 5000;                     // alarm sekali hilang sendiri setelah berbunyi
+  return 0;
+}
+
+void bukaAlat(int h) {                                    // dipanggil buka() saat pindah halaman
+  tanyaHapus = false;
+  if (h == H_ALARM) alarmDipilih = -1;
+  if (h == H_REKAM) { rekamDipilih = -1; muatBerkas(0); }
+  if (h == H_GALERI) { muatBerkas(1); fotoKe = 0; fotoDimuat = -1; }
+  if (h == H_SENTER) { layarPutih = false; senterGagal = false; }
+  if (h == H_DERING) { tDeringMulai = tDeringUcap = millis(); deringKali = 1; }
+}
+
+// Dipanggil terus dari perbaruiLayar().
+void periksaAlat() {
+  cekTimer();
+  if (deringBaru) { deringBaru = false; buka(H_DERING); }
+  if (halaman == H_DERING) {
+    if (deringBunyi == 0 && deringKali < 5 && !audioJalan && millis() - tDeringUcap > 15000) {   // ulangi pengingat
+      tDeringUcap = millis(); deringKali++;
+      ucapkan("Pengingat: " + deringTeks + ".");
+    }
+    if (millis() - tDeringMulai > 180000) buka(H_BERANDA);                                    // 3 menit tidak disentuh
+  }
+  if (memoSelesai) {
+    memoSelesai = false;
+    if (halaman == H_REKAM) { toast("Menyimpan rekaman..."); gambarIsi(); }
+    bool ok = simpanMemo();
+    muatBerkas(0); rekamDipilih = -1;
+    toast(ok ? "Rekaman disimpan" : adaSD ? "Rekaman terlalu pendek atau gagal disimpan" : "SD card tidak terbaca");
+  }
+}
+
+void tombolAlat(int id) {
+  switch (halaman) {
+    case H_ALARM:
+      if (id >= 100) { alarmDipilih = alarmDipilih == id - 100 ? -1 : id - 100; tanyaHapus = false; }
+      else if (id == 40) {
+        struct tm t;
+        if (jamSiap(t)) { baruJam = (t.tm_hour + 1) % 24; baruMenit = 0; }
+        baruUlang = 0; baruBunyi = 0;
+        buka(H_ALARMBARU);
+      } else if (id == 41) {
+        if (!tanyaHapus) { tanyaHapus = true; toast("Tekan sekali lagi untuk menghapus"); }
+        else { hapusAlarm(alarmDipilih); alarmDipilih = -1; tanyaHapus = false; toast("Alarm dihapus"); }
+      }
+      break;
+    case H_ALARMBARU:
+      if (id == 42) baruJam = (baruJam + 1) % 24;
+      else if (id == 43) baruJam = (baruJam + 23) % 24;
+      else if (id == 44) baruMenit = (baruMenit + 1) % 60;
+      else if (id == 45) baruMenit = (baruMenit + 59) % 60;
+      else if (id == 46) baruUlang = (baruUlang + 1) % 4;
+      else if (id == 47) baruBunyi = (baruBunyi + 1) % 3;
+      else if (id == 48) buka(H_ALARM);
+      else if (id == 49) {
+        String g = tambahAlarm(baruJam, baruMenit, ULANG_ALARM[baruUlang], "Alarm", baruBunyi);
+        char b[8]; snprintf(b, sizeof(b), "%02d:%02d", baruJam, baruMenit);
+        buka(H_ALARM);
+        toast(g.length() ? "Gagal: " + g : "Alarm " + String(b) + " dipasang");
+      }
+      break;
+    case H_DERING:
+      if (id == 50) {
+        time_t s = time(nullptr) + 300; struct tm b; localtime_r(&s, &b);
+        String g = tambahAlarm(b.tm_hour, b.tm_min, 0, deringTeks, deringBunyi);
+        kirimAudio(A_STOP); bunyiTertunda = 0;
+        buka(H_BERANDA);
+        toast(g.length() ? "Gagal: " + g : String("Ditunda 5 menit"));
+      } else if (id == 51) { kirimAudio(A_STOP); bunyiTertunda = 0; buka(H_BERANDA); }
+      break;
+    case H_TIMER:
+      if (id >= 10 && id <= 12) tabTimer = id - 10;
+      else if (id >= 13 && id <= 16) {
+        const int D[4] = {-1, 1, 5, 10};
+        timerSetel = constrain((long)timerSetel + D[id - 13] * 60L, 60L, 5940L);
+      } else if (id == 17) {
+        if (tabTimer == 0) {
+          if (timerSampai) { timerSisaJeda = max(1u, (unsigned)sisaDetik(timerSampai)); timerSampai = 0; }
+          else { timerSampai = millis() + (timerSisaJeda ? timerSisaJeda : timerSetel) * 1000UL; timerSisaJeda = 0; }
+        } else if (tabTimer == 1) {
+          if (pomoSampai) { pomoSisaJeda = max(1u, (unsigned)sisaDetik(pomoSampai)); pomoSampai = 0; }
+          else { pomoSampai = millis() + (pomoSisaJeda ? pomoSisaJeda : pomoDurasi()) * 1000UL; pomoSisaJeda = 0; }
+        } else {
+          if (swJalan) { swSimpan += millis() - swMulai; swJalan = false; }
+          else { swMulai = millis(); swJalan = true; }
+        }
+      } else if (id == 18) {
+        if (tabTimer == 0) { timerSampai = 0; timerSisaJeda = 0; }
+        else if (tabTimer == 1) { pomoSampai = 0; pomoSisaJeda = 0; pomoFase = 0; pomoKe = 1; }
+        else { swSimpan = 0; swPutaran.clear(); }
+      } else if (id == 19) swPutaran.push_back(swWaktu());
+      break;
+    case H_KALKU:
+      if (id >= 20 && id < 40) tekanKalku(id - 20);
+      break;
+    case H_SENTER:
+      if (id == 52) { senterGagal = false; mintaSenter = senterNyala ? 2 : 1; }
+      else if (id == 53) layarPutih = true;
+      else if (id == 54) layarPutih = false;
+      break;
+    case H_TERJEMAH:
+      if (id == 55) {
+        bahasaTerjemah = (bahasaTerjemah + 1) % JUMLAH_BAHASA;
+        Preferences q; q.begin("robot", false); q.putUChar("bhs", bahasaTerjemah); q.end();
+      } else if (id == 56) { tujuanDengar = 2; kirimAudio(A_STOP); mintaDengar = true; }
+      else if (id == 57) {
+        xSemaphoreTake(kunciInfo, portMAX_DELAY); String h = terjemahHasil; xSemaphoreGive(kunciInfo);
+        if (h.length()) ucapkanBahasa(h, BAHASA_TERJEMAH[bahasaTerjemah][1]);
+      }
+      break;
+    case H_CATATAN:
+      if (id >= 100) centangCatatan(id - 100);
+      else if (id == 58) { tujuanDengar = 3; kirimAudio(A_STOP); mintaDengar = true; }
+      else if (id == 59) { hapusCatatan(-1); toast("Catatan yang selesai dihapus"); }
+      break;
+    case H_REKAM:
+      if (id >= 100 && id - 100 < (int)daftarRekaman.size()) {
+        rekamDipilih = id - 100; tanyaHapus = false;
+        putarSekali = true;
+        kirimAudio(A_FILE, "/rekaman/" + daftarRekaman[rekamDipilih].nama);
+      } else if (id == 60) {
+        if (!pasangSD()) { toast("SD card tidak terbaca"); break; }
+        if (!memoBuf) memoBuf = (uint8_t*)ps_malloc(44 + MEMO_MAKS * 2);
+        if (!memoBuf) { toast("Memori PSRAM tidak cukup"); break; }
+        kirimAudio(A_STOP); memoN = 0; memoLevel = 0; rekamMemo = true;
+      } else if (id == 61 && rekamDipilih >= 0 && rekamDipilih < (int)daftarRekaman.size()) {
+        if (!tanyaHapus) { tanyaHapus = true; toast("Tekan sekali lagi untuk menghapus"); }
+        else {
+          kirimAudio(A_STOP);
+          hapusBerkas("/rekaman/" + daftarRekaman[rekamDipilih].nama);
+          muatBerkas(0); rekamDipilih = -1; tanyaHapus = false; toast("Rekaman dihapus");
+        }
+      } else if (id == 62) { rekamMemo = false; memoSelesai = true; }
+      break;
+    case H_GALERI: {
+      int n = daftarFoto.size();
+      if (id != 67) tanyaHapus = false;
+      if (id == 63 && fotoKe > 0) fotoKe--;
+      else if (id == 65 && fotoKe < n - 1) fotoKe++;
+      else if (id == 64) ambilFotoGaleri();
+      else if (id == 66 && n) {
+        fotoDikirim = "/foto/" + daftarFoto[fotoKe].nama; mintaKirimFoto = true; toast("Mengirim ke Telegram...");
+      } else if (id == 67 && n) {
+        if (!tanyaHapus) { tanyaHapus = true; toast("Tekan sekali lagi untuk menghapus"); }
+        else { hapusBerkas("/foto/" + daftarFoto[fotoKe].nama); muatBerkas(1); fotoDimuat = -1; tanyaHapus = false; toast("Foto dihapus"); }
+      }
+      break;
+    }
+  }
+  gambarUlang = true;
+}
+
 // ---- gambar isi halaman (selain Beranda) ----
 void gambarIsi() {
   kanvas.fillScreen(TFT_BLACK);
@@ -3557,6 +4432,7 @@ void gambarIsi() {
     case H_KALENDER: gambarKalender(); break;
     case H_KURS: gambarKurs(); break;
     case H_WIKI: gambarWiki(); break;
+    default: gambarAlat(); break;
   }
   if (millis() < toastSampai) {
     kanvas.setFont(&fonts::FreeSansBold9pt7b);
@@ -3573,7 +4449,9 @@ void buka(int h) {
   if (h == H_DAFTARLAGU && laguKe >= 0) halamanHal = laguKe / 4; else if (h != halaman) halamanHal = 0;
   if (h == H_PESAN && pesanBelumDibaca() > 0) pesanDilihat = 0;
   if (h != H_SETELAN) konfirmasiRestart = false;
-  if (h != H_WIKI) tujuanDengar = 0;
+  if (!((h == H_WIKI && tujuanDengar == 1) || (h == H_TERJEMAH && tujuanDengar == 2) || (h == H_CATATAN && tujuanDengar == 3))) tujuanDengar = 0;
+  if (rekamMemo && h != H_REKAM) { rekamMemo = false; memoSelesai = true; }   // keluar saat merekam: rekaman disimpan
+  if (h != halaman) bukaAlat(h);
   uint8_t minta = 0;                                       // data Info yang belum ada atau sudah lama
   if (h == H_CUACA && !cuaca.ada) minta |= INFO_CUACA;
   if (h == H_SHOLAT && (!sholat.ada || sholat.tanggal != tanggalHariIni())) minta |= INFO_SHOLAT;
@@ -3595,6 +4473,9 @@ void kembali() {
     case H_MODE: halamanSub = 2; buka(H_SUB); break;
     case H_CUACA: case H_SHOLAT: case H_BERITA: case H_KALENDER: case H_KURS: case H_WIKI: halamanSub = 1; buka(H_SUB); break;
     case H_BACA: { int hl = beritaDipilih / 3; buka(H_BERITA); halamanHal = hl; break; }
+    case H_ALARM: case H_TIMER: case H_KALKU: case H_SENTER: case H_TERJEMAH: case H_CATATAN: case H_REKAM: case H_GALERI:
+      kembaliKeSub(2); break;
+    case H_ALARMBARU: buka(H_ALARM); break;
     default: buka(H_BERANDA);
   }
 }
@@ -3603,6 +4484,7 @@ void jalankanTombol(int id) {
   if (id == B_KEMBALI) { kembali(); return; }
   if (id == B_ATAS) { halamanHal--; gambarUlang = true; return; }
   if (id == B_BAWAH) { halamanHal++; gambarUlang = true; return; }
+  if (halaman >= H_ALARM) { tombolAlat(id); return; }
   switch (halaman) {
     case H_BERANDA:
       if (id == B_BICARA) { kirimAudio(A_STOP); mintaDengar = true; }
@@ -3760,7 +4642,8 @@ void tanganiSentuh() {
   xSemaphoreTake(kunciSPI, portMAX_DELAY); bool ada = lcd.getTouch(&x, &y); xSemaphoreGive(kunciSPI);
   int baca = ada ? tombolDi(x, y) : -2;                    // -2 = tidak disentuh, -1 = di luar tombol
   static int calon = -3, ulang = 0;
-  static bool menempel = false;
+  static bool menempel = false, sudahUlang = false;
+  static unsigned long tTahan = 0, tUlang = 0;
   if (baca == calon) { if (ulang < 100) ulang++; } else { calon = baca; ulang = 1; }
   if (ulang < 4) return;
   if (calon != -2) {
@@ -3774,13 +4657,17 @@ void tanganiSentuh() {
     }
     if (abaikanSentuh) return;
     int t = calon >= 0 ? calon : -1;
-    if (t != tombolDitekan) { tombolDitekan = t; gambarUlang = true; if (t == B_KEMBALI || t == B_STOP || t == -1) bilahUlang = true; }
+    if (t != tombolDitekan) { tombolDitekan = t; tTahan = millis(); sudahUlang = false; gambarUlang = true; if (t == B_KEMBALI || t == B_STOP || t == -1) bilahUlang = true; }
+    else if (t >= 0 && bisaUlang(t) && millis() - tTahan > 500 && millis() - tUlang > 120) {   // ditahan: ulang terus
+      tUlang = millis(); sudahUlang = true; jalankanTombol(t);
+    }
   } else if (menempel) {
     menempel = false;
     int id = tombolDitekan; tombolDitekan = -1;
     bool abaikan = abaikanSentuh; abaikanSentuh = false;
     gambarUlang = true; if (id == B_KEMBALI) bilahUlang = true;
-    if (!abaikan && id >= 0) jalankanTombol(id);
+    if (!abaikan && id >= 0 && !sudahUlang) jalankanTombol(id);
+    sudahUlang = false;
   }
 }
 
@@ -3836,7 +4723,8 @@ void perbaruiLayar() {
     if (hitungMode == M_JELAJAH) jelajah(5); else gantiMode(M_IKUTI);
     buka(H_BERGERAK);
   }
-  bool tetap = halaman == H_BERANDA || halaman == H_BERGERAK || halaman == H_HITUNG || (halaman == H_MUSIK && musikJalan());
+  periksaAlat();
+  bool tetap = halaman == H_BERANDA || halaman == H_BERGERAK || halaman == H_HITUNG || (halaman == H_MUSIK && musikJalan()) || alatTetap();
   if (!tetap && millis() - tSentuh > 45000) buka(H_BERANDA);
   if (pesanMasuk) {
     pesanMasuk = false;
@@ -3862,7 +4750,7 @@ void perbaruiLayar() {
   }
   unsigned long jeda = halaman == H_HITUNG ? 200 : (halaman == H_MUSIK || halaman == H_BERGERAK) ? 500 :
                        halaman == H_STATUS ? (tabStatus ? 5000 : 1000) : halaman == H_RADIO ? 2000 :
-                       halaman == H_SHOLAT ? 10000 : 0;
+                       halaman == H_SHOLAT ? 10000 : halaman >= H_ALARM ? jedaAlat() : 0;
   bool toastHabis = toastSampai && millis() >= toastSampai;
   if (toastHabis) toastSampai = 0;
   if (gambarUlang || toastHabis || (jeda && millis() - tIsi > jeda)) { gambarUlang = false; tIsi = millis(); gambarIsi(); }
@@ -3872,53 +4760,53 @@ void perbaruiLayar() {
 // Buka http://<IP otak>/ dari HP atau laptop di WiFi yang sama: gerak tahan-jalan, kamera, kepala, musik.
 // Halamannya ditulis dengan Svelte (folder _build/panel di repo panduan) lalu ditanam di sini sebagai satu string.
 // <PANEL_WEB> dibuat otomatis oleh _build/panel/bangun.ts, jangan diedit di sini
-const char PANEL_HTML[] = R"PANEL(<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Panel Zond</title><style>html{color:#e6e9ee;background:#10141a;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Noto Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif}body{margin:0}main.svelte-1xjvnya8h1aa3{max-width:480px;margin:0 auto;padding:12px 16px 32px}header.svelte-1xjvnya8h1aa3{display:flex;flex-wrap:wrap;align-items: center;gap:8px}h1.svelte-1xjvnya8h1aa3{margin:0;font-size:1.4rem}h2.svelte-1xjvnya8h1aa3{margin:0 0 8px;font-size:1rem}h2.svelte-1xjvnya8h1aa3 small:where(.svelte-1xjvnya8h1aa3){color:#8a94a3;font-weight:400}.kecil.svelte-1xjvnya8h1aa3{color:#8a94a3;font-size:.85rem}.titik.svelte-1xjvnya8h1aa3{background:#c0392b;border-radius:50%;width:10px;height:10px}.titik.on.svelte-1xjvnya8h1aa3{background:#2ecc71}.peringatan.svelte-1xjvnya8h1aa3{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.peringatan.svelte-1xjvnya8h1aa3 span:where(.svelte-1xjvnya8h1aa3){background:#7a1d1d;border-radius:6px;padding:3px 8px;font-size:.85rem}section.svelte-1xjvnya8h1aa3{background:#18202a;border-radius:12px;margin-top:12px;padding:12px}.kamera.svelte-1xjvnya8h1aa3{text-align:center}.kamera.svelte-1xjvnya8h1aa3 img:where(.svelte-1xjvnya8h1aa3){display:block;aspect-ratio:4/3;object-fit:cover;background:#000;border-radius:8px;width:100%}.kamera.svelte-1xjvnya8h1aa3 img.redup:where(.svelte-1xjvnya8h1aa3){opacity:.15}.ket.svelte-1xjvnya8h1aa3{color:#8a94a3;margin:8px 0}.dpad.svelte-1xjvnya8h1aa3{display:grid;grid-template-columns:repeat(3,1fr);touch-action:none;user-select:none;-webkit-user-select:none;gap:8px;max-width:300px;margin:0 auto 12px}.dpad.svelte-1xjvnya8h1aa3 button:where(.svelte-1xjvnya8h1aa3){aspect-ratio:1;touch-action:none;background:#2a3a4d;border-radius:14px;font-size:1.6rem}.dpad.svelte-1xjvnya8h1aa3 button.aktif:where(.svelte-1xjvnya8h1aa3){background:#3d7bd9}.dpad.svelte-1xjvnya8h1aa3 button.stop:where(.svelte-1xjvnya8h1aa3){background:#a0302a}button.svelte-1xjvnya8h1aa3{color:inherit;cursor:pointer;background:#2a3a4d;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem}button.svelte-1xjvnya8h1aa3:active{filter:brightness(1.3)}.kecil-btn.svelte-1xjvnya8h1aa3{margin-top:8px;padding:6px 10px;font-size:.85rem}.baris.svelte-1xjvnya8h1aa3{display:flex;flex-wrap:wrap;gap:8px}.baris.svelte-1xjvnya8h1aa3 button:where(.svelte-1xjvnya8h1aa3){flex:1}label.svelte-1xjvnya8h1aa3{display:block;margin-top:10px;font-size:.9rem}input[type=range].svelte-1xjvnya8h1aa3{width:100%}form.svelte-1xjvnya8h1aa3{display:flex;gap:8px;margin-top:12px}input[type=text].svelte-1xjvnya8h1aa3{color:inherit;background:#10141a;border:1px solid #2a3a4d;border-radius:10px;flex:1;min-width:0;padding:10px;font-size:1rem}.mik.svelte-1xjvnya8h1aa3{background:#1f6f3a;border-radius:14px;width:100%;padding:16px;font-size:1.1rem;font-weight:600}.mik.dengar.svelte-1xjvnya8h1aa3{animation:1s ease-in-out infinite svelte-1xjvnya8h1aa3-denyut;background:#c2410c}@keyframes svelte-1xjvnya8h1aa3-denyut{50%{filter:brightness(1.3)}}.mik.svelte-1xjvnya8h1aa3:disabled{opacity:.5}.saklar.svelte-1xjvnya8h1aa3{display:flex;color:#8a94a3;align-items: flex-start;gap:8px;font-size:.8rem}.saklar.svelte-1xjvnya8h1aa3 input:where(.svelte-1xjvnya8h1aa3){margin-top:2px}.ai.svelte-1xjvnya8h1aa3{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ai.svelte-1xjvnya8h1aa3 button:where(.svelte-1xjvnya8h1aa3){text-align:left;display:flex;flex-direction:column;gap:2px}.ai.svelte-1xjvnya8h1aa3 button:where(.svelte-1xjvnya8h1aa3):first-child{grid-column:1/-1}.ai.svelte-1xjvnya8h1aa3 button:where(.svelte-1xjvnya8h1aa3) span:where(.svelte-1xjvnya8h1aa3){color:#8a94a3;font-size:.75rem}.ai.svelte-1xjvnya8h1aa3 button.pilih:where(.svelte-1xjvnya8h1aa3){outline:2px solid #5fcf72;background:#2f6a3a}.ai.svelte-1xjvnya8h1aa3 button.pilih:where(.svelte-1xjvnya8h1aa3) span:where(.svelte-1xjvnya8h1aa3){color:#cfe9d4}.ai.svelte-1xjvnya8h1aa3 button:where(.svelte-1xjvnya8h1aa3):disabled{opacity:.45;cursor:default}.kecil-ket.svelte-1xjvnya8h1aa3{margin-bottom:0;font-size:.8rem}.waktu.svelte-1xjvnya8h1aa3{color:#8a94a3;margin:6px 0 0;font-size:.85rem}.belok.svelte-1xjvnya8h1aa3{margin-top:10px}.alarm.svelte-1xjvnya8h1aa3{list-style:none;margin:0 0 8px;padding:0}.alarm.svelte-1xjvnya8h1aa3 li:where(.svelte-1xjvnya8h1aa3){display:flex;border-bottom:1px solid #243041;align-items: center;gap:10px;padding:8px 0}.alarm.svelte-1xjvnya8h1aa3 li:where(.svelte-1xjvnya8h1aa3) b:where(.svelte-1xjvnya8h1aa3){font-size:1.1rem}.alarm.svelte-1xjvnya8h1aa3 li:where(.svelte-1xjvnya8h1aa3) span:where(.svelte-1xjvnya8h1aa3){display:flex;flex-direction:column;flex:1}.alarm.svelte-1xjvnya8h1aa3 li:where(.svelte-1xjvnya8h1aa3) small:where(.svelte-1xjvnya8h1aa3){color:#8a94a3;font-size:.75rem}.hapus.svelte-1xjvnya8h1aa3{background:#3a2430;padding:4px 10px}.form-alarm.svelte-1xjvnya8h1aa3{flex-direction:column;gap:8px}.form-alarm.svelte-1xjvnya8h1aa3 .baris:where(.svelte-1xjvnya8h1aa3)>:where(.svelte-1xjvnya8h1aa3){flex:1}input[type=time].svelte-1xjvnya8h1aa3,select.svelte-1xjvnya8h1aa3{color:inherit;background:#10141a;border:1px solid #2a3a4d;border-radius:10px;min-width:0;padding:9px;font-size:.95rem}.hari.svelte-1xjvnya8h1aa3{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.85rem}.hari.svelte-1xjvnya8h1aa3 label:where(.svelte-1xjvnya8h1aa3){display:flex;align-items: center;gap:4px;margin:0}.jelajah.svelte-1xjvnya8h1aa3{margin-top:12px}.jelajah.svelte-1xjvnya8h1aa3 select:where(.svelte-1xjvnya8h1aa3){flex:none}.aktif-jelajah.svelte-1xjvnya8h1aa3{background:#3d7bd9}.grafik.svelte-1xjvnya8h1aa3{display:block;background:#10141a;border-radius:8px;width:100%;height:auto}.grafik.svelte-1xjvnya8h1aa3 line:where(.svelte-1xjvnya8h1aa3){stroke:#243041;stroke-width:1}.grafik.svelte-1xjvnya8h1aa3 text:where(.svelte-1xjvnya8h1aa3){fill:#8a94a3;font-size:9px}.grafik.svelte-1xjvnya8h1aa3 path:where(.svelte-1xjvnya8h1aa3){fill:none;stroke:#5fcf72;stroke-width:2;stroke-linejoin:round}.sumbu.svelte-1xjvnya8h1aa3{display:flex;color:#8a94a3;justify-content:space-between;margin-top:4px;font-size:.75rem}.suara.svelte-1xjvnya8h1aa3{display:flex;align-items: center;gap:8px}.suara.svelte-1xjvnya8h1aa3 select:where(.svelte-1xjvnya8h1aa3){flex:1}.status.svelte-1xjvnya8h1aa3{text-align:center;color:#8a94a3;margin-top:12px}
-</style></head><body><script type="module">var p=!1;var mt=Array.isArray,Ka=Array.prototype.indexOf,Lt=Array.prototype.includes,Nr=Array.from,{keys:ci,defineProperty:he,getOwnPropertyDescriptor:ze,getOwnPropertyDescriptors:ui,prototype:pi}=Object,Wa=Array.prototype,{getPrototypeOf:Rr,isExtensible:di}=Object;var Et=()=>{};function Mn(e){for(var t=0;t<e.length;t++)e[t]()}function Ln(){var e,t,r=new Promise((n,o)=>{e=n,t=o});return{promise:r,resolve:e,reject:t}}function _i(e,t){if(Array.isArray(e))return e;if(t===void 0||!(Symbol.iterator in e))return Array.from(e);let r=[];for(let n of e)if(r.push(n),r.length===t)break;return r}var te=2,kt=4,zt=8,cr=16777216,Se=16,ge=32,He=64,jr=128,Fn=256,Fe=512,G=1024,F=2048,oe=4096,fe=8192,W=16384,Pe=32768,Ft=33554432,Ve=65536,Kt=131072,vi=262144,Tt=524288,Za=1048576,ht=33554432,Cr=2097152,Ke=4194304,it=8388608,We=Symbol("$state"),Pn=Symbol("component"),Bn=Symbol("legacy props"),Xa=Symbol(""),Yn=Symbol("proxy path"),Hn=Symbol("attributes"),sn=Symbol("class"),mi=Symbol("style"),ln=Symbol("text"),Wt=Symbol("form reset"),hi=Symbol("hmr anchor"),Pt=new class extends Error{name="StaleReactionError";message="The reaction that called `getAbortSignal()` was re-run or destroyed"},gi=!!globalThis.document?.contentType&&globalThis.document.contentType.includes("xml");var ur=3,at=8;var Ja=1,Qa=2,xi=4,es=8,ts=16;var bi=1,rs=2;var Or="[",Zt="[!",yi="[?",pr="]",Ze={};var Z=Symbol("uninitialized"),st=Symbol("filename"),$i=Symbol("hmr"),Vn="http://www.w3.org/1999/xhtml";var Bt="font-weight: bold",Yt="font-weight: normal";function ns(e){if(p)console.warn(`%c[svelte] await_reactivity_loss
+const char PANEL_HTML[] = R"PANEL(<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Panel Zond</title><style>html{color:#e6e9ee;background:#10141a;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Noto Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif}body{margin:0}main.svelte-7xbc87edh957{max-width:480px;margin:0 auto;padding:12px 16px 32px}header.svelte-7xbc87edh957{display:flex;flex-wrap:wrap;align-items: center;gap:8px}h1.svelte-7xbc87edh957{margin:0;font-size:1.4rem}h2.svelte-7xbc87edh957{margin:0 0 8px;font-size:1rem}h2.svelte-7xbc87edh957 small:where(.svelte-7xbc87edh957){color:#8a94a3;font-weight:400}.kecil.svelte-7xbc87edh957{color:#8a94a3;font-size:.85rem}.titik.svelte-7xbc87edh957{background:#c0392b;border-radius:50%;width:10px;height:10px}.titik.on.svelte-7xbc87edh957{background:#2ecc71}.peringatan.svelte-7xbc87edh957{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.peringatan.svelte-7xbc87edh957 span:where(.svelte-7xbc87edh957){background:#7a1d1d;border-radius:6px;padding:3px 8px;font-size:.85rem}section.svelte-7xbc87edh957{background:#18202a;border-radius:12px;margin-top:12px;padding:12px}.kamera.svelte-7xbc87edh957{text-align:center}.kamera.svelte-7xbc87edh957 img:where(.svelte-7xbc87edh957){display:block;aspect-ratio:4/3;object-fit:cover;background:#000;border-radius:8px;width:100%}.kamera.svelte-7xbc87edh957 img.redup:where(.svelte-7xbc87edh957){opacity:.15}.ket.svelte-7xbc87edh957{color:#8a94a3;margin:8px 0}.dpad.svelte-7xbc87edh957{display:grid;grid-template-columns:repeat(3,1fr);touch-action:none;user-select:none;-webkit-user-select:none;gap:8px;max-width:300px;margin:0 auto 12px}.dpad.svelte-7xbc87edh957 button:where(.svelte-7xbc87edh957){aspect-ratio:1;touch-action:none;background:#2a3a4d;border-radius:14px;font-size:1.6rem}.dpad.svelte-7xbc87edh957 button.aktif:where(.svelte-7xbc87edh957){background:#3d7bd9}.dpad.svelte-7xbc87edh957 button.stop:where(.svelte-7xbc87edh957){background:#a0302a}button.svelte-7xbc87edh957{color:inherit;cursor:pointer;background:#2a3a4d;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem}button.svelte-7xbc87edh957:active{filter:brightness(1.3)}.kecil-btn.svelte-7xbc87edh957{margin-top:8px;padding:6px 10px;font-size:.85rem}.baris.svelte-7xbc87edh957{display:flex;flex-wrap:wrap;gap:8px}.baris.svelte-7xbc87edh957 button:where(.svelte-7xbc87edh957){flex:1}label.svelte-7xbc87edh957{display:block;margin-top:10px;font-size:.9rem}input[type=range].svelte-7xbc87edh957{width:100%}form.svelte-7xbc87edh957{display:flex;gap:8px;margin-top:12px}input[type=text].svelte-7xbc87edh957{color:inherit;background:#10141a;border:1px solid #2a3a4d;border-radius:10px;flex:1;min-width:0;padding:10px;font-size:1rem}.mik.svelte-7xbc87edh957{background:#1f6f3a;border-radius:14px;width:100%;padding:16px;font-size:1.1rem;font-weight:600}.mik.dengar.svelte-7xbc87edh957{animation:1s ease-in-out infinite svelte-7xbc87edh957-denyut;background:#c2410c}@keyframes svelte-7xbc87edh957-denyut{50%{filter:brightness(1.3)}}.mik.svelte-7xbc87edh957:disabled{opacity:.5}.saklar.svelte-7xbc87edh957{display:flex;color:#8a94a3;align-items: flex-start;gap:8px;font-size:.8rem}.saklar.svelte-7xbc87edh957 input:where(.svelte-7xbc87edh957){margin-top:2px}.ai.svelte-7xbc87edh957{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ai.svelte-7xbc87edh957 button:where(.svelte-7xbc87edh957){text-align:left;display:flex;flex-direction:column;gap:2px}.ai.svelte-7xbc87edh957 button:where(.svelte-7xbc87edh957):first-child{grid-column:1/-1}.ai.svelte-7xbc87edh957 button:where(.svelte-7xbc87edh957) span:where(.svelte-7xbc87edh957){color:#8a94a3;font-size:.75rem}.ai.svelte-7xbc87edh957 button.pilih:where(.svelte-7xbc87edh957){outline:2px solid #5fcf72;background:#2f6a3a}.ai.svelte-7xbc87edh957 button.pilih:where(.svelte-7xbc87edh957) span:where(.svelte-7xbc87edh957){color:#cfe9d4}.ai.svelte-7xbc87edh957 button:where(.svelte-7xbc87edh957):disabled{opacity:.45;cursor:default}.kecil-ket.svelte-7xbc87edh957{margin-bottom:0;font-size:.8rem}.waktu.svelte-7xbc87edh957{color:#8a94a3;margin:6px 0 0;font-size:.85rem}.belok.svelte-7xbc87edh957{margin-top:10px}.alarm.svelte-7xbc87edh957{list-style:none;margin:0 0 8px;padding:0}.alarm.svelte-7xbc87edh957 li:where(.svelte-7xbc87edh957){display:flex;border-bottom:1px solid #243041;align-items: center;gap:10px;padding:8px 0}.alarm.svelte-7xbc87edh957 li:where(.svelte-7xbc87edh957) b:where(.svelte-7xbc87edh957){font-size:1.1rem}.alarm.svelte-7xbc87edh957 li:where(.svelte-7xbc87edh957) span:where(.svelte-7xbc87edh957){display:flex;flex-direction:column;flex:1}.alarm.svelte-7xbc87edh957 li:where(.svelte-7xbc87edh957) small:where(.svelte-7xbc87edh957){color:#8a94a3;font-size:.75rem}.catatan.svelte-7xbc87edh957 label:where(.svelte-7xbc87edh957){display:flex;flex:1;align-items: center;gap:10px}.catatan.svelte-7xbc87edh957 .selesai:where(.svelte-7xbc87edh957) span:where(.svelte-7xbc87edh957){text-decoration:line-through;color:#8a94a3}.hapus.svelte-7xbc87edh957{background:#3a2430;padding:4px 10px}.form-alarm.svelte-7xbc87edh957{flex-direction:column;gap:8px}.form-alarm.svelte-7xbc87edh957 .baris:where(.svelte-7xbc87edh957)>:where(.svelte-7xbc87edh957){flex:1}input[type=time].svelte-7xbc87edh957,select.svelte-7xbc87edh957{color:inherit;background:#10141a;border:1px solid #2a3a4d;border-radius:10px;min-width:0;padding:9px;font-size:.95rem}.hari.svelte-7xbc87edh957{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.85rem}.hari.svelte-7xbc87edh957 label:where(.svelte-7xbc87edh957){display:flex;align-items: center;gap:4px;margin:0}.jelajah.svelte-7xbc87edh957{margin-top:12px}.jelajah.svelte-7xbc87edh957 select:where(.svelte-7xbc87edh957){flex:none}.aktif-jelajah.svelte-7xbc87edh957{background:#3d7bd9}.grafik.svelte-7xbc87edh957{display:block;background:#10141a;border-radius:8px;width:100%;height:auto}.grafik.svelte-7xbc87edh957 line:where(.svelte-7xbc87edh957){stroke:#243041;stroke-width:1}.grafik.svelte-7xbc87edh957 text:where(.svelte-7xbc87edh957){fill:#8a94a3;font-size:9px}.grafik.svelte-7xbc87edh957 path:where(.svelte-7xbc87edh957){fill:none;stroke:#5fcf72;stroke-width:2;stroke-linejoin:round}.sumbu.svelte-7xbc87edh957{display:flex;color:#8a94a3;justify-content:space-between;margin-top:4px;font-size:.75rem}.suara.svelte-7xbc87edh957{display:flex;align-items: center;gap:8px}.suara.svelte-7xbc87edh957 select:where(.svelte-7xbc87edh957){flex:1}.status.svelte-7xbc87edh957{text-align:center;color:#8a94a3;margin-top:12px}
+</style></head><body><script type="module">var d=!1;var ht=Array.isArray,ts=Array.prototype.indexOf,Ft=Array.prototype.includes,Cr=Array.from,{keys:vi,defineProperty:xe,getOwnPropertyDescriptor:Je,getOwnPropertyDescriptors:hi,prototype:mi}=Object,rs=Array.prototype,{getPrototypeOf:Or,isExtensible:gi}=Object;var kt=()=>{};function Bn(e){for(var t=0;t<e.length;t++)e[t]()}function jn(){var e,t,r=new Promise((n,o)=>{e=n,t=o});return{promise:r,resolve:e,reject:t}}function bi(e,t){if(Array.isArray(e))return e;if(t===void 0||!(Symbol.iterator in e))return Array.from(e);let r=[];for(let n of e)if(r.push(n),r.length===t)break;return r}var ne=2,Tt=4,Wt=8,dr=16777216,Ne=16,$e=32,Ge=64,Ir=128,Yn=256,Pe=512,z=1024,j=2048,ie=4096,de=8192,Z=16384,Be=32768,Pt=33554432,qe=65536,Zt=131072,xi=262144,At=524288,ns=1048576,mt=33554432,Dr=2097152,Qe=4194304,ft=8388608,et=Symbol("$state"),Hn=Symbol("component"),Vn=Symbol("legacy props"),os=Symbol(""),Un=Symbol("proxy path"),Gn=Symbol("attributes"),ln=Symbol("class"),$i=Symbol("style"),fn=Symbol("text"),Xt=Symbol("form reset"),yi=Symbol("hmr anchor"),Bt=new class extends Error{name="StaleReactionError";message="The reaction that called `getAbortSignal()` was re-run or destroyed"},wi=!!globalThis.document?.contentType&&globalThis.document.contentType.includes("xml");var pr=3,ct=8;var is=1,as=2,Ei=4,ss=8,ls=16;var ki=1,fs=2;var Mr="[",Jt="[!",Ti="[?",_r="]",tt={};var X=Symbol("uninitialized"),ut=Symbol("filename"),Ai=Symbol("hmr"),qn="http://www.w3.org/1999/xhtml";var jt="font-weight: bold",Yt="font-weight: normal";function cs(e){if(d)console.warn(`%c[svelte] await_reactivity_loss
 %cDetected reactivity loss when reading \`${e}\`. This happens when state is read in an async function after an earlier \`await\`
-https://svelte.dev/e/await_reactivity_loss`,Bt,Yt);else console.warn("https://svelte.dev/e/await_reactivity_loss")}function os(e,t){if(p)console.warn(`%c[svelte] await_waterfall
+https://svelte.dev/e/await_reactivity_loss`,jt,Yt);else console.warn("https://svelte.dev/e/await_reactivity_loss")}function us(e,t){if(d)console.warn(`%c[svelte] await_waterfall
 %cAn async derived, \`${e}\` (${t}) was not read immediately after it resolved. This often indicates an unnecessary waterfall, which can slow down your app
-https://svelte.dev/e/await_waterfall`,Bt,Yt);else console.warn("https://svelte.dev/e/await_waterfall")}function is(){if(p)console.warn(`%c[svelte] derived_inert
+https://svelte.dev/e/await_waterfall`,jt,Yt);else console.warn("https://svelte.dev/e/await_waterfall")}function ds(){if(d)console.warn(`%c[svelte] derived_inert
 %cReading a derived belonging to a now-destroyed effect may result in stale values
-https://svelte.dev/e/derived_inert`,Bt,Yt);else console.warn("https://svelte.dev/e/derived_inert")}function as(e,t,r){if(p)console.warn(`%c[svelte] hydration_attribute_changed
+https://svelte.dev/e/derived_inert`,jt,Yt);else console.warn("https://svelte.dev/e/derived_inert")}function ps(e,t,r){if(d)console.warn(`%c[svelte] hydration_attribute_changed
 %cThe \`${e}\` attribute on \`${t}\` changed its value between server and client renders. The client value, \`${r}\`, will be ignored in favour of the server value
-https://svelte.dev/e/hydration_attribute_changed`,Bt,Yt);else console.warn("https://svelte.dev/e/hydration_attribute_changed")}function dr(e){if(p)console.warn(`%c[svelte] hydration_mismatch
+https://svelte.dev/e/hydration_attribute_changed`,jt,Yt);else console.warn("https://svelte.dev/e/hydration_attribute_changed")}function vr(e){if(d)console.warn(`%c[svelte] hydration_mismatch
 %c${e?`Hydration failed because the initial UI does not match what was rendered on the server. The error occurred near ${e}`:"Hydration failed because the initial UI does not match what was rendered on the server"}
-https://svelte.dev/e/hydration_mismatch`,Bt,Yt);else console.warn("https://svelte.dev/e/hydration_mismatch")}function ss(){if(p)console.warn(`%c[svelte] lifecycle_double_unmount
+https://svelte.dev/e/hydration_mismatch`,jt,Yt);else console.warn("https://svelte.dev/e/hydration_mismatch")}function _s(){if(d)console.warn(`%c[svelte] lifecycle_double_unmount
 %cTried to unmount a component that was not mounted
-https://svelte.dev/e/lifecycle_double_unmount`,Bt,Yt);else console.warn("https://svelte.dev/e/lifecycle_double_unmount")}function ls(){if(p)console.warn("%c[svelte] select_multiple_invalid_value\n%cThe `value` property of a `<select multiple>` element should be an array, but it received a non-array value. The selection will be kept as is.\nhttps://svelte.dev/e/select_multiple_invalid_value",Bt,Yt);else console.warn("https://svelte.dev/e/select_multiple_invalid_value")}function Un(e){if(p)console.warn(`%c[svelte] state_proxy_equality_mismatch
+https://svelte.dev/e/lifecycle_double_unmount`,jt,Yt);else console.warn("https://svelte.dev/e/lifecycle_double_unmount")}function vs(){if(d)console.warn("%c[svelte] select_multiple_invalid_value\n%cThe `value` property of a `<select multiple>` element should be an array, but it received a non-array value. The selection will be kept as is.\nhttps://svelte.dev/e/select_multiple_invalid_value",jt,Yt);else console.warn("https://svelte.dev/e/select_multiple_invalid_value")}function zn(e){if(d)console.warn(`%c[svelte] state_proxy_equality_mismatch
 %cReactive \`$state(...)\` proxies and the values they proxy have different identities. Because of this, comparisons with \`${e}\` will produce unexpected results
-https://svelte.dev/e/state_proxy_equality_mismatch`,Bt,Yt);else console.warn("https://svelte.dev/e/state_proxy_equality_mismatch")}function fs(){if(p)console.warn("%c[svelte] svelte_boundary_reset_noop\n%cA `<svelte:boundary>` `reset` function only resets the boundary the first time it is called\nhttps://svelte.dev/e/svelte_boundary_reset_noop",Bt,Yt);else console.warn("https://svelte.dev/e/svelte_boundary_reset_noop")}var w=!1;function pe(e){w=e}var j;function U(e){if(e===null)throw dr(),Ze;return j=e}function Oe(){return U(xe(j))}function S(e){if(!w)return;if(xe(j)!==null)throw dr(),Ze;j=e}function Xe(e=1){if(w){var t=e,r=j;while(t--)r=xe(r);j=r}}function At(e=!0){var t=0,r=j;while(!0){if(r.nodeType===at){var n=r.data;if(n===pr){if(t===0)return r;t-=1}else if(n===Or||n===Zt||n[0]==="["&&!isNaN(Number(n.slice(1))))t+=1}var o=xe(r);if(e)r.remove();r=o}}function _r(e){if(!e||e.nodeType!==at)throw dr(),Ze;return e.data}function Gn(e){return e===this.v}function wi(e,t){return e!=e?t==t:e!==t||e!==null&&typeof e==="object"||typeof e==="function"}function qn(e){return!wi(e,this.v)}function cs(e){if(p){let t=Error(`invariant_violation
+https://svelte.dev/e/state_proxy_equality_mismatch`,jt,Yt);else console.warn("https://svelte.dev/e/state_proxy_equality_mismatch")}function hs(){if(d)console.warn("%c[svelte] svelte_boundary_reset_noop\n%cA `<svelte:boundary>` `reset` function only resets the boundary the first time it is called\nhttps://svelte.dev/e/svelte_boundary_reset_noop",jt,Yt);else console.warn("https://svelte.dev/e/svelte_boundary_reset_noop")}var w=!1;function ve(e){w=e}var C;function q(e){if(e===null)throw vr(),tt;return C=e}function Ie(){return q(ye(C))}function A(e){if(!w)return;if(ye(C)!==null)throw vr(),tt;C=e}function ze(e=1){if(w){var t=e,r=C;while(t--)r=ye(r);C=r}}function St(e=!0){var t=0,r=C;while(!0){if(r.nodeType===ct){var n=r.data;if(n===_r){if(t===0)return r;t-=1}else if(n===Mr||n===Jt||n[0]==="["&&!isNaN(Number(n.slice(1))))t+=1}var o=ye(r);if(e)r.remove();r=o}}function hr(e){if(!e||e.nodeType!==ct)throw vr(),tt;return e.data}function Kn(e){return e===this.v}function Si(e,t){return e!=e?t==t:e!==t||e!==null&&typeof e==="object"||typeof e==="function"}function Wn(e){return!Si(e,this.v)}function ms(e){if(d){let t=Error(`invariant_violation
 An invariant violation occurred, meaning Svelte's internal assumptions were flawed. This is a bug in Svelte, not your app — please open an issue at https://github.com/sveltejs/svelte, citing the following message: "${e}"
-https://svelte.dev/e/invariant_violation`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/invariant_violation")}function zn(e){if(p){let t=Error(`lifecycle_outside_component
+https://svelte.dev/e/invariant_violation`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/invariant_violation")}function Zn(e){if(d){let t=Error(`lifecycle_outside_component
 \`${e}(...)\` can only be used during component initialisation
-https://svelte.dev/e/lifecycle_outside_component`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/lifecycle_outside_component")}function ps(){if(p){let e=Error("async_derived_orphan\nCannot create a `$derived(...)` with an `await` expression outside of an effect tree\nhttps://svelte.dev/e/async_derived_orphan");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/async_derived_orphan")}function Ei(){if(p){let e=Error("bind_invalid_checkbox_value\nUsing `bind:value` together with a checkbox input is not allowed. Use `bind:checked` instead\nhttps://svelte.dev/e/bind_invalid_checkbox_value");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/bind_invalid_checkbox_value")}function ds(){if(p){let e=Error(`derived_references_self
+https://svelte.dev/e/lifecycle_outside_component`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/lifecycle_outside_component")}function bs(){if(d){let e=Error("async_derived_orphan\nCannot create a `$derived(...)` with an `await` expression outside of an effect tree\nhttps://svelte.dev/e/async_derived_orphan");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/async_derived_orphan")}function Ni(){if(d){let e=Error("bind_invalid_checkbox_value\nUsing `bind:value` together with a checkbox input is not allowed. Use `bind:checked` instead\nhttps://svelte.dev/e/bind_invalid_checkbox_value");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/bind_invalid_checkbox_value")}function xs(){if(d){let e=Error(`derived_references_self
 A derived value cannot reference itself recursively
-https://svelte.dev/e/derived_references_self`);throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/derived_references_self")}function ki(e,t,r){if(p){let n=Error(`each_key_duplicate
+https://svelte.dev/e/derived_references_self`);throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/derived_references_self")}function Ri(e,t,r){if(d){let n=Error(`each_key_duplicate
 ${r?`Keyed each block has duplicate key \`${r}\` at indexes ${e} and ${t}`:`Keyed each block has duplicate key at indexes ${e} and ${t}`}
-https://svelte.dev/e/each_key_duplicate`);throw n.name="Svelte error",n}else throw Error("https://svelte.dev/e/each_key_duplicate")}function _s(e,t,r){if(p){let n=Error(`each_key_volatile
+https://svelte.dev/e/each_key_duplicate`);throw n.name="Svelte error",n}else throw Error("https://svelte.dev/e/each_key_duplicate")}function $s(e,t,r){if(d){let n=Error(`each_key_volatile
 Keyed each block has key that is not idempotent — the key for item at index ${e} was \`${t}\` but is now \`${r}\`. Keys must be the same each time for a given item
-https://svelte.dev/e/each_key_volatile`);throw n.name="Svelte error",n}else throw Error("https://svelte.dev/e/each_key_volatile")}function vs(e){if(p){let t=Error(`effect_in_teardown
+https://svelte.dev/e/each_key_volatile`);throw n.name="Svelte error",n}else throw Error("https://svelte.dev/e/each_key_volatile")}function ys(e){if(d){let t=Error(`effect_in_teardown
 \`${e}\` cannot be used inside an effect cleanup function
-https://svelte.dev/e/effect_in_teardown`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/effect_in_teardown")}function ms(){if(p){let e=Error("effect_in_unowned_derived\nEffect cannot be created inside a `$derived` value that was not itself created inside an effect\nhttps://svelte.dev/e/effect_in_unowned_derived");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/effect_in_unowned_derived")}function hs(e){if(p){let t=Error(`effect_orphan
+https://svelte.dev/e/effect_in_teardown`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/effect_in_teardown")}function ws(){if(d){let e=Error("effect_in_unowned_derived\nEffect cannot be created inside a `$derived` value that was not itself created inside an effect\nhttps://svelte.dev/e/effect_in_unowned_derived");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/effect_in_unowned_derived")}function Es(e){if(d){let t=Error(`effect_orphan
 \`${e}\` can only be used inside an effect (e.g. during component initialisation)
-https://svelte.dev/e/effect_orphan`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/effect_orphan")}function gs(){if(p){let e=Error(`effect_update_depth_exceeded
+https://svelte.dev/e/effect_orphan`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/effect_orphan")}function ks(){if(d){let e=Error(`effect_update_depth_exceeded
 Maximum update depth exceeded. This typically indicates that an effect reads and writes the same piece of state
-https://svelte.dev/e/effect_update_depth_exceeded`);throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/effect_update_depth_exceeded")}function xs(){if(p){let e=Error(`hydration_failed
+https://svelte.dev/e/effect_update_depth_exceeded`);throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/effect_update_depth_exceeded")}function Ts(){if(d){let e=Error(`hydration_failed
 Failed to hydrate the application
-https://svelte.dev/e/hydration_failed`);throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/hydration_failed")}function bs(e){if(p){let t=Error(`rune_outside_svelte
+https://svelte.dev/e/hydration_failed`);throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/hydration_failed")}function As(e){if(d){let t=Error(`rune_outside_svelte
 The \`${e}\` rune is only available inside \`.svelte\` and \`.svelte.js/ts\` files
-https://svelte.dev/e/rune_outside_svelte`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/rune_outside_svelte")}function ys(){if(p){let e=Error("state_descriptors_fixed\nProperty descriptors defined on `$state` objects must contain `value` and always be `enumerable`, `configurable` and `writable`.\nhttps://svelte.dev/e/state_descriptors_fixed");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/state_descriptors_fixed")}function $s(){if(p){let e=Error("state_prototype_fixed\nCannot set prototype of `$state` object\nhttps://svelte.dev/e/state_prototype_fixed");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/state_prototype_fixed")}function ws(){if(p){let e=Error("state_unsafe_mutation\nUpdating state inside `$derived(...)`, `$inspect(...)` or a template expression is forbidden. If the value should not be reactive, declare it without `$state`\nhttps://svelte.dev/e/state_unsafe_mutation");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/state_unsafe_mutation")}function Es(){if(p){let e=Error("svelte_boundary_reset_onerror\nA `<svelte:boundary>` `reset` function cannot be called while an error is still being handled\nhttps://svelte.dev/e/svelte_boundary_reset_onerror");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/svelte_boundary_reset_onerror")}var ce=!1,Xt=!1,gt=!1;var fn=null;function Ie(e,t){return e.label=t,Wn(e.v,t),e}function Wn(e,t){return e?.[Yn]?.(t),e}function xt(e){let t=Error(),r=Lf();if(r.length===0)return null;return r.unshift(`
-`),he(t,"stack",{value:r.join(`
-`)}),he(t,"name",{value:e}),t}function Lf(){let e=Error.stackTraceLimit;Error.stackTraceLimit=1/0;let t=Error().stack;if(Error.stackTraceLimit=e,!t)return[];let r=t.split(`
-`),n=[];for(let o=0;o<r.length;o++){let i=r[o],a=i.replaceAll("\\","/");if(i.trim()==="Error")continue;if(i.includes("validate_each_keys"))return[];if(a.includes("svelte/src/internal")||a.includes("node_modules/.vite"))continue;n.push(i)}return n}function Ts(e,t){if(!p)throw Error("invariant(...) was not guarded by if (DEV)");if(!e)cs(t)}var L=null;function Ht(e){L=e}var St=null;function Ir(e){St=e}var bt=null;function Zn(e){bt=e}function cn(e,t=!1,r){if(L={p:L,i:!1,c:null,e:null,s:e,x:null,r:k,l:Xt&&!t?{s:null,u:null,$:[]}:null},p)L.function=r,bt=r}function un(e){var t=L,r=t.e;if(r!==null){t.e=null;for(var n of r)Ti(n)}if(e!==void 0)t.x=e;if(t.i=!0,L=t.p,p)bt=L?.function??null;return Xn(e)}function Xn(e={}){return he(e,Pn,{value:!0}),e}function Nt(){return!Xt||L!==null&&L.l===null}var vr=[];function As(){var e=vr;vr=[],Mn(e)}function ue(e){if(vr.length===0&&!mr){var t=vr;queueMicrotask(()=>{if(t===vr)As()})}vr.push(e)}function Ss(){while(vr.length>0)As()}var Ff=~(F|oe|G);function q(e,t){e.f=e.f&Ff|t}function Dr(e){if((e.f&Fe)!==0||e.deps===null)q(e,G);else q(e,oe)}function Jn(e,t){if((e.f&F)!==0)t.set(e,F);else if((e.f&oe)!==0&&t.get(e)!==F)t.set(e,oe);q(e,G)}function Ns(e){return`{${e.toString().replace(/^async \(\) => /,"").replace(/^\(/,"").replace(/\$\.get\((.+?)\)/g,(t,r)=>r).replace(/\$\.track_reactivity_loss\((.+?)\)\(\)/g,(t,r)=>r).replace(/\)$/,"")}}`}var Rs=!1;function Qn(){if(!Rs)Rs=!0,document.addEventListener("reset",(e)=>{Promise.resolve().then(()=>{if(!e.defaultPrevented)for(let t of e.target.elements)t[Wt]?.()})},{capture:!0})}function Je(e){var t=N,r=k;de(null),_e(null);try{return e()}finally{de(t),_e(r)}}function dn(e,t,r,n=r){e.addEventListener(t,()=>Je(r));let o=e[Wt];if(o)e[Wt]=()=>{o(),n(!0)};else e[Wt]=()=>n(!0);Qn()}function eo(e,t,r,n){let o=Nt()?Lr:Fr;var i=e.filter((d)=>!d.settled),a=t.map(o);if(p)a.forEach((d,y)=>{d.label=t[y].toString().replace("() => ","").replaceAll("$.eager(() => ","$state.eager(").replace(/\$\.get\((.+?)\)/g,(R,b)=>b)});if(r.length===0&&i.length===0){n(a);return}var f=k,c=js(),h=i.length===1?i[0].promise:i.length>1?Promise.all(i.map((d)=>d.promise)):null;function m(d){if((f.f&W)!==0)return;c();try{n([...a,...d])}catch(y){Ue(y,f)}Mr()}var v=Ai();if(r.length===0){h.then(()=>m([])).finally(v);return}function _(){Promise.all(r.map((d)=>Ni(d))).then(m).catch((d)=>Ue(d,f)).finally(v)}if(h)h.then(()=>{if((f.f&W)!==0){v();return}c(),_(),Mr()});else _()}function js(){var e=k,t=N,r=L,n=T;if(p)var o=St;return function(a=!0){if(_e(e),de(t),Ht(r),a&&(e.f&W)===0)n?.activate(),n?.apply();if(p)Si(null),Ir(o)}}var Pf=!1;function Mr(e=!0){if(Pf=!1,_e(null),de(null),Ht(null),e)T?.deactivate();if(p)Si(null),Ir(null)}function Ai(){var e=k,t=e.b,r=T,n=!!t?.is_rendered();return t?.update_pending_count(1,r),r.increment(n,e),()=>{t?.update_pending_count(-1,r),r.decrement(n,e)}}var Ge=null;function Si(e){Ge=e}var _n=new Set;function Lr(e){var t=te|F;if(k!==null)k.f|=Tt;let r={ctx:L,deps:null,effects:null,equals:Gn,f:t,fn:e,reactions:null,rv:0,v:Z,wv:0,parent:k,ac:null};if(p&&gt)r.created=xt("created at");return r}var Pr=Symbol("obsolete");function Ni(e,t,r){let n=k;if(n===null)ps();var o=void 0,i=De(Z);if(p)i.label=t??Ns(e);var a=!N,f=new Set;if(Is(()=>{var c=k;if(p)Ge={effect:c,effect_deps:new Set,warned:!1};var h=Ln();o=h.promise;try{Promise.resolve(e()).then(h.resolve,(d)=>{if(d!==Pt)h.reject(d)}).finally(Mr)}catch(d){h.reject(d),Mr()}if(p){if(Ge){if(c.deps!==null)for(let d=0;d<Be;d+=1)Ge.effect_deps.add(c.deps[d]);if(ye!==null)for(let d=0;d<ye.length;d+=1)Ge.effect_deps.add(ye[d])}Ge=null}var m=T;if(a){if((c.f&Pe)!==0)var v=Ai();if(n.b?.is_rendered())m.async_deriveds.get(c)?.reject(Pr);else for(let d of f.values())d.reject(Pr);f.add(h),m.async_deriveds.set(c,h)}let _=(d,y=void 0)=>{if(p)Ge=null;if(v?.(),f.delete(h),y===Pr)return;if(m.activate(),y)i.f|=it,yt(i,y);else{if((i.f&it)!==0)i.f^=it;if(p&&r!==void 0&&!i.equals(d))_n.add(i),setTimeout(()=>{if(_n.has(i)&&(c.f&W)===0)os(i.label,r),_n.delete(i)});yt(i,d)}m.deactivate()};h.promise.then(_,(d)=>_(null,d||"unknown"))}),be(()=>{for(let c of f)c.reject(Pr)}),p)i.f|=Ke;return new Promise((c)=>{function h(m){function v(){if(m===o)c(i);else h(o)}m.then(v,v)}h(o)})}function no(e){let t=Lr(e);if(!ce)oo(t);return t}function Fr(e){let t=Lr(e);return t.equals=qn,t}function Cs(e){var t=e.effects;if(t!==null){e.effects=null;for(var r=0;r<t.length;r+=1)ae(t[r])}}var Ri=[];function vn(e){var t,r=k,n=e.parent;if(!lt&&n!==null&&e.v!==Z&&(n.f&(W|fe))!==0)return is(),e.v;if(_e(n),p){let o=hr;to(new Set);try{if(Lt.call(Ri,e))ds();Ri.push(e),Cs(e),t=ro(e)}finally{_e(r),to(o),Ri.pop()}}else try{Cs(e),t=ro(e)}finally{_e(r)}return t}function ji(e){var t=vn(e);if(!e.equals(t)){if(e.wv=Br(),!T?.is_fork||e.deps===null){if(T!==null)T.capture(e,t,!0),Qe?.capture(e,t,!0);else e.v=t;if(e.deps===null){q(e,G);return}}}if(lt)return;if($e!==null){if(Jt()||T?.is_fork)$e.set(e,t)}else Dr(e)}function Os(e){if(e.effects===null)return;for(let t of e.effects)if(t.teardown||t.ac){if(t.teardown?.(),t.ac!==null)Je(()=>{t.ac.abort(Pt),t.ac=null});if(t.fn!==null)t.teardown=Et;gr(t,0),mn(t)}}function Ci(e){if(e.effects===null)return;for(let t of e.effects)if(t.teardown&&t.fn!==null)Rt(t)}var io=null,Yr=null,T=null,Qe=null,$e=null,Di=null,mr=!1,Oi=!1,Hr=null,hn=null,Ds=0,Ii=new Set,Hf=1;class je{id=Hf++;started=!1;linked=!0;prev=null;next=null;async_deriveds=new Map;current=new Map;previous=new Map;#e=new Set;#t=new Set;#r=0;#s=new Map;#o=null;#n=[];#a=[];#i=new Map;#l=new Map;#d=new Set;is_fork=!1;#f=!1;constructor(){if(Yr===null)io=Yr=this;else Yr.next=this,this.prev=Yr;Yr=this}#v(){if(this.is_fork)return!0;for(let e of this.#s.keys())if(!this.#g(e))return!0;return!1}#g(e){for(var t=e;t!==null;t=t.parent)if(this.#l.has(t))return!0;return!1}skip_effect(e){if(!this.#l.has(e))this.#l.set(e,{d:[],m:[]});this.#d.delete(e)}unskip_effect(e,t=(r)=>this.schedule(r)){var r=this.#l.get(e);if(r){this.#l.delete(e);for(var n of r.d)q(n,F),t(n);for(n of r.m)q(n,oe),t(n)}this.#d.add(e)}#c(){var e=[];for(let o of this.#n){if((o.f&W)!==0||(o.f&(F|oe))===0)continue;var t=o,r=!1;while(t.parent!==null){t=t.parent;var n=t.f;if((n&(He|ge))!==0){if((n&G)===0){r=!0;break}t.f^=G}}if(!r)e.push(t)}return this.#n=[],e}#m(){if(this.started=!0,p)for(let a of this.current.keys())Ii.add(a);for(let[a,f]of this.#i)q(a,f),this.schedule(a);this.apply();var e=Hr=[],t=[],r=hn=[];while(this.#n.length>0){if(Ds++>1000)this.#p(),Vf();for(let a of this.#c())try{this.#x(a,e,t)}catch(f){if(Ps(a),!this.#v())this.discard();throw f}}if(T=null,r.length>0){var n=je.ensure();for(let a of r)n.schedule(a)}if(Hr=null,hn=null,this.#v()){this.#_(t),this.#_(e);for(let[a,f]of this.#l)Fs(a,f);if(r.length>0)T.#m();return}let o=this.#y();if(o){this.#_(t),this.#_(e),o.#u(this);return}this.#i.clear();for(let a of this.#e)a(this);this.#e.clear(),Qe=this,Ms(t),Ms(e),Qe=null,this.#o?.resolve();var i=T;if(this.#r===0&&(this.#n.length===0||i!==null)){if(this.#p(),ce)this.#b(),T=i}if(i!==null)ct.clear(),i.#m()}#x(e,t,r){e.f^=G;var n=e.first;while(n!==null){var o=n.f,i=(o&(ge|He))!==0,a=i&&(o&G)!==0,f=a||(o&fe)!==0||this.#l.has(n);if(!f&&n.fn!==null){if(i)n.f^=G;else if((o&kt)!==0)t.push(n);else if(ce&&(o&(zt|cr))!==0)r.push(n);else if(er(n)){if((o&Se)!==0)this.add_dirty_reaction(n,oe);Rt(n)}var c=n.first;if(c!==null){n=c;continue}}while(n!==null){var h=n.next;if(h!==null){n=h;break}n=n.parent}}}#y(){for(var e=this.prev;e!==null;e=e.prev)if(!e.is_fork&&this.#h(e))return e;return null}#h(e){for(let[t,[,r]]of this.current){if(r)continue;if(e.current.has(t))return!0}return!1}#u(e){for(let[r,n]of e.current){if(!this.previous.has(r)&&e.previous.has(r))this.previous.set(r,e.previous.get(r));this.current.set(r,n)}for(let[r,n]of e.async_deriveds){let o=this.async_deriveds.get(r);if(o)n.promise.then(o.resolve).catch(o.reject)}e.async_deriveds.clear(),this.transfer_reactions(e.#i);let t=(r)=>{var n=r.reactions;if(n===null)return;if((r.f&te)!==0&&(r.f&(F|oe))===0)return;for(let a of n){var o=a.f;if((o&te)!==0)t(a);else{var i=a;if(o&(Ke|Se)&&!this.async_deriveds.has(i))this.#i.delete(i),q(i,F),this.schedule(i)}}};for(let r of this.current.keys())t(r);this.oncommit(()=>e.discard()),e.#p(),T=this,this.#m()}#_(e){for(var t=0;t<e.length;t+=1)Jn(e[t],this.#i)}capture(e,t,r=!1){if(e.v!==Z&&!this.previous.has(e))this.previous.set(e,e.v);if((e.f&it)===0)this.current.set(e,[t,r]),$e?.set(e,t);if(!this.is_fork)e.v=t}activate(){T=this}deactivate(){T=null,$e=null}flush(){try{if(p)Ii.clear();Oi=!0,T=this,this.#m()}finally{if(Ds=0,Di=null,Hr=null,hn=null,Oi=!1,T=null,$e=null,ct.clear(),p)for(let e of Ii)e.updated=null}}discard(){for(let e of this.#t)e(this);this.#t.clear();for(let e of this.async_deriveds.values())e.reject(Pr);this.#p(),this.#o?.resolve()}register_created_effect(e){this.#a.push(e)}#b(){for(let m=io;m!==null;m=m.next){var e=m.id<this.id,t=[];for(let[v,[_,d]]of this.current){if(m.current.has(v)){var r=m.current.get(v)[0];if(e&&_!==r)m.current.set(v,[_,d]);else continue}t.push(v)}if(e)for(let[v,_]of this.async_deriveds){let d=m.async_deriveds.get(v);if(d)_.promise.then(d.resolve).catch(d.reject)}var n=[...m.current.keys()].filter((v)=>!m.current.get(v)[1]);if(!m.started||n.length===0)continue;var o=n.filter((v)=>!this.current.has(v));if(o.length===0){if(e)m.discard()}else if(t.length>0){if(p&&!m.#f)Ts(m.#n.length===0,"Batch has scheduled effects");if(e)for(let v of this.#d)m.unskip_effect(v,(_)=>{if((_.f&(Se|Ke))!==0)m.schedule(_);else m.#_([_])});m.activate();var i=new Set,a=new Map;for(var f of t)Ls(f,o,i,a);a=new Map;var c=[...m.current].filter(([v,_])=>{let d=this.current.get(v);if(!d)return!0;return d[0]!==_[0]||d[1]!==_[1]}).map(([v])=>v);if(c.length>0){for(let v of this.#a)if((v.f&(W|fe|Kt))===0&&Mi(v,c,a))if((v.f&(Ke|Se))!==0)q(v,F),m.schedule(v);else m.add_dirty_reaction(v,F)}if(m.#n.length>0&&!m.#f){m.apply();for(var h of m.#c())m.#x(h,[],[])}m.deactivate()}}}increment(e,t){if(this.#r+=1,e){let r=this.#s.get(t)??0;this.#s.set(t,r+1)}}decrement(e,t){if(this.#r-=1,e){let r=this.#s.get(t)??0;if(r===1)this.#s.delete(t);else this.#s.set(t,r-1)}if(this.#f)return;this.#f=!0,ue(()=>{if(this.#f=!1,this.linked)this.flush()})}transfer_reactions(e){for(let[t,r]of e)this.add_dirty_reaction(t,r);e.clear()}add_dirty_reaction(e,t){if(t===F||this.#i.get(e)!==F)this.#i.set(e,t)}oncommit(e){this.#e.add(e)}ondiscard(e){this.#t.add(e)}settled(){return(this.#o??=Ln()).promise}static ensure(){if(T===null){let e=T=new je;if(!Oi&&!mr)ue(()=>{if(!e.started)e.flush()})}return T}apply(){if(!ce||!this.is_fork&&this.prev===null&&this.next===null){$e=null;return}$e=new Map;for(let[e,[t]]of this.current)$e.set(e,t);for(let e=io;e!==null;e=e.next){if(e===this||e.is_fork)continue;if(e.id>=this.id||!e.#h(this)){for(let[t,r]of e.previous)if(!$e.has(t))$e.set(t,r)}}}schedule(e){if(Di=e,e.b?.is_pending&&(e.f&(kt|zt|cr))!==0&&(e.f&Pe)===0){e.b.defer_effect(e);return}this.#n.push(e)}#p(){if(!this.linked)return;var e=this.prev,t=this.next;if(e===null)io=t;else e.next=t;if(t===null)Yr=e;else t.prev=e;this.linked=!1}}function Qt(e){var t=mr,r=Qe;Qe=null,mr=!0;try{var n;if(e)Qt(),n=e();while(!0){if(Ss(),T===null)return n;T.flush()}}finally{mr=t,Qe=r}}function Vf(){if(p){var e=new Map;for(let r of T.current.keys())for(let[n,o]of r.updated??[]){var t=e.get(n);if(!t)t={error:o.error,count:0},e.set(n,t);t.count+=o.count}for(let r of e.values())if(r.error)console.error(r.error)}try{gs()}catch(r){if(p)he(r,"stack",{value:""});Ue(r,Di)}}var ft=null;function Ms(e){var t=e.length;if(t===0)return;var r=0;while(r<t){var n=e[r++];if((n.f&(W|fe))===0&&er(n)){if(ft=new Set,Rt(n),n.deps===null&&n.first===null&&n.nodes===null&&n.teardown===null&&n.ac===null)Li(n);if(ft?.size>0){ct.clear();for(let o of ft){if((o.f&(W|fe))!==0)continue;let i=[o],a=o.parent;while(a!==null){if(ft.has(a))ft.delete(a),i.push(a);a=a.parent}for(let f=i.length-1;f>=0;f--){let c=i[f];if((c.f&(W|fe))!==0)continue;Rt(c)}}ft.clear()}}}ft=null}function Ls(e,t,r,n){if(r.has(e))return;if(r.add(e),e.reactions!==null)for(let o of e.reactions){let i=o.f;if((i&te)!==0)Ls(o,t,r,n);else if((i&(Ke|Se))!==0&&(i&F)===0&&Mi(o,t,n))q(o,F),gn(o)}}function Mi(e,t,r){let n=r.get(e);if(n!==void 0)return n;if(e.deps!==null)for(let o of e.deps){if(Lt.call(t,o))return!0;if((o.f&te)!==0&&Mi(o,t,r))return r.set(o,!0),!0}return r.set(e,!1),!1}function gn(e){T.schedule(e)}function Fs(e,t){if((e.f&ge)!==0&&(e.f&G)!==0)return;if((e.f&F)!==0)t.d.push(e);else if((e.f&oe)!==0)t.m.push(e);q(e,G);var r=e.first;while(r!==null)Fs(r,t),r=r.next}function Ps(e){q(e,G);var t=e.first;while(t!==null)Ps(t),t=t.next}var hr=new Set,ct=new Map;function to(e){hr=e}var Pi=!1;function Ys(){Pi=!0}function De(e,t){var r={f:0,v:e,reactions:null,equals:Gn,rv:0,wv:0};if(p&&gt)r.created=t??xt("created at"),r.updated=null,r.set_during_effect=!1,r.trace=null;return r}function P(e,t){let r=De(e,t);return oo(r),r}function br(e,t=!1,r=!0){let n=De(e);if(!t)n.equals=qn;if(Xt&&r&&L!==null&&L.l!==null)(L.l.s??=[]).push(n);return n}function A(e,t,r=!1){if(N!==null&&(!Ye||(N.f&Kt)!==0)&&Nt()&&(N.f&(te|Se|Ke|Kt))!==0&&($t===null||!$t.has(e)))ws();let n=r?ut(t):t;if(p)Wn(n,e.label);return yt(e,n,hn)}var xr=null,Fi=0;function yt(e,t,r=null){if(!e.equals(t)){if(lt)ct.set(e,t);else if(!ct.has(e))ct.set(e,e.v);var n=je.ensure();if(n.capture(e,t),p){if(gt||k!==null){e.updated??=new Map;let o=(e.updated.get("")?.count??0)+1;if(e.updated.set("",{error:null,count:o}),gt||o>5){let i=xt("updated at");if(i!==null){let a=e.updated.get(i.stack);if(!a)a={error:i,count:0},e.updated.set(i.stack,a);a.count++}}}if(k!==null)e.set_during_effect=!0}if((e.f&te)!==0){let o=e;if((e.f&F)!==0)vn(o);if($e===null)Dr(o)}if(e.wv=Br(),xr=null,Fi=0,Hs(e,F,r),xr=null,Nt()&&k!==null&&(k.f&G)!==0&&(k.f&(ge|He))===0)if(et===null)Vs([e]);else et.push(e);if(!n.is_fork&&hr.size>0&&!Pi)ao()}return t}function ao(){Pi=!1;for(let e of hr){if((e.f&G)!==0)q(e,oe);let t;try{t=er(e)}catch{t=!0}if(t)Rt(e)}hr.clear()}function yr(e){A(e,e.v+1)}function Hs(e,t,r){var n=e.reactions;if(n===null)return;var o=Nt(),i=n.length;if(Fi+=i,Fi>1e5&&xr===null)xr=new Set;if(xr!==null){if(xr.has(e))return;xr.add(e)}for(var a=0;a<i;a++){var f=n[a],c=f.f;if(!o&&f===k)continue;var h=(c&F)===0;if(h)q(f,t);if((c&Kt)!==0)hr.add(f);else if((c&te)!==0){var m=f;$e?.delete(m),Hs(m,oe,r)}else if(h){var v=f;if((c&Se)!==0&&ft!==null)ft.add(v);if(r!==null)r.push(v);else gn(v)}}}var Gf=/^[a-zA-Z_$][a-zA-Z_$0-9]*$/;function ut(e){if(typeof e!=="object"||e===null||We in e||Pn in e)return e;let t=Rr(e);if(t!==pi&&t!==Wa)return e;var r=new Map,n=mt(e),o=P(0),i=p&&gt?xt("created at"):null,a=tr,f=(v)=>{if(tr===a)return v();var _=N,d=tr;de(null),Bi(a);var y=v();return de(_),Bi(d),y};if(n){if(r.set("length",P(e.length,i)),p)e=zf(e)}var c="";let h=!1;function m(v){if(h)return;h=!0,c=v,Ie(o,`${c} version`);for(let[_,d]of r)Ie(d,$r(c,_));h=!1}return new Proxy(e,{defineProperty(v,_,d){if(!("value"in d)||d.configurable===!1||d.enumerable===!1||d.writable===!1)ys();var y=r.get(_);if(y===void 0)f(()=>{var R=P(d.value,i);if(r.set(_,R),p&&typeof _==="string")Ie(R,$r(c,_));return R});else A(y,d.value,!0);return!0},deleteProperty(v,_){var d=r.get(_);if(d===void 0){if(_ in v){let y=f(()=>P(Z,i));if(r.set(_,y),yr(o),p)Ie(y,$r(c,_))}}else A(d,Z),yr(o);return!0},get(v,_,d){if(_===We)return e;if(p&&_===Yn)return m;var y=r.get(_),R=_ in v;if(y===void 0&&(!R||ze(v,_)?.writable))y=f(()=>{var C=ut(R?v[_]:Z),Y=P(C,i);if(p)Ie(Y,$r(c,_));return Y}),r.set(_,y);if(y!==void 0){var b=l(y);return b===Z?void 0:b}return Reflect.get(v,_,d)},getOwnPropertyDescriptor(v,_){this.has?.(v,_);var d=Reflect.getOwnPropertyDescriptor(v,_),y=r.get(_);if(y!==void 0){var R=l(y);if(R===Z)return;if(d&&"value"in d)d.value=R;else return{enumerable:!0,configurable:!0,value:R,writable:!0}}return d},has(v,_){if(_===We)return!0;var d=r.get(_),y=d!==void 0&&d.v!==Z||Reflect.has(v,_);if(d!==void 0||(k!==null||N!==null)&&(!y||ze(v,_)?.writable)){if(d===void 0)d=f(()=>{var b=y?ut(v[_]):Z,C=P(b,i);if(p)Ie(C,$r(c,_));return C}),r.set(_,d);var R=l(d);if(R===Z)return!1}return y},set(v,_,d,y){var R=r.get(_),b=_ in v;if(n&&_==="length")for(var C=d;C<R.v;C+=1){var Y=r.get(C+"");if(Y!==void 0)A(Y,Z);else if(C in v){if(Y=f(()=>P(Z,i)),r.set(C+"",Y),p)Ie(Y,$r(c,C))}}if(R===void 0){if(!b||ze(v,_)?.writable){if(R=f(()=>P(void 0,i)),p)Ie(R,$r(c,_));A(R,ut(d)),r.set(_,R)}}else{b=R.v!==Z;var ee=f(()=>ut(d));A(R,ee)}var le=Reflect.getOwnPropertyDescriptor(v,_);if(le?.set)le.set.call(y,d);if(!b){if(n&&typeof _==="string"){var dt=r.get("length"),Ee=Number(_);if(Number.isInteger(Ee)&&Ee>=dt.v)A(dt,Ee+1)}yr(o)}return!0},ownKeys(v){l(o);var _=Reflect.ownKeys(v).filter((R)=>{var b=r.get(R);return b===void 0||b.v!==Z});for(var[d,y]of r)if(y.v!==Z&&!(d in v))_.push(d);return _},setPrototypeOf(){$s()}})}function $r(e,t){if(typeof t==="symbol")return`${e}[Symbol(${t.description??""})]`;if(Gf.test(t))return`${e}.${t}`;return/^\d+$/.test(t)?`${e}[${t}]`:`${e}['${t}']`}function Vr(e){try{if(e!==null&&typeof e==="object"&&We in e)return e[We]}catch{}return e}function so(e,t){return Object.is(Vr(e),Vr(t))}var qf=new Set(["copyWithin","fill","pop","push","reverse","shift","sort","splice","unshift"]);function zf(e){return new Proxy(e,{get(t,r,n){var o=Reflect.get(t,r,n);if(!qf.has(r))return o;return function(...i){Ys();var a=o.apply(this,i);return ao(),a}}})}function Us(){let{prototype:e,__svelte_cleanup:t}=Array;if(t)t();let{indexOf:r,lastIndexOf:n,includes:o}=e;e.indexOf=function(i,a){let f=r.call(this,i,a);if(f===-1){for(let c=a??0;c<this.length;c+=1)if(Vr(this[c])===i){Un("array.indexOf(...)");break}}return f},e.lastIndexOf=function(i,a){let f=n.call(this,i,a??this.length-1);if(f===-1){for(let c=0;c<=(a??this.length-1);c+=1)if(Vr(this[c])===i){Un("array.lastIndexOf(...)");break}}return f},e.includes=function(i,a){let f=o.call(this,i,a);if(!f){for(let c=0;c<this.length;c+=1)if(Vr(this[c])===i){Un("array.includes(...)");break}}return f},Array.__svelte_cleanup=()=>{e.indexOf=r,e.lastIndexOf=n,e.includes=o}}var Ur,Gs,xn,qs,zs;function lo(){if(Ur!==void 0)return;Ur=window,Gs=document,xn=/Firefox/.test(navigator.userAgent);var e=Element.prototype,t=Node.prototype,r=Text.prototype;if(qs=ze(t,"firstChild").get,zs=ze(t,"nextSibling").get,di(e))e[sn]=void 0,e[Hn]=null,e[mi]=void 0,e.__e=void 0;if(di(r))r[ln]=void 0;if(p)e.__svelte_meta=null,Us()}function se(e=""){return document.createTextNode(e)}function ie(e){return qs.call(e)}function xe(e){return zs.call(e)}function O(e,t){if(!w)return ie(e);var r=ie(j);if(r===null)r=j.appendChild(se());else if(t&&r.nodeType!==ur){var n=se();return r?.before(n),U(n),n}if(t)bn(r);return U(r),r}function Vt(e,t=!1){if(!w){var r=ie(e);if(r instanceof Comment&&r.data==="")return xe(r);return r}if(t){if(j?.nodeType!==ur){var n=se();return j?.before(n),U(n),n}bn(j)}return j}function X(e,t=!1){if(!w)return ie(e);var r=O(e,t);return S(e),r}function x(e,t=1,r=!1){let n=w?j:e;var o;while(t--)o=n,n=xe(n);if(!w)return n;if(r){if(n?.nodeType!==ur){var i=se();if(n===null)o?.after(i);else n.before(i);return U(i),i}bn(n)}return U(n),n}function pn(e){e.textContent=""}function fo(){if(!ce)return!1;if(ft!==null)return!1;var e=k.f;return(e&Pe)!==0}function jt(e,t,r){if(t==null||t===Vn)return r?document.createElement(e,{is:r}):document.createElement(e);return r?document.createElementNS(t,e,{is:r}):document.createElementNS(t,e)}function bn(e){if(e.nodeValue.length<65536)return;let t=e.nextSibling;while(t!==null&&t.nodeType===ur)t.remove(),e.nodeValue+=t.nodeValue,t=e.nextSibling}var Yi=new WeakMap;function Ks(e){var t=k;if(t===null)return N.f|=it,e;if(p&&e instanceof Error&&!Yi.has(e))Yi.set(e,Kf(e,t));if((t.f&Pe)===0&&(t.f&kt)===0){if(p&&!t.parent&&e instanceof Error)Ws(e);throw e}Ue(e,t)}function Ue(e,t){if(e===Ze)throw e;if(t!==null&&(t.f&W)!==0)return;while(t!==null){if((t.f&jr)!==0&&(t.f&(W|Ft))===0){if((t.f&Pe)===0)throw e;try{t.b.error(e);return}catch(r){e=r}}t=t.parent}if(p&&e instanceof Error)Ws(e);throw e}function Kf(e,t){let r=ze(e,"message");if(r&&!r.configurable)return;var n=xn?"  ":"\t",o=`
+https://svelte.dev/e/rune_outside_svelte`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/rune_outside_svelte")}function Ss(){if(d){let e=Error("state_descriptors_fixed\nProperty descriptors defined on `$state` objects must contain `value` and always be `enumerable`, `configurable` and `writable`.\nhttps://svelte.dev/e/state_descriptors_fixed");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/state_descriptors_fixed")}function Ns(){if(d){let e=Error("state_prototype_fixed\nCannot set prototype of `$state` object\nhttps://svelte.dev/e/state_prototype_fixed");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/state_prototype_fixed")}function Rs(){if(d){let e=Error("state_unsafe_mutation\nUpdating state inside `$derived(...)`, `$inspect(...)` or a template expression is forbidden. If the value should not be reactive, declare it without `$state`\nhttps://svelte.dev/e/state_unsafe_mutation");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/state_unsafe_mutation")}function Cs(){if(d){let e=Error("svelte_boundary_reset_onerror\nA `<svelte:boundary>` `reset` function cannot be called while an error is still being handled\nhttps://svelte.dev/e/svelte_boundary_reset_onerror");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/svelte_boundary_reset_onerror")}var pe=!1,Qt=!1,gt=!1;var cn=null;function De(e,t){return e.label=t,Jn(e.v,t),e}function Jn(e,t){return e?.[Un]?.(t),e}function bt(e){let t=Error(),r=Zf();if(r.length===0)return null;return r.unshift(`
+`),xe(t,"stack",{value:r.join(`
+`)}),xe(t,"name",{value:e}),t}function Zf(){let e=Error.stackTraceLimit;Error.stackTraceLimit=1/0;let t=Error().stack;if(Error.stackTraceLimit=e,!t)return[];let r=t.split(`
+`),n=[];for(let o=0;o<r.length;o++){let i=r[o],s=i.replaceAll("\\","/");if(i.trim()==="Error")continue;if(i.includes("validate_each_keys"))return[];if(s.includes("svelte/src/internal")||s.includes("node_modules/.vite"))continue;n.push(i)}return n}function Is(e,t){if(!d)throw Error("invariant(...) was not guarded by if (DEV)");if(!e)ms(t)}var P=null;function Ht(e){P=e}var Nt=null;function Lr(e){Nt=e}var xt=null;function Qn(e){xt=e}function un(e,t=!1,r){if(P={p:P,i:!1,c:null,e:null,s:e,x:null,r:k,l:Qt&&!t?{s:null,u:null,$:[]}:null},d)P.function=r,xt=r}function dn(e){var t=P,r=t.e;if(r!==null){t.e=null;for(var n of r)Ci(n)}if(e!==void 0)t.x=e;if(t.i=!0,P=t.p,d)xt=P?.function??null;return eo(e)}function eo(e={}){return xe(e,Hn,{value:!0}),e}function Rt(){return!Qt||P!==null&&P.l===null}var mr=[];function Ds(){var e=mr;mr=[],Bn(e)}function _e(e){if(mr.length===0&&!gr){var t=mr;queueMicrotask(()=>{if(t===mr)Ds()})}mr.push(e)}function Ms(){while(mr.length>0)Ds()}var Xf=~(j|ie|z);function K(e,t){e.f=e.f&Xf|t}function Fr(e){if((e.f&Pe)!==0||e.deps===null)K(e,z);else K(e,ie)}function to(e,t){if((e.f&j)!==0)t.set(e,j);else if((e.f&ie)!==0&&t.get(e)!==j)t.set(e,ie);K(e,z)}function Ls(e){return`{${e.toString().replace(/^async \(\) => /,"").replace(/^\(/,"").replace(/\$\.get\((.+?)\)/g,(t,r)=>r).replace(/\$\.track_reactivity_loss\((.+?)\)\(\)/g,(t,r)=>r).replace(/\)$/,"")}}`}var Fs=!1;function ro(){if(!Fs)Fs=!0,document.addEventListener("reset",(e)=>{Promise.resolve().then(()=>{if(!e.defaultPrevented)for(let t of e.target.elements)t[Xt]?.()})},{capture:!0})}function rt(e){var t=N,r=k;he(null),me(null);try{return e()}finally{he(t),me(r)}}function _n(e,t,r,n=r){e.addEventListener(t,()=>rt(r));let o=e[Xt];if(o)e[Xt]=()=>{o(),n(!0)};else e[Xt]=()=>n(!0);ro()}function no(e,t,r,n){let o=Rt()?Br:jr;var i=e.filter((p)=>!p.settled),s=t.map(o);if(d)s.forEach((p,y)=>{p.label=t[y].toString().replace("() => ","").replaceAll("$.eager(() => ","$state.eager(").replace(/\$\.get\((.+?)\)/g,(R,x)=>x)});if(r.length===0&&i.length===0){n(s);return}var c=k,u=Ps(),m=i.length===1?i[0].promise:i.length>1?Promise.all(i.map((p)=>p.promise)):null;function h(p){if((c.f&Z)!==0)return;u();try{n([...s,...p])}catch(y){Ke(y,c)}Pr()}var v=Oi();if(r.length===0){m.then(()=>h([])).finally(v);return}function _(){Promise.all(r.map((p)=>Di(p))).then(h).catch((p)=>Ke(p,c)).finally(v)}if(m)m.then(()=>{if((c.f&Z)!==0){v();return}u(),_(),Pr()});else _()}function Ps(){var e=k,t=N,r=P,n=S;if(d)var o=Nt;return function(s=!0){if(me(e),he(t),Ht(r),s&&(e.f&Z)===0)n?.activate(),n?.apply();if(d)Ii(null),Lr(o)}}var Jf=!1;function Pr(e=!0){if(Jf=!1,me(null),he(null),Ht(null),e)S?.deactivate();if(d)Ii(null),Lr(null)}function Oi(){var e=k,t=e.b,r=S,n=!!t?.is_rendered();return t?.update_pending_count(1,r),r.increment(n,e),()=>{t?.update_pending_count(-1,r),r.decrement(n,e)}}var We=null;function Ii(e){We=e}var vn=new Set;function Br(e){var t=ne|j;if(k!==null)k.f|=At;let r={ctx:P,deps:null,effects:null,equals:Kn,f:t,fn:e,reactions:null,rv:0,v:X,wv:0,parent:k,ac:null};if(d&&gt)r.created=bt("created at");return r}var Yr=Symbol("obsolete");function Di(e,t,r){let n=k;if(n===null)bs();var o=void 0,i=Me(X);if(d)i.label=t??Ls(e);var s=!N,c=new Set;if(Ys(()=>{var u=k;if(d)We={effect:u,effect_deps:new Set,warned:!1};var m=jn();o=m.promise;try{Promise.resolve(e()).then(m.resolve,(p)=>{if(p!==Bt)m.reject(p)}).finally(Pr)}catch(p){m.reject(p),Pr()}if(d){if(We){if(u.deps!==null)for(let p=0;p<je;p+=1)We.effect_deps.add(u.deps[p]);if(Ee!==null)for(let p=0;p<Ee.length;p+=1)We.effect_deps.add(Ee[p])}We=null}var h=S;if(s){if((u.f&Be)!==0)var v=Oi();if(n.b?.is_rendered())h.async_deriveds.get(u)?.reject(Yr);else for(let p of c.values())p.reject(Yr);c.add(m),h.async_deriveds.set(u,m)}let _=(p,y=void 0)=>{if(d)We=null;if(v?.(),c.delete(m),y===Yr)return;if(h.activate(),y)i.f|=ft,$t(i,y);else{if((i.f&ft)!==0)i.f^=ft;if(d&&r!==void 0&&!i.equals(p))vn.add(i),setTimeout(()=>{if(vn.has(i)&&(u.f&Z)===0)us(i.label,r),vn.delete(i)});$t(i,p)}h.deactivate()};m.promise.then(_,(p)=>_(null,p||"unknown"))}),we(()=>{for(let u of c)u.reject(Yr)}),d)i.f|=Qe;return new Promise((u)=>{function m(h){function v(){if(h===o)u(i);else m(o)}h.then(v,v)}m(o)})}function ao(e){let t=Br(e);if(!pe)so(t);return t}function jr(e){let t=Br(e);return t.equals=Wn,t}function Bs(e){var t=e.effects;if(t!==null){e.effects=null;for(var r=0;r<t.length;r+=1)se(t[r])}}var Mi=[];function hn(e){var t,r=k,n=e.parent;if(!dt&&n!==null&&e.v!==X&&(n.f&(Z|de))!==0)return ds(),e.v;if(me(n),d){let o=br;oo(new Set);try{if(Ft.call(Mi,e))xs();Mi.push(e),Bs(e),t=io(e)}finally{me(r),oo(o),Mi.pop()}}else try{Bs(e),t=io(e)}finally{me(r)}return t}function Li(e){var t=hn(e);if(!e.equals(t)){if(e.wv=Hr(),!S?.is_fork||e.deps===null){if(S!==null)S.capture(e,t,!0),nt?.capture(e,t,!0);else e.v=t;if(e.deps===null){K(e,z);return}}}if(dt)return;if(ke!==null){if(er()||S?.is_fork)ke.set(e,t)}else Fr(e)}function js(e){if(e.effects===null)return;for(let t of e.effects)if(t.teardown||t.ac){if(t.teardown?.(),t.ac!==null)rt(()=>{t.ac.abort(Bt),t.ac=null});if(t.fn!==null)t.teardown=kt;xr(t,0),mn(t)}}function Fi(e){if(e.effects===null)return;for(let t of e.effects)if(t.teardown&&t.fn!==null)Ct(t)}var lo=null,Vr=null,S=null,nt=null,ke=null,ji=null,gr=!1,Pi=!1,Ur=null,gn=null,Hs=0,Bi=new Set,tc=1;class Oe{id=tc++;started=!1;linked=!0;prev=null;next=null;async_deriveds=new Map;current=new Map;previous=new Map;#e=new Set;#t=new Set;#r=0;#s=new Map;#o=null;#n=[];#a=[];#i=new Map;#l=new Map;#p=new Set;is_fork=!1;#f=!1;constructor(){if(Vr===null)lo=Vr=this;else Vr.next=this,this.prev=Vr;Vr=this}#v(){if(this.is_fork)return!0;for(let e of this.#s.keys())if(!this.#g(e))return!0;return!1}#g(e){for(var t=e;t!==null;t=t.parent)if(this.#l.has(t))return!0;return!1}skip_effect(e){if(!this.#l.has(e))this.#l.set(e,{d:[],m:[]});this.#p.delete(e)}unskip_effect(e,t=(r)=>this.schedule(r)){var r=this.#l.get(e);if(r){this.#l.delete(e);for(var n of r.d)K(n,j),t(n);for(n of r.m)K(n,ie),t(n)}this.#p.add(e)}#c(){var e=[];for(let o of this.#n){if((o.f&Z)!==0||(o.f&(j|ie))===0)continue;var t=o,r=!1;while(t.parent!==null){t=t.parent;var n=t.f;if((n&(Ge|$e))!==0){if((n&z)===0){r=!0;break}t.f^=z}}if(!r)e.push(t)}return this.#n=[],e}#h(){if(this.started=!0,d)for(let s of this.current.keys())Bi.add(s);for(let[s,c]of this.#i)K(s,c),this.schedule(s);this.apply();var e=Ur=[],t=[],r=gn=[];while(this.#n.length>0){if(Hs++>1000)this.#d(),rc();for(let s of this.#c())try{this.#b(s,e,t)}catch(c){if(qs(s),!this.#v())this.discard();throw c}}if(S=null,r.length>0){var n=Oe.ensure();for(let s of r)n.schedule(s)}if(Ur=null,gn=null,this.#v()){this.#_(t),this.#_(e);for(let[s,c]of this.#l)Gs(s,c);if(r.length>0)S.#h();return}let o=this.#$();if(o){this.#_(t),this.#_(e),o.#u(this);return}this.#i.clear();for(let s of this.#e)s(this);this.#e.clear(),nt=this,Vs(t),Vs(e),nt=null,this.#o?.resolve();var i=S;if(this.#r===0&&(this.#n.length===0||i!==null)){if(this.#d(),pe)this.#x(),S=i}if(i!==null)_t.clear(),i.#h()}#b(e,t,r){e.f^=z;var n=e.first;while(n!==null){var o=n.f,i=(o&($e|Ge))!==0,s=i&&(o&z)!==0,c=s||(o&de)!==0||this.#l.has(n);if(!c&&n.fn!==null){if(i)n.f^=z;else if((o&Tt)!==0)t.push(n);else if(pe&&(o&(Wt|dr))!==0)r.push(n);else if(rr(n)){if((o&Ne)!==0)this.add_dirty_reaction(n,ie);Ct(n)}var u=n.first;if(u!==null){n=u;continue}}while(n!==null){var m=n.next;if(m!==null){n=m;break}n=n.parent}}}#$(){for(var e=this.prev;e!==null;e=e.prev)if(!e.is_fork&&this.#m(e))return e;return null}#m(e){for(let[t,[,r]]of this.current){if(r)continue;if(e.current.has(t))return!0}return!1}#u(e){for(let[r,n]of e.current){if(!this.previous.has(r)&&e.previous.has(r))this.previous.set(r,e.previous.get(r));this.current.set(r,n)}for(let[r,n]of e.async_deriveds){let o=this.async_deriveds.get(r);if(o)n.promise.then(o.resolve).catch(o.reject)}e.async_deriveds.clear(),this.transfer_reactions(e.#i);let t=(r)=>{var n=r.reactions;if(n===null)return;if((r.f&ne)!==0&&(r.f&(j|ie))===0)return;for(let s of n){var o=s.f;if((o&ne)!==0)t(s);else{var i=s;if(o&(Qe|Ne)&&!this.async_deriveds.has(i))this.#i.delete(i),K(i,j),this.schedule(i)}}};for(let r of this.current.keys())t(r);this.oncommit(()=>e.discard()),e.#d(),S=this,this.#h()}#_(e){for(var t=0;t<e.length;t+=1)to(e[t],this.#i)}capture(e,t,r=!1){if(e.v!==X&&!this.previous.has(e))this.previous.set(e,e.v);if((e.f&ft)===0)this.current.set(e,[t,r]),ke?.set(e,t);if(!this.is_fork)e.v=t}activate(){S=this}deactivate(){S=null,ke=null}flush(){try{if(d)Bi.clear();Pi=!0,S=this,this.#h()}finally{if(Hs=0,ji=null,Ur=null,gn=null,Pi=!1,S=null,ke=null,_t.clear(),d)for(let e of Bi)e.updated=null}}discard(){for(let e of this.#t)e(this);this.#t.clear();for(let e of this.async_deriveds.values())e.reject(Yr);this.#d(),this.#o?.resolve()}register_created_effect(e){this.#a.push(e)}#x(){for(let h=lo;h!==null;h=h.next){var e=h.id<this.id,t=[];for(let[v,[_,p]]of this.current){if(h.current.has(v)){var r=h.current.get(v)[0];if(e&&_!==r)h.current.set(v,[_,p]);else continue}t.push(v)}if(e)for(let[v,_]of this.async_deriveds){let p=h.async_deriveds.get(v);if(p)_.promise.then(p.resolve).catch(p.reject)}var n=[...h.current.keys()].filter((v)=>!h.current.get(v)[1]);if(!h.started||n.length===0)continue;var o=n.filter((v)=>!this.current.has(v));if(o.length===0){if(e)h.discard()}else if(t.length>0){if(d&&!h.#f)Is(h.#n.length===0,"Batch has scheduled effects");if(e)for(let v of this.#p)h.unskip_effect(v,(_)=>{if((_.f&(Ne|Qe))!==0)h.schedule(_);else h.#_([_])});h.activate();var i=new Set,s=new Map;for(var c of t)Us(c,o,i,s);s=new Map;var u=[...h.current].filter(([v,_])=>{let p=this.current.get(v);if(!p)return!0;return p[0]!==_[0]||p[1]!==_[1]}).map(([v])=>v);if(u.length>0){for(let v of this.#a)if((v.f&(Z|de|Zt))===0&&Yi(v,u,s))if((v.f&(Qe|Ne))!==0)K(v,j),h.schedule(v);else h.add_dirty_reaction(v,j)}if(h.#n.length>0&&!h.#f){h.apply();for(var m of h.#c())h.#b(m,[],[])}h.deactivate()}}}increment(e,t){if(this.#r+=1,e){let r=this.#s.get(t)??0;this.#s.set(t,r+1)}}decrement(e,t){if(this.#r-=1,e){let r=this.#s.get(t)??0;if(r===1)this.#s.delete(t);else this.#s.set(t,r-1)}if(this.#f)return;this.#f=!0,_e(()=>{if(this.#f=!1,this.linked)this.flush()})}transfer_reactions(e){for(let[t,r]of e)this.add_dirty_reaction(t,r);e.clear()}add_dirty_reaction(e,t){if(t===j||this.#i.get(e)!==j)this.#i.set(e,t)}oncommit(e){this.#e.add(e)}ondiscard(e){this.#t.add(e)}settled(){return(this.#o??=jn()).promise}static ensure(){if(S===null){let e=S=new Oe;if(!Pi&&!gr)_e(()=>{if(!e.started)e.flush()})}return S}apply(){if(!pe||!this.is_fork&&this.prev===null&&this.next===null){ke=null;return}ke=new Map;for(let[e,[t]]of this.current)ke.set(e,t);for(let e=lo;e!==null;e=e.next){if(e===this||e.is_fork)continue;if(e.id>=this.id||!e.#m(this)){for(let[t,r]of e.previous)if(!ke.has(t))ke.set(t,r)}}}schedule(e){if(ji=e,e.b?.is_pending&&(e.f&(Tt|Wt|dr))!==0&&(e.f&Be)===0){e.b.defer_effect(e);return}this.#n.push(e)}#d(){if(!this.linked)return;var e=this.prev,t=this.next;if(e===null)lo=t;else e.next=t;if(t===null)Vr=e;else t.prev=e;this.linked=!1}}function tr(e){var t=gr,r=nt;nt=null,gr=!0;try{var n;if(e)tr(),n=e();while(!0){if(Ms(),S===null)return n;S.flush()}}finally{gr=t,nt=r}}function rc(){if(d){var e=new Map;for(let r of S.current.keys())for(let[n,o]of r.updated??[]){var t=e.get(n);if(!t)t={error:o.error,count:0},e.set(n,t);t.count+=o.count}for(let r of e.values())if(r.error)console.error(r.error)}try{ks()}catch(r){if(d)xe(r,"stack",{value:""});Ke(r,ji)}}var pt=null;function Vs(e){var t=e.length;if(t===0)return;var r=0;while(r<t){var n=e[r++];if((n.f&(Z|de))===0&&rr(n)){if(pt=new Set,Ct(n),n.deps===null&&n.first===null&&n.nodes===null&&n.teardown===null&&n.ac===null)Hi(n);if(pt?.size>0){_t.clear();for(let o of pt){if((o.f&(Z|de))!==0)continue;let i=[o],s=o.parent;while(s!==null){if(pt.has(s))pt.delete(s),i.push(s);s=s.parent}for(let c=i.length-1;c>=0;c--){let u=i[c];if((u.f&(Z|de))!==0)continue;Ct(u)}}pt.clear()}}}pt=null}function Us(e,t,r,n){if(r.has(e))return;if(r.add(e),e.reactions!==null)for(let o of e.reactions){let i=o.f;if((i&ne)!==0)Us(o,t,r,n);else if((i&(Qe|Ne))!==0&&(i&j)===0&&Yi(o,t,n))K(o,j),bn(o)}}function Yi(e,t,r){let n=r.get(e);if(n!==void 0)return n;if(e.deps!==null)for(let o of e.deps){if(Ft.call(t,o))return!0;if((o.f&ne)!==0&&Yi(o,t,r))return r.set(o,!0),!0}return r.set(e,!1),!1}function bn(e){S.schedule(e)}function Gs(e,t){if((e.f&$e)!==0&&(e.f&z)!==0)return;if((e.f&j)!==0)t.d.push(e);else if((e.f&ie)!==0)t.m.push(e);K(e,z);var r=e.first;while(r!==null)Gs(r,t),r=r.next}function qs(e){K(e,z);var t=e.first;while(t!==null)qs(t),t=t.next}var br=new Set,_t=new Map;function oo(e){br=e}var Ui=!1;function Ks(){Ui=!0}function Me(e,t){var r={f:0,v:e,reactions:null,equals:Kn,rv:0,wv:0};if(d&&gt)r.created=t??bt("created at"),r.updated=null,r.set_during_effect=!1,r.trace=null;return r}function B(e,t){let r=Me(e,t);return so(r),r}function yr(e,t=!1,r=!0){let n=Me(e);if(!t)n.equals=Wn;if(Qt&&r&&P!==null&&P.l!==null)(P.l.s??=[]).push(n);return n}function T(e,t,r=!1){if(N!==null&&(!Ye||(N.f&Zt)!==0)&&Rt()&&(N.f&(ne|Ne|Qe|Zt))!==0&&(yt===null||!yt.has(e)))Rs();let n=r?it(t):t;if(d)Jn(n,e.label);return $t(e,n,gn)}var $r=null,Vi=0;function $t(e,t,r=null){if(!e.equals(t)){if(dt)_t.set(e,t);else if(!_t.has(e))_t.set(e,e.v);var n=Oe.ensure();if(n.capture(e,t),d){if(gt||k!==null){e.updated??=new Map;let o=(e.updated.get("")?.count??0)+1;if(e.updated.set("",{error:null,count:o}),gt||o>5){let i=bt("updated at");if(i!==null){let s=e.updated.get(i.stack);if(!s)s={error:i,count:0},e.updated.set(i.stack,s);s.count++}}}if(k!==null)e.set_during_effect=!0}if((e.f&ne)!==0){let o=e;if((e.f&j)!==0)hn(o);if(ke===null)Fr(o)}if(e.wv=Hr(),$r=null,Vi=0,Ws(e,j,r),$r=null,Rt()&&k!==null&&(k.f&z)!==0&&(k.f&($e|Ge))===0)if(ot===null)Zs([e]);else ot.push(e);if(!n.is_fork&&br.size>0&&!Ui)fo()}return t}function fo(){Ui=!1;for(let e of br){if((e.f&z)!==0)K(e,ie);let t;try{t=rr(e)}catch{t=!0}if(t)Ct(e)}br.clear()}function wr(e){T(e,e.v+1)}function Ws(e,t,r){var n=e.reactions;if(n===null)return;var o=Rt(),i=n.length;if(Vi+=i,Vi>1e5&&$r===null)$r=new Set;if($r!==null){if($r.has(e))return;$r.add(e)}for(var s=0;s<i;s++){var c=n[s],u=c.f;if(!o&&c===k)continue;var m=(u&j)===0;if(m)K(c,t);if((u&Zt)!==0)br.add(c);else if((u&ne)!==0){var h=c;ke?.delete(h),Ws(h,ie,r)}else if(m){var v=c;if((u&Ne)!==0&&pt!==null)pt.add(v);if(r!==null)r.push(v);else bn(v)}}}var oc=/^[a-zA-Z_$][a-zA-Z_$0-9]*$/;function it(e){if(typeof e!=="object"||e===null||et in e||Hn in e)return e;let t=Or(e);if(t!==mi&&t!==rs)return e;var r=new Map,n=ht(e),o=B(0),i=d&&gt?bt("created at"):null,s=nr,c=(v)=>{if(nr===s)return v();var _=N,p=nr;he(null),Gi(s);var y=v();return he(_),Gi(p),y};if(n){if(r.set("length",B(e.length,i)),d)e=ac(e)}var u="";let m=!1;function h(v){if(m)return;m=!0,u=v,De(o,`${u} version`);for(let[_,p]of r)De(p,Er(u,_));m=!1}return new Proxy(e,{defineProperty(v,_,p){if(!("value"in p)||p.configurable===!1||p.enumerable===!1||p.writable===!1)Ss();var y=r.get(_);if(y===void 0)c(()=>{var R=B(p.value,i);if(r.set(_,R),d&&typeof _==="string")De(R,Er(u,_));return R});else T(y,p.value,!0);return!0},deleteProperty(v,_){var p=r.get(_);if(p===void 0){if(_ in v){let y=c(()=>B(X,i));if(r.set(_,y),wr(o),d)De(y,Er(u,_))}}else T(p,X),wr(o);return!0},get(v,_,p){if(_===et)return e;if(d&&_===Un)return h;var y=r.get(_),R=_ in v;if(y===void 0&&(!R||Je(v,_)?.writable))y=c(()=>{var D=it(R?v[_]:X),V=B(D,i);if(d)De(V,Er(u,_));return V}),r.set(_,y);if(y!==void 0){var x=l(y);return x===X?void 0:x}return Reflect.get(v,_,p)},getOwnPropertyDescriptor(v,_){this.has?.(v,_);var p=Reflect.getOwnPropertyDescriptor(v,_),y=r.get(_);if(y!==void 0){var R=l(y);if(R===X)return;if(p&&"value"in p)p.value=R;else return{enumerable:!0,configurable:!0,value:R,writable:!0}}return p},has(v,_){if(_===et)return!0;var p=r.get(_),y=p!==void 0&&p.v!==X||Reflect.has(v,_);if(p!==void 0||(k!==null||N!==null)&&(!y||Je(v,_)?.writable)){if(p===void 0)p=c(()=>{var x=y?it(v[_]):X,D=B(x,i);if(d)De(D,Er(u,_));return D}),r.set(_,p);var R=l(p);if(R===X)return!1}return y},set(v,_,p,y){var R=r.get(_),x=_ in v;if(n&&_==="length")for(var D=p;D<R.v;D+=1){var V=r.get(D+"");if(V!==void 0)T(V,X);else if(D in v){if(V=c(()=>B(X,i)),r.set(D+"",V),d)De(V,Er(u,D))}}if(R===void 0){if(!x||Je(v,_)?.writable){if(R=c(()=>B(void 0,i)),d)De(R,Er(u,_));T(R,it(p)),r.set(_,R)}}else{x=R.v!==X;var re=c(()=>it(p));T(R,re)}var fe=Reflect.getOwnPropertyDescriptor(v,_);if(fe?.set)fe.set.call(y,p);if(!x){if(n&&typeof _==="string"){var vt=r.get("length"),Ae=Number(_);if(Number.isInteger(Ae)&&Ae>=vt.v)T(vt,Ae+1)}wr(o)}return!0},ownKeys(v){l(o);var _=Reflect.ownKeys(v).filter((R)=>{var x=r.get(R);return x===void 0||x.v!==X});for(var[p,y]of r)if(y.v!==X&&!(p in v))_.push(p);return _},setPrototypeOf(){Ns()}})}function Er(e,t){if(typeof t==="symbol")return`${e}[Symbol(${t.description??""})]`;if(oc.test(t))return`${e}.${t}`;return/^\d+$/.test(t)?`${e}[${t}]`:`${e}['${t}']`}function Gr(e){try{if(e!==null&&typeof e==="object"&&et in e)return e[et]}catch{}return e}function co(e,t){return Object.is(Gr(e),Gr(t))}var ic=new Set(["copyWithin","fill","pop","push","reverse","shift","sort","splice","unshift"]);function ac(e){return new Proxy(e,{get(t,r,n){var o=Reflect.get(t,r,n);if(!ic.has(r))return o;return function(...i){Ks();var s=o.apply(this,i);return fo(),s}}})}function Xs(){let{prototype:e,__svelte_cleanup:t}=Array;if(t)t();let{indexOf:r,lastIndexOf:n,includes:o}=e;e.indexOf=function(i,s){let c=r.call(this,i,s);if(c===-1){for(let u=s??0;u<this.length;u+=1)if(Gr(this[u])===i){zn("array.indexOf(...)");break}}return c},e.lastIndexOf=function(i,s){let c=n.call(this,i,s??this.length-1);if(c===-1){for(let u=0;u<=(s??this.length-1);u+=1)if(Gr(this[u])===i){zn("array.lastIndexOf(...)");break}}return c},e.includes=function(i,s){let c=o.call(this,i,s);if(!c){for(let u=0;u<this.length;u+=1)if(Gr(this[u])===i){zn("array.includes(...)");break}}return c},Array.__svelte_cleanup=()=>{e.indexOf=r,e.lastIndexOf=n,e.includes=o}}var qr,Js,xn,Qs,el;function uo(){if(qr!==void 0)return;qr=window,Js=document,xn=/Firefox/.test(navigator.userAgent);var e=Element.prototype,t=Node.prototype,r=Text.prototype;if(Qs=Je(t,"firstChild").get,el=Je(t,"nextSibling").get,gi(e))e[ln]=void 0,e[Gn]=null,e[$i]=void 0,e.__e=void 0;if(gi(r))r[fn]=void 0;if(d)e.__svelte_meta=null,Xs()}function le(e=""){return document.createTextNode(e)}function ae(e){return Qs.call(e)}function ye(e){return el.call(e)}function O(e,t){if(!w)return ae(e);var r=ae(C);if(r===null)r=C.appendChild(le());else if(t&&r.nodeType!==pr){var n=le();return r?.before(n),q(n),n}if(t)$n(r);return q(r),r}function Vt(e,t=!1){if(!w){var r=ae(e);if(r instanceof Comment&&r.data==="")return ye(r);return r}if(t){if(C?.nodeType!==pr){var n=le();return C?.before(n),q(n),n}$n(C)}return C}function W(e,t=!1){if(!w)return ae(e);var r=O(e,t);return A(e),r}function g(e,t=1,r=!1){let n=w?C:e;var o;while(t--)o=n,n=ye(n);if(!w)return n;if(r){if(n?.nodeType!==pr){var i=le();if(n===null)o?.after(i);else n.before(i);return q(i),i}$n(n)}return q(n),n}function pn(e){e.textContent=""}function po(){if(!pe)return!1;if(pt!==null)return!1;var e=k.f;return(e&Be)!==0}function Ot(e,t,r){if(t==null||t===qn)return r?document.createElement(e,{is:r}):document.createElement(e);return r?document.createElementNS(t,e,{is:r}):document.createElementNS(t,e)}function $n(e){if(e.nodeValue.length<65536)return;let t=e.nextSibling;while(t!==null&&t.nodeType===pr)t.remove(),e.nodeValue+=t.nodeValue,t=e.nextSibling}var qi=new WeakMap;function tl(e){var t=k;if(t===null)return N.f|=ft,e;if(d&&e instanceof Error&&!qi.has(e))qi.set(e,sc(e,t));if((t.f&Be)===0&&(t.f&Tt)===0){if(d&&!t.parent&&e instanceof Error)rl(e);throw e}Ke(e,t)}function Ke(e,t){if(e===tt)throw e;if(t!==null&&(t.f&Z)!==0)return;while(t!==null){if((t.f&Ir)!==0&&(t.f&(Z|Pt))===0){if((t.f&Be)===0)throw e;try{t.b.error(e);return}catch(r){e=r}}t=t.parent}if(d&&e instanceof Error)rl(e);throw e}function sc(e,t){let r=Je(e,"message");if(r&&!r.configurable)return;var n=xn?"  ":"\t",o=`
 ${n}in ${t.fn?.name||"<unknown>"}`,i=t.ctx;while(i!==null)o+=`
-${n}in ${i.function?.[st].split("/").pop()}`,i=i.p;return{message:e.message+`
+${n}in ${i.function?.[ut].split("/").pop()}`,i=i.p;return{message:e.message+`
 ${o}
 `,stack:e.stack?.split(`
-`).filter((a)=>!a.includes("svelte/src/internal")).join(`
-`)}}function Ws(e){let t=Yi.get(e);if(t)he(e,"message",{value:t.message}),he(e,"stack",{value:t.stack})}function Zs(e){if(k===null){if(N===null)hs(e);ms()}if(lt)vs(e)}function Wf(e,t){var r=t.last;if(r===null)t.last=t.first=e;else r.next=e,e.prev=r,t.last=e}function Ct(e,t){var r=k;if(p)while(r!==null&&(r.f&Kt)!==0)r=r.parent;if(r!==null&&(r.f&fe)!==0)e|=fe;var n={ctx:L,deps:null,nodes:null,f:e|F|Fe,first:null,fn:t,last:null,next:null,parent:r,b:r&&r.b,prev:null,teardown:null,wv:0,ac:null};if(p)n.component_function=bt;T?.register_created_effect(n);var o=n;if((e&kt)!==0)if(Hr!==null)Hr.push(n);else je.ensure().schedule(n);else if(t!==null){try{Rt(n)}catch(a){throw ae(n),a}if(o.deps===null&&o.teardown===null&&o.nodes===null&&o.first===o.last&&(o.f&Tt)===0){if(o=o.first,(e&Se)!==0&&(e&Ve)!==0&&o!==null)o.f|=Ve}}if(o!==null){if(o.parent=r,r!==null)Wf(o,r);if(N!==null&&(N.f&te)!==0&&(e&He)===0){var i=N;(i.effects??=[]).push(o)}}return n}function Jt(){return N!==null&&!Ye}function be(e){let t=Ct(zt,null);return q(t,G),t.teardown=e,t}function Gr(e){if(Zs("$effect"),p)he(e,"name",{value:"$effect"});var t=k.f,r=!N&&(t&ge)!==0&&L!==null&&!L.i;if(r){var n=L;(n.e??=[]).push(e)}else return Ti(e)}function Ti(e){return Ct(kt|Za,e)}function Vi(e){je.ensure();let t=Ct(He|Tt,e);return()=>{ae(t)}}function Xs(e){je.ensure();let t=Ct(He|Tt,e);return(r={})=>new Promise((n)=>{if(r.outro)Ot(t,()=>{ae(t),n(void 0)});else ae(t),n(void 0)})}function tt(e){return Ct(kt,e)}function Is(e){return Ct(Ke|Tt,e)}function we(e,t=0){return Ct(zt|t,e)}function V(e,t=[],r=[],n=[]){eo(n,t,r,(o)=>{Ct(zt,()=>{e(...o.map(l))})})}function rt(e,t=0){var r=Ct(Se|t,e);if(p)r.dev_stack=St;return r}function ve(e){return Ct(ge|Tt,e)}function Ui(e){var t=e.teardown;if(t!==null){let r=lt,n=N;Hi(!0),de(null);try{t.call(null)}catch(o){Ue(o,e.parent)}finally{Hi(r),de(n)}}}function mn(e,t=!1){var r=e.first;e.first=e.last=null;while(r!==null){let o=r.ac;if(o!==null)Je(()=>{o.abort(Pt)});var n=r.next;if((r.f&He)!==0)r.parent=null;else ae(r,t);r=n}}function Js(e){var t=e.first;while(t!==null){var r=t.next;if((t.f&ge)===0)ae(t);t=r}}function ae(e,t=!0){var r=!1;if((t||(e.f&vi)!==0)&&e.nodes!==null&&e.nodes.end!==null)Qs(e.nodes.start,e.nodes.end),r=!0;e.f|=Ft,mn(e,t&&!r),gr(e,0);var n=e.nodes&&e.nodes.t;if(n!==null)for(let i of n)i.stop();Ui(e),e.f^=Ft,e.f|=W;var o=e.parent;if(o!==null&&o.first!==null)Li(e);if(p)e.component_function=null;e.next=e.prev=e.teardown=e.ctx=e.deps=e.fn=e.nodes=e.ac=e.b=null}function Qs(e,t){while(e!==null){var r=e===t?null:xe(e);e.remove(),e=r}}function Li(e){var{parent:t,prev:r,next:n}=e;if(r!==null)r.next=n;if(n!==null)n.prev=r;if(t!==null){if(t.first===e)t.first=n;if(t.last===e)t.last=r}}function Ot(e,t,r=!0){var n=[];e.f|=Fn,el(e,n,!0);var o=()=>{if(r)ae(e);if(t)t()},i=n.length;if(i>0){var a=()=>--i||o();for(var f of n)f.out(a)}else o()}function el(e,t,r){if((e.f&fe)!==0)return;e.f^=fe;var n=e.nodes&&e.nodes.t;if(n!==null){for(let f of n)if(f.is_global||r)t.push(f)}var o=e.first;while(o!==null){var i=o.next;if((o.f&He)===0){var a=(o.f&Ve)!==0||(o.f&ge)!==0&&(e.f&Se)!==0;el(o,t,a?r:!1)}o=i}}function qr(e){e.f&=~Fn,tl(e,!0)}function tl(e,t){if((e.f&Fn)!==0)return;if((e.f&fe)===0)return;if(e.f^=fe,(e.f&G)===0)q(e,F),je.ensure().schedule(e);var r=e.first;while(r!==null){var n=r.next,o=(r.f&Ve)!==0||(r.f&ge)!==0;tl(r,o?t:!1),r=n}var i=e.nodes&&e.nodes.t;if(i!==null){for(let a of i)if(a.is_global||t)a.in()}}function zr(e,t){if(!e.nodes)return;var r=e.nodes.start,n=e.nodes.end;while(r!==null){var o=r===n?null:xe(r);t.append(r),r=o}}var rl=null;var lt=!1;function Hi(e){lt=e}var N=null,Ye=!1;function de(e){N=e}var k=null;function _e(e){k=e}var $t=null;function oo(e){if(N!==null&&(!ce&&(N.f&Cr)!==0||(N.f&te)!==0))($t??=new Set).add(e)}var ye=null,Be=0,et=null;function Vs(e){et=e}var ol=1,wr=0,tr=wr;function Bi(e){tr=e}function Br(){return++ol}function er(e){var t=e.f;if((t&F)!==0)return!0;if((t&oe)!==0){var r=e.deps,n=r.length;for(var o=0;o<n;o++){var i=r[o];if(er(i))ji(i);if(i.wv>e.wv)return!0}if((t&Fe)!==0&&$e===null)q(e,G)}return!1}function il(e,t,r=!0){var n=e.reactions;if(n===null)return;if(!ce&&$t!==null&&$t.has(e))return;for(var o=0;o<n.length;o++){var i=n[o];if((i.f&te)!==0)il(i,t,!1);else if(t===i){if(r)q(i,F);else if((i.f&G)!==0)q(i,oe);gn(i)}}}function ro(e){var t=ye,r=Be,n=et,o=N,i=$t,a=L,f=Ye,c=tr,h=e.f;if(ye=null,Be=0,et=null,N=(h&(ge|He))===0?e:null,$t=null,Ht(e.ctx),Ye=!1,tr=++wr,e.ac!==null)Je(()=>{e.ac.abort(Pt)}),e.ac=null;try{e.f|=Cr;var m=e.fn,v=m();e.f|=Pe;var _=nl(e);if(Nt()&&et!==null&&!Ye&&_!==null&&(e.f&(te|oe|F))===0)for(var d=0;d<et.length;d++)il(et[d],e);if(o!==null&&o!==e){if(wr++,o.deps!==null)for(let y=0;y<r;y+=1)o.deps[y].rv=wr;if(t!==null)for(let y of t)y.rv=wr;if(et!==null)if(n===null)n=et;else n.push(...et)}if((e.f&it)!==0)e.f^=it;return v}catch(y){return nl(e),Ks(y)}finally{e.f^=Cr,ye=t,Be=r,et=n,N=o,$t=i,Ht(a),Ye=f,tr=c}}function nl(e){var t=e.deps,r=T?.is_fork;if(ye!==null){var n;if(!r)gr(e,Be);if(t!==null&&Be>0){t.length=Be+ye.length;for(n=0;n<ye.length;n++)t[Be+n]=ye[n]}else e.deps=t=ye;if(Jt()&&(e.f&Fe)!==0)for(n=Be;n<t.length;n++)(t[n].reactions??=[]).push(e)}else if(!r&&t!==null&&Be<t.length)gr(e,Be),t.length=Be;return t}function Zf(e,t){let r=t.reactions;if(r!==null){var n=Ka.call(r,e);if(n!==-1){var o=r.length-1;if(o===0)r=t.reactions=null;else r[n]=r[o],r.pop()}}if(r===null&&(t.f&te)!==0&&(ye===null||!Lt.call(ye,t))){var i=t;if((i.f&Fe)!==0)i.f^=Fe;if(i.v!==Z)Dr(i);if(i.ac!==null)Je(()=>{i.ac.abort(Pt),i.ac=null,q(i,F)});Os(i),gr(i,0)}}function gr(e,t){var r=e.deps;if(r===null)return;for(var n=t;n<r.length;n++)Zf(e,r[n])}function Rt(e){var t=e.f;if((t&W)!==0)return;q(e,G);var r=k;if(k=e,p){var n=bt;Zn(e.component_function);var o=St;Ir(e.dev_stack??St)}try{if((t&(Se|cr))!==0)Js(e);else mn(e);Ui(e);var i=ro(e);if(e.teardown=typeof i==="function"?i:null,e.wv=ol,p&&gt&&(e.f&F)!==0&&e.deps!==null){for(var a of e.deps)if(a.set_during_effect)a.wv=Br(),a.set_during_effect=!1}}finally{if(k=r,p)Zn(n),Ir(o)}}async function yn(){if(ce)return new Promise((e)=>{requestAnimationFrame(()=>e()),setTimeout(()=>e())});await Promise.resolve(),Qt()}function l(e){var t=e.f,r=(t&te)!==0;if(rl?.add(e),N!==null&&!Ye){var n=k!==null&&(k.f&W)!==0;if(!n&&($t===null||!$t.has(e))){var o=N.deps;if((N.f&Cr)!==0){if(e.rv<wr)if(e.rv=wr,ye===null&&o!==null&&o[Be]===e)Be++;else if(ye===null)ye=[e];else ye.push(e)}else{if(N.deps??=[],!Lt.call(N.deps,e))N.deps.push(e);var i=e.reactions;if(i===null)e.reactions=[N];else if(!Lt.call(i,N))i.push(N)}}}if(p){if(!Ye&&Ge&&T===null&&Qe===null&&!Ge.warned&&(Ge.effect.f&Cr)===0&&!Ge.effect_deps.has(e)){Ge.warned=!0,ns(e.label);var a=xt("traced at");if(a)console.warn(a)}if(_n.delete(e),gt&&!Ye&&fn!==null&&N!==null&&fn.reaction===N){if(e.trace)e.trace();else if(a=xt("traced at"),a){var f=fn.entries.get(e);if(f===void 0)f={traces:[]},fn.entries.set(e,f);var c=f.traces[f.traces.length-1];if(a.stack!==c?.stack)f.traces.push(a)}}}if(lt&&ct.has(e))return ct.get(e);if(r){var h=e;if(lt){var m=h.v;if((h.f&G)===0&&h.reactions!==null||sl(h))m=vn(h);return ct.set(h,m),m}var v=(h.f&Fe)===0&&!Ye&&N!==null&&(N.f&Fe)!==0,_=(h.f&Pe)===0;if(er(h)){if(v)h.f|=Fe;ji(h)}if(v&&!_)Ci(h),al(h)}if($e?.has(e))return $e.get(e);if((e.f&it)!==0)throw e.v;return e.v}function al(e){if(e.f|=Fe,e.deps===null)return;for(let r of e.deps){var t=r.reactions;if(t===null)r.reactions=[e];else if(!Lt.call(t,e))t.push(e);if((r.f&te)!==0&&(r.f&Fe)===0)Ci(r),al(r)}}function sl(e){if(e.v===Z)return!0;if(e.deps===null)return!1;for(let t of e.deps){if(ct.has(t))return!0;if((t.f&te)!==0&&sl(t))return!0}return!1}function J(e){var t=Ye;try{return Ye=!0,e()}finally{Ye=t}}var Jf=["allowfullscreen","async","autofocus","autoplay","checked","controls","default","disabled","formnovalidate","indeterminate","inert","ismap","loop","multiple","muted","nomodule","novalidate","open","playsinline","readonly","required","reversed","seamless","selected","webkitdirectory","defer","disablepictureinpicture","disableremoteplayback"];var B_=[...Jf,"formNoValidate","isMap","noModule","playsInline","readOnly","value","volume","defaultValue","defaultChecked","srcObject","noValidate","allowFullscreen","disablePictureInPicture","disableRemotePlayback"];var Qf=["touchstart","touchmove"];function ll(e){return Qf.includes(e)}var ec=["$state","$state.raw","$derived","$derived.by"],Y_=[...ec,"$state.eager","$state.snapshot","$props","$props.id","$bindable","$effect","$effect.pre","$effect.tracking","$effect.root","$effect.pending","$inspect","$inspect().with","$inspect.trace","$host"];var Kr=Symbol("events"),zi=new Set,co=new Set;function Ki(e){if(!w)return;e.removeAttribute("onload"),e.removeAttribute("onerror");let t=e.__e;if(t!==void 0)e.__e=void 0,queueMicrotask(()=>{if(e.isConnected)e.dispatchEvent(t)})}function ul(e,t,r,n={}){function o(i){if(!n.capture)po.call(t,i);if(!i.cancelBubble)return Je(()=>r?.call(this,i))}if(e.startsWith("pointer")||e.startsWith("touch")||e==="wheel")o.__removed=!1,ue(()=>{if(!o.__removed)t.addEventListener(e,o,n)});else t.addEventListener(e,o,n);return o}function pt(e,t,r,n,o){var i={capture:n,passive:o},a=ul(e,t,r,i);if(t===document.body||t===window||t===document||t instanceof HTMLMediaElement)be(()=>{a.__removed=!0,t.removeEventListener(e,a,i)})}function z(e,t,r){(t[Kr]??={})[e]=r}function uo(e){for(var t=0;t<e.length;t++)zi.add(e[t]);for(var r of co)r(e)}var Gi=null,qi=!1;function po(e){var t=this,r=t.ownerDocument,n=e.type,o=e.composedPath?.()||[],i=o[0]||e.target;if(Gi=e,!qi)qi=!0,setTimeout(()=>{qi=!1,Gi=null});var a=0,f=Gi===e&&e[Kr];if(f){var c=o.indexOf(f);if(c!==-1&&(t===document||t===window)){e[Kr]=t;return}var h=o.indexOf(t);if(h===-1)return;if(c<=h)a=c}if(i=o[a]||e.target,i===t)return;he(e,"currentTarget",{configurable:!0,get(){return i||r}});var m=N,v=k;de(null),_e(null);try{var _,d=[];while(i!==null){if(i===t)break;try{var y=i[Kr]?.[n];if(y!=null&&(!i.disabled||e.target===i))y.call(i,e)}catch(R){if(_)d.push(R);else _=R}if(e.cancelBubble)break;a++,i=a<o.length?o[a]:null}if(_){for(let R of d)queueMicrotask(()=>{throw R});throw _}}finally{e[Kr]=t,delete e.currentTarget,de(m),_e(v)}}var rc=globalThis?.window?.trustedTypes&&globalThis.window.trustedTypes.createPolicy("svelte-trusted-html",{createHTML:(e)=>e});function pl(e){return rc?.createHTML(e)??e}function _o(e){var t=jt("template");return t.innerHTML=pl(e.replaceAll("<!>","<!---->")),t.content}function Me(e,t){var r=k;if(r.nodes===null)r.nodes={start:e,end:t,a:null,t:null}}function re(e,t){var r=(t&bi)!==0,n=(t&rs)!==0,o,i=!e.startsWith("<!>");return()=>{if(w)return Me(j,null),j;if(o===void 0){if(o=_o(i?e:"<!>"+e),!r)o=ie(o)}var a=n||xn?document.importNode(o,!0):o.cloneNode(!0);if(r){var f=ie(a),c=a.lastChild;Me(f,c)}else Me(a,a);return a}}function ic(e,t,r="svg"){var n=!e.startsWith("<!>"),o=(t&bi)!==0,i=`<${r}>${n?e:"<!>"+e}</${r}>`,a;return()=>{if(w)return Me(j,null),j;if(!a){var f=_o(i),c=ie(f);if(o){a=document.createDocumentFragment();while(ie(c))a.appendChild(ie(c))}else a=ie(c)}var h=a.cloneNode(!0);if(o){var m=ie(h),v=h.lastChild;Me(m,v)}else Me(h,h);return h}}function Zi(e,t){return ic(e,t,"svg")}function Ut(e=""){if(!w){var t=se(e+"");return Me(t,t),t}var r=j;if(r.nodeType!==ur)r.before(r=se()),U(r);else bn(r);return Me(r,r),r}function Xi(){if(w)return Me(j,null),j;var e=document.createDocumentFragment(),t=document.createComment(""),r=se();return e.append(t,r),Me(t,r),e}function D(e,t){if(w){var r=k;if((r.f&Pe)===0||r.nodes.end===null)r.nodes.end=j;Oe();return}if(e===null)return;e.before(t)}function dl(e){let t=0,r=De(0),n;if(p)Ie(r,"createSubscriber version");return()=>{if(Jt())l(r),we(()=>{if(t===0)n=J(()=>e(()=>yr(r)));return t+=1,()=>{ue(()=>{if(t-=1,t===0)n?.(),n=void 0,yr(r)})}})}}var ac=Ve|Tt;function Ji(e,t,r,n){new _l(e,t,r,n)}class _l{parent;is_pending=!1;transform_error;#e;#t=w?j:null;#r;#s;#o;#n=null;#a=null;#i=null;#l=null;#d=0;#f=0;#v=!1;#g=new Map;#c=null;#m=dl(()=>{if(this.#c=De(this.#d),p)Ie(this.#c,"$effect.pending()");return()=>{this.#c=null}});constructor(e,t,r,n){if(this.#e=e,this.#r=t,this.#s=(o)=>{var i=k;i.b=this,i.f|=jr,r(o)},this.parent=k.b,this.transform_error=n??this.parent?.transform_error??((o)=>o),this.#o=rt(()=>{if(w){let o=_r(this.#t);Oe();let i=o===Zt;if(o.startsWith(yi)){let f=JSON.parse(o.slice(yi.length));this.#y(f)}else if(i)this.#_();else this.#x()}else this.#b()},ac),w)this.#e=j}#x(){try{this.#n=ve(()=>this.#s(this.#e))}catch(e){this.error(e)}}#y(e){let t=this.#r.failed,{reset:r,invoke_onerror:n}=this.#h(e);if(ue(n),!t)return;this.#i=ve(()=>{t(this.#e,()=>e,()=>r)})}#h(e){var t=!1,r=!1;let n=()=>{if(this.#u())return;if(t){fs();return}if(t=!0,r)Es();if(this.#i!==null)Ot(this.#i,()=>{this.#i=null});this.#$(()=>{this.#b()})};return{reset:n,invoke_onerror:()=>{if(this.#u())return;try{r=!0,this.#r.onerror?.(e,n),r=!1}catch(i){Ue(i,this.#o&&this.#o.parent)}}}}#u(){return(this.#o.f&(W|Ft))!==0}#_(){let e=this.#r.pending;if(!e)return;this.is_pending=!0,this.#a=ve(()=>e(this.#e)),ue(()=>{if(this.#u())return;var t=this.#l=document.createDocumentFragment(),r=se(),n=!1;if(t.append(r),this.#n=this.#$(()=>{try{return ve(()=>this.#s(r))}catch(o){try{this.error(o),n=!0}catch(i){Ue(i,this.#o.parent)}return null}}),this.#n===null){if(this.#l=null,n)this.#p(T);return}if(this.#f===0)this.#e.before(t),this.#l=null,Ot(this.#a,()=>{this.#a=null}),this.#p(T)})}#b(){try{if(this.is_pending=this.has_pending_snippet(),this.#f=0,this.#d=0,this.#n=ve(()=>{this.#s(this.#e)}),this.#f>0){var e=this.#l=document.createDocumentFragment();zr(this.#n,e);let t=this.#r.pending;this.#a=ve(()=>t(this.#e))}else this.#p(T)}catch(t){this.error(t)}}#p(e){this.is_pending=!1,e.transfer_reactions(this.#g)}defer_effect(e){Jn(e,this.#g)}is_rendered(){return!this.is_pending&&(!this.parent||this.parent.is_rendered())}has_pending_snippet(){return!!this.#r.pending}#$(e){var t=k,r=N,n=L;_e(this.#o),de(this.#o),Ht(this.#o.ctx);try{return je.ensure(),e()}finally{_e(t),de(r),Ht(n)}}#w(e,t){if(!this.has_pending_snippet()){if(this.parent)this.parent.#w(e,t);return}if(this.#f+=e,this.#f===0){if(this.#p(t),this.#a)Ot(this.#a,()=>{this.#a=null});if(this.#l)this.#e.before(this.#l),this.#l=null}}update_pending_count(e,t){if(this.#w(e,t),this.#d+=e,!this.#c||this.#v)return;this.#v=!0,ue(()=>{if(this.#v=!1,this.#c)yt(this.#c,this.#d)})}get_effect_pending(){return this.#m(),l(this.#c)}error(e){if(e===Ze)throw e;if(!this.#r.onerror&&!this.#r.failed)throw e;if(T?.is_fork){if(this.#n)T.skip_effect(this.#n);if(this.#a)T.skip_effect(this.#a);if(this.#i)T.skip_effect(this.#i);T.oncommit(()=>{if(!this.#u())this.#E(e)})}else this.#E(e)}#E(e){if(this.#n)ae(this.#n),this.#n=null;if(this.#a)ae(this.#a),this.#a=null;if(this.#i)ae(this.#i),this.#i=null;if(w)U(this.#t),Xe(),U(At());let t=this.#r.failed,r=(n)=>{if(this.#u())return;let{reset:o,invoke_onerror:i}=this.#h(n);if(i(),t&&!this.#u())this.#i=this.#$(()=>{try{return ve(()=>{var a=k;a.b=this,a.f|=jr,t(this.#e,()=>n,()=>o)})}catch(a){return Ue(a,this.#o.parent),null}})};ue(()=>{if(this.#u())return;var n;try{n=this.transform_error(e)}catch(o){Ue(o,this.#o&&this.#o.parent);return}if(n!==null&&typeof n==="object"&&typeof n.then==="function")n.then(r,(o)=>Ue(o,this.#o&&this.#o.parent));else r(n)})}}var Qi=!0;function M(e,t){var r=t==null?"":typeof t==="object"?`${t}`:t;if(r!==(e[ln]??=e.nodeValue))e[ln]=r,e.nodeValue=`${r}`}function Wr(e,t){return vl(e,t)}function ta(e,t){lo(),t.intro=t.intro??!1;let r=t.target,n=w,o=j;try{var i=ie(r);while(i&&(i.nodeType!==at||i.data!==Or))i=xe(i);if(!i)throw Ze;pe(!0),U(i);let a=vl(e,{...t,anchor:i});return pe(!1),a}catch(a){if(a instanceof Error&&a.message.split(`
-`).some((f)=>f.startsWith("https://svelte.dev/e/")))throw a;if(a!==Ze)console.warn("Failed to hydrate: ",a);if(t.recover===!1)xs();return lo(),pn(r),pe(!1),Wr(e,t)}finally{pe(n),U(o)}}var vo=new Map;function vl(e,{target:t,anchor:r,props:n={},events:o,context:i,intro:a=!0,transformError:f}){lo();var c=void 0,h=Xs(()=>{var m=r??t.appendChild(se());Ji(m,{pending:()=>{}},(d)=>{cn({});var y=L;if(i)y.c=i;if(o)n.$$events=o;if(w)Me(d,null);if(Qi=a,c=e(d,n)||Xn(),Qi=!0,w){if(k.nodes.end=j,j===null||j.nodeType!==at||j.data!==pr)throw dr(),Ze}un()},f);var v=new Set,_=(d)=>{for(var y=0;y<d.length;y++){var R=d[y];if(v.has(R))continue;v.add(R);var b=ll(R);for(let ee of[t,document]){var C=vo.get(ee);if(C===void 0)C=new Map,vo.set(ee,C);var Y=C.get(R);if(Y===void 0)ee.addEventListener(R,po,{passive:b}),C.set(R,1);else C.set(R,Y+1)}}};return _(Nr(zi)),co.add(_),()=>{for(var d of v)for(let b of[t,document]){var y=vo.get(b),R=y.get(d);if(--R==0){if(b.removeEventListener(d,po),y.delete(d),y.size===0)vo.delete(b)}else y.set(d,R)}if(co.delete(_),m!==r)m.parentNode?.removeChild(m)}});return ea.set(c,h),c}var ea=new WeakMap;function ra(e,t){let r=ea.get(e);if(r)return ea.delete(e),r(t);if(p)ss();return Promise.resolve()}class rr{anchor;#e=new Map;#t=new Map;#r=new Map;#s=new Set;#o=!0;constructor(e,t=!0){this.anchor=e,this.#o=t}#n=(e)=>{if(!this.#e.has(e))return;var t=this.#e.get(e),r=this.#t.get(t);if(r)qr(r),this.#s.delete(t);else{var n=this.#r.get(t);if(n){if(qr(n.effect),this.#t.set(t,n.effect),this.#r.delete(t),p)n.fragment.lastChild[hi]=this.anchor;n.fragment.lastChild.remove(),this.anchor.before(n.fragment),r=n.effect}}for(let[o,i]of this.#e){if(this.#e.delete(o),o===e)break;let a=this.#r.get(i);if(a)ae(a.effect),this.#r.delete(i)}for(let[o,i]of this.#t){if(o===t||this.#s.has(o))continue;let a=()=>{if(Array.from(this.#e.values()).includes(o)){var c=document.createDocumentFragment();zr(i,c),c.append(se()),this.#r.set(o,{effect:i,fragment:c})}else ae(i);this.#s.delete(o),this.#t.delete(o)};if(this.#o||!r)this.#s.add(o),Ot(i,a,!1);else a()}};#a=(e)=>{this.#e.delete(e);let t=Array.from(this.#e.values());for(let[r,n]of this.#r)if(!t.includes(r))ae(n.effect),this.#r.delete(r)};ensure(e,t){var r=T,n=fo();if(t&&!this.#t.has(e)&&!this.#r.has(e))if(n){var o=document.createDocumentFragment(),i=se();o.append(i),this.#r.set(e,{effect:ve(()=>t(i)),fragment:o})}else this.#t.set(e,ve(()=>t(this.anchor)));if(this.#e.set(r,e),n){for(let[a,f]of this.#t)if(a===e)r.unskip_effect(f);else r.skip_effect(f);for(let[a,f]of this.#r)if(a===e)r.unskip_effect(f.effect);else r.skip_effect(f.effect);r.oncommit(this.#n),r.ondiscard(this.#a)}else{if(w)this.anchor=j;this.#n(r)}}}function ne(e,t,r=!1){var n;if(w)n=j,Oe();var o=new rr(e),i=r?Ve:0;function a(f,c){if(w){var h=_r(n);if(f!==parseInt(h.substring(1))){var m=At();U(m),o.anchor=m,pe(!1),o.ensure(f,c),pe(!0);return}}o.ensure(f,c)}rt(()=>{var f=!1;if(t((c,h=0)=>{f=!0,a(h,c)}),!f)a(-1,null)},i)}var vh=Symbol("NaN");function oa(e,t){return t}function lc(e,t,r){var n=[],o=t.length,i,a=t.length;for(var f=0;f<o;f++){let v=t[f];Ot(v,()=>{if(i){if(i.pending.delete(v),i.done.add(v),i.pending.size===0){var _=e.outrogroups;if(na(e,Nr(i.done)),_.delete(i),_.size===0)e.outrogroups=null}}else a-=1},!1)}if(a===0){var c=n.length===0&&r!==null&&e.pending.size===0;if(c){var h=r,m=h.parentNode;pn(m),m.append(h),e.items.clear()}na(e,t,!c)}else i={pending:new Set(t),done:new Set},(e.outrogroups??=new Set).add(i)}function na(e,t,r=!0){var n;if(e.pending.size>0){n=new Set;for(let a of e.pending.values())for(let f of a)n.add(e.items.get(f).e)}for(var o=0;o<t.length;o++){var i=t[o];if(n?.has(i)){i.f|=ht;let a=document.createDocumentFragment();zr(i,a)}else ae(t[o],r)}}var ml;function or(e,t,r,n,o,i=null){var a=e,f=new Map,c=(t&xi)!==0;if(c){var h=e;a=w?U(ie(h)):h.appendChild(se())}if(w)Oe();var m=null,v=Fr(()=>{var Y=r();return mt(Y)?Y:Y==null?[]:Nr(Y)});if(p)Ie(v,"{#each ...}");var _=new Map,d=!0;function y(Y){if((C.effect.f&W)!==0)return;C.pending.delete(Y);var ee=l(v);if(C.fallback=m,fc(C,ee,a,t,n),m!==null)if(ee.length===0)if((m.f&ht)===0)qr(m);else m.f^=ht,wn(m,null,a);else Ot(m,()=>{m=null})}function R(Y){C.pending.delete(Y)}var b=rt(()=>{var Y=l(v),ee=Y.length;let le=!1;if(w){var dt=_r(a)===Zt;if(dt!==(ee===0))a=At(),U(a),pe(!1),le=!0}var Ee=new Set,ke=T,wt=fo();for(var Le=0;Le<ee;Le+=1){if(w&&j.nodeType===at&&j.data===pr)a=j,le=!0,pe(!1);var qe=Y[Le],Gt=n(qe,Le);if(p){var ar=n(qe,Le);if(Gt!==ar)_s(String(Le),String(Gt),String(ar))}var _t=d?null:f.get(Gt);if(_t){if(_t.v)yt(_t.v,qe);if(_t.i)yt(_t.i,Le);if(wt)ke.unskip_effect(_t.e)}else{if(_t=cc(f,d?a:ml??=se(),qe,Gt,Le,o,t,r),!d)_t.e.f|=ht;f.set(Gt,_t)}Ee.add(Gt)}if(ee===0&&i&&!m)if(d)m=ve(()=>i(a));else m=ve(()=>i(ml??=se())),m.f|=ht;if(ee>Ee.size)if(p)uc(Y,n);else ki("","","");if(w&&ee>0)U(At());if(!d)if(_.set(ke,Ee),wt){for(let[kn,Jr]of f)if(!Ee.has(kn))ke.skip_effect(Jr.e);ke.oncommit(y),ke.ondiscard(R)}else y(ke);if(le)pe(!0);l(v)}),C={effect:b,flags:t,items:f,pending:_,outrogroups:null,fallback:m};if(d=!1,w)a=j}function $n(e){while(e!==null&&(e.f&ge)===0)e=e.next;return e}function fc(e,t,r,n,o){var i=(n&es)!==0,a=t.length,f=e.items,c=$n(e.effect.first),h,m=null,v,_=[],d=[],y,R,b,C;if(i){for(C=0;C<a;C+=1)if(y=t[C],R=o(y,C),b=f.get(R).e,(b.f&ht)===0)b.nodes?.a?.measure(),(v??=new Set).add(b)}for(C=0;C<a;C+=1){if(y=t[C],R=o(y,C),b=f.get(R).e,e.outrogroups!==null)for(let qe of e.outrogroups)qe.pending.delete(b),qe.done.delete(b);if((b.f&fe)!==0){if(qr(b),i)b.nodes?.a?.unfix(),(v??=new Set).delete(b)}if((b.f&ht)!==0)if(b.f^=ht,b===c)wn(b,null,r);else{var Y=m?m.next:c;if(b===e.effect.last)e.effect.last=b.prev;if(b.prev)b.prev.next=b.next;if(b.next)b.next.prev=b.prev;nr(e,m,b),nr(e,b,Y),wn(b,Y,r),m=b,_=[],d=[],c=$n(m.next);continue}if(b!==c){if(h!==void 0&&h.has(b)){if(_.length<d.length){var ee=d[0],le;m=ee.prev;var dt=_[0],Ee=_[_.length-1];for(le=0;le<_.length;le+=1)wn(_[le],ee,r);for(le=0;le<d.length;le+=1)h.delete(d[le]);nr(e,dt.prev,Ee.next),nr(e,m,dt),nr(e,Ee,ee),c=ee,m=Ee,C-=1,_=[],d=[]}else h.delete(b),wn(b,c,r),nr(e,b.prev,b.next),nr(e,b,m===null?e.effect.first:m.next),nr(e,m,b),m=b;continue}_=[],d=[];while(c!==null&&c!==b)(h??=new Set).add(c),d.push(c),c=$n(c.next);if(c===null)continue}if((b.f&ht)===0)_.push(b);m=b,c=$n(b.next)}if(e.outrogroups!==null){for(let qe of e.outrogroups)if(qe.pending.size===0)na(e,Nr(qe.done)),e.outrogroups?.delete(qe);if(e.outrogroups.size===0)e.outrogroups=null}if(c!==null||h!==void 0){var ke=[];if(h!==void 0){for(b of h)if((b.f&fe)===0)ke.push(b)}while(c!==null){if((c.f&fe)===0&&c!==e.fallback)ke.push(c);c=$n(c.next)}var wt=ke.length;if(wt>0){var Le=(n&xi)!==0&&a===0?r:null;if(i){for(C=0;C<wt;C+=1)ke[C].nodes?.a?.measure();for(C=0;C<wt;C+=1)ke[C].nodes?.a?.fix()}lc(e,ke,Le)}}if(i)ue(()=>{if(v===void 0)return;for(b of v)b.nodes?.a?.apply()})}function cc(e,t,r,n,o,i,a,f){var c=(a&Ja)!==0?(a&ts)===0?br(r,!1,!1):De(r):null,h=(a&Qa)!==0?De(o):null;if(p&&c)c.trace=()=>{f()[h?.v??o]};return{v:c,i:h,e:ve(()=>(i(t,c??r,h??o,f),()=>{e.delete(n)}))}}function wn(e,t,r){if(!e.nodes)return;var n=e.nodes.start,o=e.nodes.end,i=t&&(t.f&ht)===0?t.nodes.start:r;while(n!==null){var a=xe(n);if(i.before(n),n===o)return;n=a}}function nr(e,t,r){if(t===null)e.effect.first=r;else t.next=r;if(r===null)e.effect.last=t;else r.prev=t}function uc(e,t){let r=new Map,n=e.length;for(let o=0;o<n;o++){let i=t(e[o],o);if(r.has(i)){let a=String(r.get(i)),f=String(o),c=String(i);if(c.startsWith("[object "))c=null;ki(a,f,c)}r.set(i,o)}}var gl=[...` 	
-\r\f \v\uFEFF`];function xl(e,t,r){var n=e==null?"":""+e;if(t)n=n?n+" "+t:t;if(r){for(var o of Object.keys(r))if(r[o])n=n?n+" "+o:o;else if(n.length){var i=o.length,a=0;while((a=n.indexOf(o,a))>=0){var f=a+i;if((a===0||gl.includes(n[a-1]))&&(f===n.length||gl.includes(n[f])))n=(a===0?"":n.substring(0,a))+n.substring(f+1);else a=f}}}return n===""?null:n}function ir(e,t,r,n,o,i){var a=e[sn];if(w||a!==r||a===void 0){var f=xl(r,n,i);if(!w||f!==e.getAttribute("class"))if(f==null)e.removeAttribute("class");else if(t)e.className=f;else e.setAttribute("class",f);e[sn]=r}else if(i&&o!==i)for(var c in i){var h=!!i[c];if(o==null||h!==!!o[c])e.classList.toggle(c,h)}return i}function ia(e,t){if(t){if(!e.hasAttribute("selected"))e.setAttribute("selected","")}else e.removeAttribute("selected")}function hc(e,t){var{__defaultValue:r,multiple:n}=e,o=n?r??[]:null;if(n&&!mt(o))return;var i=e.selectedIndex,a=t&&n?new Set(e.selectedOptions):null;for(var f of e.options){var c=Zr(f);ia(f,n?o.includes(c):so(c,r))}if(!t)return;if(a!==null)for(f of e.options){var h=a.has(f);if(f.selected!==h)f.selected=h}else if(e.selectedIndex!==i)e.selectedIndex=i}function Xr(e,t,r=!1){if(e.multiple){if(t==null)return;if(!mt(t))return ls();for(var n of e.options)n.selected=t.includes(Zr(n));return}for(n of e.options){var o=Zr(n);if(so(o,t)){n.selected=!0;return}}if(!r||t!==void 0)e.selectedIndex=-1}function Er(e){var t=new MutationObserver((r)=>{if(r.every(gc))return;if("__defaultValue"in e)hc(e,!1);if("__value"in e)Xr(e,e.__value)});t.observe(e,{childList:!0,subtree:!0,attributes:!0,attributeFilter:["value"]}),be(()=>{t.disconnect()})}function En(e,t,r=t){var n=new WeakSet,o=!0;dn(e,"change",(i)=>{var a=i?"[selected]":":checked",f;if(e.multiple)f=[].map.call(e.querySelectorAll(a),Zr);else{var c=e.querySelector(a)??e.querySelector("option:not([disabled])");f=c&&Zr(c)}if(r(f),e.__value=f,T!==null)n.add(T)}),tt(()=>{var i=t();if(e===document.activeElement){var a=ce?Qe:T;if(n.has(a))return}if(Xr(e,i,o),o&&i===void 0){var f=e.querySelector(":checked");if(f!==null)i=Zr(f),r(i)}e.__value=i,o=!1})}function Zr(e){if("__value"in e)return e.__value;else return e.value}function gc(e){if(e.target.closest("selectedcontent")!==null)return!0;if(e.type==="childList"){var t=[...e.addedNodes,...e.removedNodes];return t.length>0&&t.every((r)=>r.nodeName==="SELECTEDCONTENT")}return!1}var wc=Symbol("class"),Ec=Symbol("style"),kc=Symbol("is custom element"),Tc=Symbol("is html"),Ac=gi?"link":"LINK";function ot(e){if(!w)return;var t=!1,r=()=>{if(t)return;if(t=!0,e.hasAttribute("value")){var n=e.value;nt(e,"value",null),e.value=n}if(e.hasAttribute("checked")){var o=e.checked;nt(e,"checked",null),e.checked=o}};e[Wt]=r,ue(r),Qn()}function mo(e,t){var r=wl(e);if(r.checked===(r.checked=t??void 0))return;e.checked=t}function nt(e,t,r,n){var o=wl(e);if(w){if(o[t]=e.getAttribute(t),t==="src"||t==="srcset"||t==="href"&&e.nodeName===Ac){if(!n)Nc(e,t,r??"");return}}var i=o[t];if(i===(o[t]=r))return;if(t==="loading")e[Xa]=r;if(r==null)e.removeAttribute(t);else if(typeof r!=="string"&&Sc(e).has(t))e[t]=r;else if(!(w&&(typeof r==="number"||typeof r==="boolean")&&i===String(r)))e.setAttribute(t,r)}function wl(e){return e[Hn]??={[kc]:e.nodeName.includes("-"),[Tc]:e.namespaceURI===Vn}}var bl=new Map;function Sc(e){var t=e.getAttribute("is")||e.nodeName,r=bl.get(t);if(r)return r;bl.set(t,r=new Set);var n,o=e,i=Element.prototype;while(i!==o){n=ui(o);for(var a in n)if(n[a].set&&a!=="innerHTML"&&a!=="textContent"&&a!=="innerText")r.add(a);o=Rr(o)}return r}function Nc(e,t,r){if(!p)return;if(t==="srcset"&&Rc(e,r))return;if(aa(e.getAttribute(t)??"",r))return;as(t,e.outerHTML.replace(e.innerHTML,e.innerHTML&&"..."),String(r))}function aa(e,t){if(e===t)return!0;return new URL(e,document.baseURI).href===new URL(t,document.baseURI).href}function yl(e){return e.split(",").map((t)=>t.trim().split(" ").filter(Boolean))}function Rc(e,t){var r=yl(e.srcset),n=yl(t);return n.length===r.length&&n.every(([o,i],a)=>i===r[a][1]&&(aa(r[a][0],o)||aa(o,r[a][0])))}function It(e,t,r=t){var n=new WeakSet;if(dn(e,"input",async(o)=>{if(p&&e.type==="checkbox")Ei();var i=o?e.defaultValue:e.value;if(i=sa(e)?la(i):i,r(i),T!==null)n.add(T);if(await yn(),i!==(i=t())){var{selectionStart:a,selectionEnd:f}=e,c=e.value.length;if(e.value=i??"",f!==null){var h=e.value.length;if(a===f&&f===c&&h>c)e.selectionStart=h,e.selectionEnd=h;else e.selectionStart=a,e.selectionEnd=Math.min(f,h)}}}),w&&e.defaultValue!==e.value||J(t)==null&&e.value){if(r(sa(e)?la(e.value):e.value),T!==null)n.add(T)}we(()=>{if(p&&e.type==="checkbox")Ei();var o=t();if(e===document.activeElement){var i=ce?Qe:T;if(n.has(i))return}if(sa(e)&&o===la(e.value))return;if(e.type==="date"&&!o&&!e.value)return;if(o!==e.value)e.value=o??""})}function fa(e,t,r=t){if(dn(e,"change",(n)=>{var o=n?e.defaultChecked:e.checked;r(o)}),w&&e.defaultChecked!==e.checked||J(t)==null)r(e.checked);we(()=>{var n=t();e.checked=Boolean(n)})}function sa(e){var t=e.type;return t==="number"||t==="range"}function la(e){return e===""?null:+e}var Oy=Symbol("unmounted");function El(e){return new kl(e)}class kl{#e;#t;constructor(e){var t=new Map,r=(o,i)=>{var a=br(i,!1,!1);return t.set(o,a),a};let n=new Proxy({...e.props||{},$$events:{}},{get(o,i){return l(t.get(i)??r(i,Reflect.get(o,i)))},has(o,i){if(i===Bn)return!0;return l(t.get(i)??r(i,Reflect.get(o,i))),Reflect.has(o,i)},set(o,i,a){return A(t.get(i)??r(i,a),a),Reflect.set(o,i,a)}});if(this.#t=(e.hydrate?ta:Wr)(e.component,{target:e.target,anchor:e.anchor,props:n,context:e.context,intro:e.intro??!1,recover:e.recover,transformError:e.transformError}),!ce&&(!e?.props?.$$host||e.sync===!1))Qt();this.#e=n.$$events;for(let o of Object.keys(this.#t)){if(o==="$set"||o==="$destroy"||o==="$on")continue;he(this,o,{get(){return this.#t[o]},set(i){this.#t[o]=i},enumerable:!0})}this.#t.$set=(o)=>{Object.assign(n,o)},this.#t.$destroy=()=>{ra(this.#t)}}$set(e){this.#t.$set(e)}$on(e,t){this.#e[e]=this.#e[e]||[];let r=(...n)=>t.call(this,...n);return this.#e[e].push(r),()=>{this.#e[e]=this.#e[e].filter((n)=>n!==r)}}$destroy(){this.#t.$destroy()}}var Bc;if(typeof HTMLElement==="function")Bc=class extends HTMLElement{$$ctor;$$s;$$c;$$cn=!1;$$d={};$$r=!1;$$p_d={};$$l={};$$l_u=new Map;$$me;$$shadowRoot=null;constructor(e,t,r){super();if(this.$$ctor=e,this.$$s=t,r)this.$$shadowRoot=this.attachShadow(r)}addEventListener(e,t,r){if(this.$$l[e]=this.$$l[e]||[],this.$$l[e].push(t),this.$$c){let n=this.$$c.$on(e,t);this.$$l_u.set(t,n)}super.addEventListener(e,t,r)}removeEventListener(e,t,r){if(super.removeEventListener(e,t,r),this.$$c){let n=this.$$l_u.get(t);if(n)n(),this.$$l_u.delete(t)}}async connectedCallback(){if(this.$$cn=!0,!this.$$c){let e=function(n){return(o)=>{let i=jt("slot");if(n!=="default")i.name=n;D(o,i)}};if(await Promise.resolve(),!this.$$cn||this.$$c)return;let t={},r=Yc(this);for(let n of this.$$s)if(n in r)if(n==="default"&&!this.$$d.children)this.$$d.children=e(n),t.default=!0;else t[n]=e(n);for(let n of this.attributes){let o=this.$$g_p(n.name);if(!(o in this.$$d))this.$$d[o]=ua(o,n.value,this.$$p_d,"toProp")}for(let n in this.$$p_d)if(!(n in this.$$d)&&this[n]!==void 0)this.$$d[n]=this[n],delete this[n];this.$$c=El({component:this.$$ctor,target:this.$$shadowRoot||this,props:{...this.$$d,$$slots:t,$$host:this}}),this.$$me=Vi(()=>{we(()=>{this.$$r=!0;for(let n of ci(this.$$c)){if(!this.$$p_d[n]?.reflect)continue;this.$$d[n]=this.$$c[n];let o=ua(n,this.$$d[n],this.$$p_d,"toAttribute");if(o==null)this.removeAttribute(this.$$p_d[n].attribute||n);else this.setAttribute(this.$$p_d[n].attribute||n,o)}this.$$r=!1})});for(let n in this.$$l)for(let o of this.$$l[n]){let i=this.$$c.$on(n,o);this.$$l_u.set(o,i)}this.$$l={}}}attributeChangedCallback(e,t,r){if(this.$$r)return;e=this.$$g_p(e),this.$$d[e]=ua(e,r,this.$$p_d,"toProp"),this.$$c?.$set({[e]:this.$$d[e]})}disconnectedCallback(){this.$$cn=!1,Promise.resolve().then(()=>{if(!this.$$cn&&this.$$c)this.$$c.$destroy(),this.$$me(),this.$$c=void 0})}$$g_p(e){return ci(this.$$p_d).find((t)=>this.$$p_d[t].attribute===e||!this.$$p_d[t].attribute&&t.toLowerCase()===e)||e}};function ua(e,t,r,n){let o=r[e]?.type;if(t=o==="Boolean"&&typeof t!=="boolean"?t!=null:t,!n||!r[e])return t;else if(n==="toAttribute")switch(o){case"Object":case"Array":return t==null?null:JSON.stringify(t);case"Boolean":return t?"":null;case"Number":return t==null?null:t;default:return t}else switch(o){case"Object":case"Array":return t&&JSON.parse(t);case"Boolean":return t;case"Number":return t!=null?+t:t;default:return t}}function Yc(e){let t={};return e.childNodes.forEach((r)=>{t[r.slot||"default"]=!0}),t}if(p){let e=function(t){if(!(t in globalThis)){let r;Object.defineProperty(globalThis,t,{configurable:!0,get:()=>{if(r!==void 0)return r;bs(t)},set:(n)=>{r=n}})}};e("$state"),e("$effect"),e("$derived"),e("$inspect"),e("$props"),e("$bindable")}function Tl(e){if(L===null)zn("onMount");if(Xt&&L.l!==null)Gc(L).m.push(e);else Gr(()=>{let t=J(e);if(typeof t==="function")return t})}function Gc(e){var t=e.l;return t.u??={a:[],b:[],m:[]}}var Al="5";if(typeof window<"u")((window.__svelte??={}).v??=new Set).add(Al);var qc=re('<br class="svelte-1xjvnya8h1aa3"/> ',1),zc=re('<p class="waktu svelte-1xjvnya8h1aa3"> <!></p>'),Kc=re('<span class="svelte-1xjvnya8h1aa3"> </span>'),Wc=re('<div class="peringatan svelte-1xjvnya8h1aa3"></div>'),kr=re('<p class="ket svelte-1xjvnya8h1aa3"> </p>'),Zc=re('<img alt=""/> <!>',1),Xc=re('<button class="stop svelte-1xjvnya8h1aa3"> </button>'),Jc=re("<button> </button>"),Qc=re('<button class="aktif-jelajah svelte-1xjvnya8h1aa3"> </button>'),eu=re('<select aria-label="Lama jelajah" class="svelte-1xjvnya8h1aa3"><option class="svelte-1xjvnya8h1aa3">5 menit</option><option class="svelte-1xjvnya8h1aa3">10 menit</option><option class="svelte-1xjvnya8h1aa3">15 menit</option><option class="svelte-1xjvnya8h1aa3">30 menit</option></select> <button class="svelte-1xjvnya8h1aa3">Jelajah sendiri</button>',1),Sl=re('<small class="svelte-1xjvnya8h1aa3"> </small>'),tu=Zi('<line x1="0" class="svelte-1xjvnya8h1aa3"></line><text x="2" class="svelte-1xjvnya8h1aa3"> </text>',1),ru=re('<svg class="grafik svelte-1xjvnya8h1aa3" role="img"><!><path class="svelte-1xjvnya8h1aa3"></path></svg> <div class="sumbu svelte-1xjvnya8h1aa3"><span class="svelte-1xjvnya8h1aa3"> </span><span class="svelte-1xjvnya8h1aa3">sekarang</span></div>',1),nu=re('<p class="ket svelte-1xjvnya8h1aa3">Grafik muncul setelah robot menyala 2 menit (satu titik per menit, paling lama 6 jam).</p>'),ou=re(" <!>",1),iu=re('<li class="svelte-1xjvnya8h1aa3"><b class="svelte-1xjvnya8h1aa3"> </b> <span class="svelte-1xjvnya8h1aa3"> <small class="svelte-1xjvnya8h1aa3"> </small></span> <button class="hapus svelte-1xjvnya8h1aa3">✕</button></li>'),au=re('<ul class="alarm svelte-1xjvnya8h1aa3"></ul>'),su=re('<label class="svelte-1xjvnya8h1aa3"><input type="checkbox" class="svelte-1xjvnya8h1aa3"/> </label>'),lu=re('<div class="hari svelte-1xjvnya8h1aa3"></div>'),fu=re('<button><b class="svelte-1xjvnya8h1aa3"> </b> <span class="svelte-1xjvnya8h1aa3"> </span></button>'),cu=re('<p class="status svelte-1xjvnya8h1aa3"> </p>'),uu=re('<main class="svelte-1xjvnya8h1aa3"><header class="svelte-1xjvnya8h1aa3"><h1 class="svelte-1xjvnya8h1aa3"> </h1> <span></span> <span class="kecil svelte-1xjvnya8h1aa3"><!></span></header> <!> <!> <section class="bicara svelte-1xjvnya8h1aa3"><button> </button> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Ketuk, lalu bicara ke mikrofon robot. Robot berhenti merekam saat kamu diam (paling lama 6 detik).</p> <label class="saklar svelte-1xjvnya8h1aa3"><input type="checkbox" class="svelte-1xjvnya8h1aa3"/> </label></section> <section class="kamera svelte-1xjvnya8h1aa3"><!> <button class="kecil-btn svelte-1xjvnya8h1aa3"> </button></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Gerak <small class="svelte-1xjvnya8h1aa3">tahan untuk jalan, lepas untuk berhenti</small></h2> <div class="dpad svelte-1xjvnya8h1aa3"></div> <label class="svelte-1xjvnya8h1aa3"> <input type="range" min="100" max="255" class="svelte-1xjvnya8h1aa3"/></label> <div class="baris belok svelte-1xjvnya8h1aa3"><button class="svelte-1xjvnya8h1aa3">⟲ 90° kiri</button> <button class="svelte-1xjvnya8h1aa3">↻ balik</button> <button class="svelte-1xjvnya8h1aa3">90° kanan ⟳</button></div> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Belok tepat memakai giroskop di badan; sudutnya tidak berubah walau baterai melemah.</p> <div class="baris jelajah svelte-1xjvnya8h1aa3"><!></div> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Maju sampai ada halangan, lalu belok ke arah acak. Berhenti sendiri kalau waktunya habis, baterai tinggal 10%, atau tombol STOP ditekan. Tombol arah juga menghentikannya.</p></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Baterai <!></h2> <!> <p class="ket kecil-ket svelte-1xjvnya8h1aa3"><!> Peringatan dikirim ke Telegram saat tinggal 20% dan 10%.</p></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Kepala</h2> <label class="svelte-1xjvnya8h1aa3"> <input type="range" min="-60" max="60" class="svelte-1xjvnya8h1aa3"/></label> <label class="svelte-1xjvnya8h1aa3"> <input type="range" min="40" max="150" class="svelte-1xjvnya8h1aa3"/></label> <button class="kecil-btn svelte-1xjvnya8h1aa3">Lurus ke depan</button></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Musik dan suara</h2> <div class="baris svelte-1xjvnya8h1aa3"><button class="svelte-1xjvnya8h1aa3">Lagu berikutnya</button> <button class="svelte-1xjvnya8h1aa3">Radio berikutnya</button> <button class="svelte-1xjvnya8h1aa3">Diam</button></div> <label class="svelte-1xjvnya8h1aa3"> <input type="range" min="0" max="21" class="svelte-1xjvnya8h1aa3"/></label> <label class="suara svelte-1xjvnya8h1aa3">Suara bicara <select class="svelte-1xjvnya8h1aa3"><option class="svelte-1xjvnya8h1aa3"> </option><option class="svelte-1xjvnya8h1aa3">Google</option></select></label> <p class="ket kecil-ket svelte-1xjvnya8h1aa3"><!></p> <form class="svelte-1xjvnya8h1aa3"><input type="text" placeholder="Suruh Zond bilang..." maxlength="140" class="svelte-1xjvnya8h1aa3"/> <button type="submit" class="svelte-1xjvnya8h1aa3">Bilang</button></form> <form class="svelte-1xjvnya8h1aa3"><input type="text" placeholder="Pesan untuk layar Zond..." maxlength="190" class="svelte-1xjvnya8h1aa3"/> <button type="submit" class="svelte-1xjvnya8h1aa3">Kirim</button></form></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Alarm dan pengingat</h2> <!> <form class="form-alarm svelte-1xjvnya8h1aa3"><div class="baris svelte-1xjvnya8h1aa3"><input type="time" required="" class="svelte-1xjvnya8h1aa3"/> <select class="svelte-1xjvnya8h1aa3"><option class="svelte-1xjvnya8h1aa3">Sekali</option><option class="svelte-1xjvnya8h1aa3">Setiap hari</option><option class="svelte-1xjvnya8h1aa3">Senin-Jumat</option><option class="svelte-1xjvnya8h1aa3">Sabtu-Minggu</option><option class="svelte-1xjvnya8h1aa3">Pilih hari</option></select></div> <!> <input type="text" placeholder="Pesan, misalnya: bangun, minum obat" maxlength="79" class="svelte-1xjvnya8h1aa3"/> <div class="baris svelte-1xjvnya8h1aa3"><select class="svelte-1xjvnya8h1aa3"><option class="svelte-1xjvnya8h1aa3">Suara saja</option><option class="svelte-1xjvnya8h1aa3">Suara + radio</option><option class="svelte-1xjvnya8h1aa3">Suara + lagu SD</option></select> <button type="submit" class="svelte-1xjvnya8h1aa3">Pasang</button></div> <!></form> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Alarm sebelum jam 11 siang sekalian menyebut cuaca hari ini. Pengingat juga dikirim ke Telegram.</p></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Fitur kamera AI</h2> <label class="saklar svelte-1xjvnya8h1aa3"><input type="checkbox" class="svelte-1xjvnya8h1aa3"/> Aktifkan "lihat sekeliling" dan "suit". Tiap kali dipakai, foto dikirim ke AI dan memakai jatah AI lebih cepat.</label> <div class="baris svelte-1xjvnya8h1aa3"><button class="svelte-1xjvnya8h1aa3">Lihat sekeliling</button> <button class="svelte-1xjvnya8h1aa3">Main suit</button></div> <!> <!></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Otak AI <!></h2> <div class="ai svelte-1xjvnya8h1aa3"></div> <!> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Kalau pilihanmu gagal (jatah habis atau saldo kosong), robot otomatis memakai yang gratis.</p></section> <!></main>');function pu(e,t){cn(t,!0);let r=P(5);async function n(s){await Q(`/api/jelajah?menit=${s}`),await lr()}function o(s){let u=Math.max(0,s);return`${Math.floor(u/60)}:${String(u%60).padStart(2,"0")}`}let i=P(ut([]));async function a(){let s=await Q("/api/baterai");if(s&&s.ok)A(i,(await s.json()).v,!0)}let f=6.4,c=8.4,h=320,m=120;function v(s){let u=(Math.min(c,Math.max(f,s))-f)/(c-f);return m-4-u*(m-8)}let _=no(()=>{let s=l(i).length;if(s<2)return"";return l(i).map((u,g)=>`${g?"L":"M"}${(g/(s-1)*h).toFixed(1)},${v(u/100).toFixed(1)}`).join("")});function d(s){if(s<60)return`${s} menit`;return`${Math.floor(s/60)} jam${s%60?` ${s%60} menit`:""}`}async function y(s){await Q(`/api/suara?pakai=${s.currentTarget.value}`),await lr()}function R(s){Q(`/api/belok?d=${s}`)}let b=["Min","Sen","Sel","Rab","Kam","Jum","Sab"],C=["suara","radio","lagu SD"],Y=P(ut([])),ee=P("06:00"),le=P("0"),dt=ut([!1,!0,!0,!0,!0,!0,!1]),Ee=P(""),ke=P(0),wt=P("");async function Le(){let s=await Q("/api/alarm");if(s&&s.ok)A(Y,(await s.json()).alarm,!0)}async function qe(s){s.preventDefault();let u=l(le)==="pilih"?dt.reduce((H,B,K)=>B?H|1<<K:H,0):Number(l(le)),g=new URLSearchParams({jam:l(ee),hari:String(u),pesan:l(Ee).trim(),bunyi:String(l(ke))}),I=await Q(`/api/alarm/tambah?${g}`);if(A(wt,!I?"Robot tidak menjawab":I.ok?"":await I.text(),!0),I?.ok)A(Ee,"");await Le()}async function Gt(s){await Q(`/api/alarm/hapus?i=${s}`),await Le()}let ar=P("");async function _t(s){let u=s.currentTarget.checked;await Q(`/api/fiturkamera?on=${u?1:0}`),await lr()}async function kn(s,u){let g=await Q(s);A(ar,!g?"Robot tidak menjawab":g.ok?u:await g.text(),!0),setTimeout(()=>A(ar,""),6000)}let Jr=P(!1);async function Rl(){A(Jr,!0),await Q("/api/bicara"),setTimeout(()=>A(Jr,!1),1500)}async function jl(s){let u=s.currentTarget.checked;await Q(`/api/dengar?on=${u?1:0}`),await lr()}let Cl=[{id:"otomatis",nama:"Otomatis",ket:"gratis: Gemini, lalu Gemma, lalu Groq"},{id:"gemini",nama:"Gemini",ket:"gratis, jatah harian kecil"},{id:"gemma",nama:"Gemma",ket:"gratis, jatah besar"},{id:"groq",nama:"Groq",ket:"gratis, cepat"},{id:"haiku",nama:"Claude Haiku",ket:"berbayar per pemakaian"}],go=P(""),Qr=P("");async function Ol(s){A(go,s,!0),A(Qr,"");let u=await Q(`/api/ai?m=${s}`);if(!u)A(Qr,"Robot tidak menjawab");else if(!u.ok)A(Qr,await u.text(),!0);await lr(),A(go,"")}let E=P(null),Dt=P(!1),en=P(160),Tr=P(null),Ar=P(0),tn=P(90),rn=P(12),xo=!1,Tn=P(""),sr=P(!0),An=P(!1),pa=P("");async function Q(s,u=1500){let g=new AbortController,I=setTimeout(()=>g.abort(),u);try{return await fetch(s,{signal:g.signal,cache:"no-store"})}catch{return null}finally{clearTimeout(I)}}async function lr(){let s=await Q("/api/status");if(!s||!s.ok){A(Dt,!1);return}if(A(Dt,!0),A(E,await s.json(),!0),!xo)A(rn,l(E).vol,!0)}let Il={maju:[1,1],mundur:[-1,-1],kiri:[-1,1],kanan:[1,-1],majukiri:[0.35,1],majukanan:[1,0.35],mundurkiri:[-0.35,-1],mundurkanan:[-1,-0.35]},Sr=null,bo=!1;function da(){if(!l(Tr)||bo)return;let[s,u]=Il[l(Tr)];bo=!0,Q(`/api/gerak?l=${Math.round(s*l(en))}&r=${Math.round(u*l(en))}`,600).finally(()=>bo=!1)}function _a(s){if(A(Tr,s,!0),da(),Sr)clearInterval(Sr);Sr=setInterval(da,150)}function Mt(){if(Sr)clearInterval(Sr);if(Sr=null,l(Tr))Q("/api/stop");A(Tr,null)}function Dl(s,u){s.currentTarget.setPointerCapture(s.pointerId),_a(u)}let va={ArrowUp:"maju",w:"maju",ArrowDown:"mundur",s:"mundur",ArrowLeft:"kiri",a:"kiri",ArrowRight:"kanan",d:"kanan"};function Ml(s){if(s.target.tagName==="INPUT")return;if(s.key===" "){s.preventDefault(),Mt(),Q("/api/stop");return}let u=va[s.key];if(u&&!s.repeat)s.preventDefault(),_a(u)}function Ll(s){if(va[s.key])Mt()}let ma=0,yo=null;function $o(){let s=Date.now();if(yo)clearTimeout(yo);let u=()=>{ma=Date.now(),Q(`/api/kepala?p=${90-l(Ar)}&t=${l(tn)}`)};if(s-ma>150)u();else yo=setTimeout(u,150)}function Fl(){A(Ar,0),A(tn,90),$o()}async function Pl(){xo=!0,await Q(`/api/volume?v=${l(rn)}`),setTimeout(()=>xo=!1,1500)}let Sn=P("");async function Bl(s){s.preventDefault();let u=l(Sn).trim();if(!u)return;A(Sn,""),await Q(`/api/pesan?teks=${encodeURIComponent(u)}`,3000)}async function Yl(s){s.preventDefault();let u=l(Tn).trim();if(!u)return;A(Tn,""),await Q(`/api/bilang?t=${encodeURIComponent(u)}`,3000)}function Nn(s){setTimeout(()=>{if(!l(sr)||!l(E)?.kamera){if(l(sr))Nn(1000);return}A(pa,`http://${l(E).kamera}/capture?res=vga&t=${Date.now()}`)},s)}function Hl(s){let u=[];if(s&1)u.push("Tombol STOP terkunci");if(s&2)u.push("Baterai lemah");if(s&4)u.push("Halangan depan");if(s&8)u.push("Halangan belakang");if(s&16)u.push("Robot miring");return u}Tl(()=>{lr(),Le(),a();let s=setInterval(lr,1000),u=setInterval(Le,30000),g=setInterval(a,60000),I=()=>Mt(),H=()=>document.hidden&&Mt();return window.addEventListener("blur",I),document.addEventListener("visibilitychange",H),()=>{clearInterval(s),clearInterval(u),clearInterval(g),window.removeEventListener("blur",I),document.removeEventListener("visibilitychange",H),Mt()}}),Gr(()=>{if(l(sr))Nn(0)});var wo=uu();pt("keydown",Ur,Ml),pt("keyup",Ur,Ll);var Eo=O(wo),ha=O(Eo),Vl=X(ha,!0),ga=x(ha,2);let xa;var ba=x(ga,2),Ul=O(ba);{var Gl=(s)=>{var u=Ut("otak tidak terhubung");D(s,u)},ql=(s)=>{var u=Ut("badan tidak menjawab");D(s,u)},zl=(s)=>{var u=Ut();V((g)=>M(u,`${l(E).bateraiPersen>=0?`${l(E).bateraiPersen}% · `:""}${g??""} V · depan ${l(E).depan??""} cm · belakang ${l(E).belakang??""} cm`),[()=>l(E).baterai.toFixed(1)]),D(s,u)};ne(Ul,(s)=>{if(!l(Dt))s(Gl);else if(!l(E)?.hidup)s(ql,1);else s(zl,-1)})}S(ba),S(Eo);var ya=x(Eo,2);{var Kl=(s)=>{var u=zc(),g=O(u),I=x(g);{var H=(B)=>{var K=qc(),Te=x(Vt(K),1,!0);V(()=>M(Te,l(E).cuaca)),D(B,K)};ne(I,(B)=>{if(l(E).cuaca)B(H)})}S(u),V(()=>M(g,`${l(E).jam??""} · ${l(E).tanggal??""}`)),D(s,u)};ne(ya,(s)=>{if(l(E)?.jam)s(Kl)})}var $a=x(ya,2);{var Wl=(s)=>{var u=Wc();or(u,20,()=>Hl(l(E).flag),(g)=>g,(g,I)=>{var H=Kc(),B=X(H,!0);V(()=>M(B,I)),D(g,H)}),S(u),D(s,u)};ne($a,(s)=>{if(l(E)&&l(E).flag)s(Wl)})}var ko=x($a,2),nn=O(ko);let wa;var Zl=X(nn,!0),Ea=x(nn,4),on=O(Ea);ot(on);var Xl=x(on);S(Ea),S(ko);var To=x(ko,2),ka=O(To);{var Jl=(s)=>{var u=Zc(),g=Vt(u);let I;var H=x(g,2);{var B=(K)=>{var Te=kr(),Ae=X(Te);V(()=>M(Ae,`Kamera tidak terhubung (${l(E).kamera??""})`)),D(K,Te)};ne(H,(K)=>{if(l(An))K(B)})}V(()=>{nt(g,"src",l(pa)),I=ir(g,1,"svelte-1xjvnya8h1aa3",null,I,{redup:l(An)})}),pt("load",g,()=>{A(An,!1),Nn(100)}),pt("error",g,()=>{A(An,!0),Nn(1500)}),Ki(g),D(s,u)},Ql=(s)=>{var u=kr(),g=X(u,!0);V(()=>M(g,l(E)?.kamera?"Kamera dimatikan":"Alamat kamera belum diketahui")),D(s,u)};ne(ka,(s)=>{if(l(sr)&&l(E)?.kamera)s(Jl);else s(Ql,-1)})}var Ta=x(ka,2),ef=X(Ta,!0);S(To);var Ao=x(To,2),Rn=x(O(Ao),2);or(Rn,20,()=>[["majukiri","↖"],["maju","▲"],["majukanan","↗"],["kiri","◀"],["stop","■"],["kanan","▶"],["mundurkiri","↙"],["mundur","▼"],["mundurkanan","↘"]],([s,u])=>s,(s,u)=>{var g=no(()=>_i(u,2));let I=()=>l(g)[0],H=()=>l(g)[1];var B=Xi(),K=Vt(B);{var Te=(me)=>{var Ce=Xc(),vt=X(Ce,!0);V(()=>M(vt,H())),z("pointerdown",Ce,()=>{Mt(),Q("/api/stop")}),D(me,Ce)},Ae=(me)=>{var Ce=Jc();let vt;var fr=X(Ce,!0);V(()=>{vt=ir(Ce,1,"svelte-1xjvnya8h1aa3",null,vt,{aktif:l(Tr)===I()}),M(fr,H())}),z("pointerdown",Ce,(fi)=>Dl(fi,I())),z("pointerup",Ce,Mt),pt("pointercancel",Ce,Mt),pt("lostpointercapture",Ce,Mt),D(me,Ce)};ne(K,(me)=>{if(I()==="stop")me(Te);else me(Ae,-1)})}D(s,B)}),S(Rn);var So=x(Rn,2),Aa=O(So),Sa=x(Aa);ot(Sa),S(So);var No=x(So,2),Na=O(No),Ra=x(Na,2),tf=x(Ra,2);S(No);var ja=x(No,4),rf=O(ja);{var nf=(s)=>{var u=Qc(),g=X(u);V((I)=>M(g,`Berhenti menjelajah (sisa ${I??""})`),[()=>o(l(E).jelajahSisa)]),z("click",u,()=>n(0)),D(s,u)},of=(s)=>{var u=eu(),g=Vt(u),I=O(g);I.value=I.__value=5;var H=x(I);H.value=H.__value=10;var B=x(H);B.value=B.__value=15;var K=x(B);K.value=K.__value=30,S(g),Er(g);var Te=x(g,2);V(()=>Te.disabled=!l(Dt)||!l(E)?.hidup),En(g,()=>l(r),(Ae)=>A(r,Ae)),z("click",Te,()=>n(l(r))),D(s,u)};ne(rf,(s)=>{if(l(E)?.mode==="jelajah")s(nf);else s(of,-1)})}S(ja),Xe(2),S(Ao);var Ro=x(Ao,2),jo=O(Ro),af=x(O(jo));{var sf=(s)=>{var u=Sl(),g=X(u);V((I)=>M(g,`${l(E).bateraiPersen??""}% · ${I??""} V`),[()=>l(E).baterai.toFixed(2)]),D(s,u)};ne(af,(s)=>{if(l(E)&&l(E).bateraiPersen>=0)s(sf)})}S(jo);var Ca=x(jo,2);{var lf=(s)=>{var u=ru(),g=Vt(u);nt(g,"viewBox","0 0 320 120");var I=O(g);or(I,16,()=>[8.4,7.8,7.2,6.6],(Ae)=>Ae,(Ae,me)=>{var Ce=tu(),vt=Vt(Ce);nt(vt,"x2",h);var fr=x(vt),fi=X(fr);V((Of,If,Df,Mf)=>{nt(vt,"y1",Of),nt(vt,"y2",If),nt(fr,"y",Df),M(fi,`${Mf??""} V`)},[()=>v(me),()=>v(me),()=>me===c?v(me)+11:v(me)-3,()=>me.toFixed(1)]),D(Ae,Ce)});var H=x(I);S(g);var B=x(g,2),K=O(B),Te=X(K);Xe(),S(B),V((Ae,me)=>{nt(g,"aria-label",`Tegangan baterai ${Ae??""} terakhir`),nt(H,"d",l(_)),M(Te,`${me??""} lalu`)},[()=>d(l(i).length),()=>d(l(i).length)]),D(s,u)},ff=(s)=>{var u=nu();D(s,u)};ne(Ca,(s)=>{if(l(i).length>=2)s(lf);else s(ff,-1)})}var Oa=x(Ca,2),cf=O(Oa);{var uf=(s)=>{var u=Ut();V((g)=>M(u,`Perkiraan sisa ${g??""}, kalau pemakaiannya seperti setengah jam terakhir.`),[()=>d(l(E).sisaMenit)]),D(s,u)},pf=(s)=>{var u=Ut("Perkiraan sisa waktu muncul setelah sekitar 10 menit menyala.");D(s,u)};ne(cf,(s)=>{if(l(E)&&l(E).sisaMenit>=0)s(uf);else s(pf,-1)})}Xe(),S(Oa),S(Ro);var Co=x(Ro,2),Oo=x(O(Co),2),Ia=O(Oo),Io=x(Ia);ot(Io),S(Oo);var Do=x(Oo,2),Da=O(Do),Mo=x(Da);ot(Mo),S(Do);var df=x(Do,2);S(Co);var Lo=x(Co,2),Fo=x(O(Lo),2),Ma=O(Fo),La=x(Ma,2),_f=x(La,2);S(Fo);var Po=x(Fo,2),Fa=O(Po),Bo=x(Fa);ot(Bo),S(Po);var Yo=x(Po,2),qt=x(O(Yo)),an=O(qt),vf=X(an);an.value=an.__value="gemini";var Pa=x(an);Pa.value=Pa.__value="google",S(qt);var jn;Er(qt),S(Yo);var Ho=x(Yo,2),mf=O(Ho);{var hf=(s)=>{var u=Ut("Suara cowok belum aktif: isi SUARA_GEMINI dan GEMINI_API_KEY di kode.");D(s,u)},gf=(s)=>{var u=ou(),g=Vt(u),I=x(g);{var H=(B)=>{var K=Ut();V(()=>M(K,`Galat terakhir: kode ${l(E).suaraGalat??""}, sementara memakai suara Google.`)),D(B,K)};ne(I,(B)=>{if(l(E).suaraGalat)B(H)})}V(()=>M(g,`Suara Gemini hari ini ${l(E).suaraHariIni??""} kalimat (jatah gratis harian).`)),D(s,u)};ne(mf,(s)=>{if(!l(E)?.suaraSiap)s(hf);else s(gf,-1)})}S(Ho);var Cn=x(Ho,2),Ba=O(Cn);ot(Ba),Xe(2),S(Cn);var Vo=x(Cn,2),Ya=O(Vo);ot(Ya),Xe(2),S(Vo),S(Lo);var Uo=x(Lo,2),Ha=x(O(Uo),2);{var xf=(s)=>{var u=au();or(u,21,()=>l(Y),oa,(g,I,H)=>{var B=iu(),K=O(B),Te=X(K,!0),Ae=x(K,2),me=O(Ae,!0),Ce=x(me),vt=X(Ce);S(Ae);var fr=x(Ae,2);S(B),V(()=>{M(Te,l(I).jam),M(me,l(I).pesan),M(vt,`${l(I).kapan??""} · ${C[l(I).bunyi]??"suara"??""}`),nt(fr,"aria-label",`Hapus alarm ${l(I).jam??""}`)}),z("click",fr,()=>Gt(H)),D(g,B)}),S(u),D(s,u)},bf=(s)=>{var u=kr(),g=X(u);V(()=>M(g,`Belum ada alarm. Bisa juga lewat suara: "${l(E)?.nama??"Zond"??""}, ingatkan aku jam 5 sore minum obat".`)),D(s,u)};ne(Ha,(s)=>{if(l(Y).length)s(xf);else s(bf,-1)})}var Go=x(Ha,2),qo=O(Go),zo=O(qo);ot(zo);var On=x(zo,2),Ko=O(On);Ko.value=Ko.__value="0";var Wo=x(Ko);Wo.value=Wo.__value="127";var Zo=x(Wo);Zo.value=Zo.__value="62";var Xo=x(Zo);Xo.value=Xo.__value="65";var Va=x(Xo);Va.value=Va.__value="pilih",S(On),Er(On),S(qo);var Ua=x(qo,2);{var yf=(s)=>{var u=lu();or(u,22,()=>b,(g)=>g,(g,I,H)=>{var B=su(),K=O(B);ot(K);var Te=x(K,1,!0);S(B),V(()=>M(Te,I)),fa(K,()=>dt[l(H)],(Ae)=>dt[l(H)]=Ae),D(g,B)}),S(u),D(s,u)};ne(Ua,(s)=>{if(l(le)==="pilih")s(yf)})}var Jo=x(Ua,2);ot(Jo);var Qo=x(Jo,2),In=O(Qo),ei=O(In);ei.value=ei.__value=0;var ti=x(ei);ti.value=ti.__value=1;var Ga=x(ti);Ga.value=Ga.__value=2,S(In),Er(In),Xe(2),S(Qo);var $f=x(Qo,2);{var wf=(s)=>{var u=kr(),g=X(u,!0);V(()=>M(g,l(wt))),D(s,u)};ne($f,(s)=>{if(l(wt))s(wf)})}S(Go),Xe(2),S(Uo);var ri=x(Uo,2),ni=x(O(ri),2),Dn=O(ni);ot(Dn),Xe(),S(ni);var oi=x(ni,2),ii=O(oi),qa=x(ii,2);S(oi);var za=x(oi,2);{var Ef=(s)=>{var u=kr(),g=X(u);V(()=>M(g,`Skor suit: kamu ${l(E).skorKamu??""}, ${l(E).nama??""} ${l(E).skorZond??""}`)),D(s,u)};ne(za,(s)=>{if(l(E)?.fiturKamera&&(l(E).skorKamu||l(E).skorZond))s(Ef)})}var kf=x(za,2);{var Tf=(s)=>{var u=kr(),g=X(u,!0);V(()=>M(g,l(ar))),D(s,u)};ne(kf,(s)=>{if(l(ar))s(Tf)})}S(ri);var ai=x(ri,2),si=O(ai),Af=x(O(si));{var Sf=(s)=>{var u=Sl(),g=X(u);V(()=>M(g,`terakhir menjawab: ${l(E).aiTerakhir??""}`)),D(s,u)};ne(Af,(s)=>{if(l(E)?.aiTerakhir)s(Sf)})}S(si);var li=x(si,2);or(li,21,()=>Cl,(s)=>s.id,(s,u)=>{var g=fu();let I;var H=O(g),B=X(H,!0),K=x(H,2),Te=X(K,!0);S(g),V(()=>{g.disabled=!l(E)?.aiTersedia?.[l(u).id]||l(go)!=="",I=ir(g,1,"svelte-1xjvnya8h1aa3",null,I,{pilih:l(E)?.ai===l(u).id}),M(B,l(u).nama),M(Te,l(E)?.aiTersedia?.[l(u).id]===!1?"API key belum diisi":l(u).ket)}),z("click",g,()=>Ol(l(u).id)),D(s,g)}),S(li);var Nf=x(li,2);{var Rf=(s)=>{var u=kr(),g=X(u,!0);V(()=>M(g,l(Qr))),D(s,u)};ne(Nf,(s)=>{if(l(Qr))s(Rf)})}Xe(2),S(ai);var jf=x(ai,2);{var Cf=(s)=>{var u=cu(),g=X(u,!0);V(()=>M(g,l(E).status)),D(s,u)};ne(jf,(s)=>{if(l(E)?.status)s(Cf)})}S(wo),V(()=>{if(M(Vl,l(E)?.nama??"Robot"),xa=ir(ga,1,"titik svelte-1xjvnya8h1aa3",null,xa,{on:l(Dt)&&l(E)?.hidup}),wa=ir(nn,1,"mik svelte-1xjvnya8h1aa3",null,wa,{dengar:l(E)?.mendengar||l(Jr)}),nn.disabled=!l(Dt),M(Zl,l(E)?.mendengar?"Mendengarkan... bicara sekarang":"Bicara ke "+(l(E)?.nama??"robot")),mo(on,l(E)?.dengarTerus??!1),on.disabled=!l(Dt),M(Xl,` Dengar terus (cukup sebut "${l(E)?.nama??"nama robot"??""}"). Boros: setiap suara di ruangan memakai jatah suara-ke-teks.`),M(ef,l(sr)?"Matikan kamera":"Nyalakan kamera"),M(Aa,`Kecepatan ${l(en)??""}`),M(Ia,`Toleh ${l(Ar)<0?"kiri":l(Ar)>0?"kanan":"lurus"}`),M(Da,`Angguk ${l(tn)??""}°`),M(Fa,`Volume ${l(rn)??""}`),qt.disabled=!l(Dt),an.disabled=!l(E)?.suaraSiap,M(vf,`Cowok (${(l(E)?.suaraNama||"Gemini")??""})`),jn!==(jn=l(E)?.suara??"gemini"))qt.value=(qt.__value=jn)??"",Xr(qt,jn);mo(Dn,l(E)?.fiturKamera??!1),Dn.disabled=!l(Dt),ii.disabled=!l(E)?.fiturKamera,qa.disabled=!l(E)?.fiturKamera}),z("click",nn,Rl),z("change",on,jl),z("click",Ta,()=>A(sr,!l(sr))),z("contextmenu",Rn,(s)=>s.preventDefault()),It(Sa,()=>l(en),(s)=>A(en,s)),z("click",Na,()=>R(-90)),z("click",Ra,()=>R(180)),z("click",tf,()=>R(90)),z("input",Io,$o),It(Io,()=>l(Ar),(s)=>A(Ar,s)),z("input",Mo,$o),It(Mo,()=>l(tn),(s)=>A(tn,s)),z("click",df,Fl),z("click",Ma,()=>Q("/api/lagu",4000)),z("click",La,()=>Q("/api/radio",4000)),z("click",_f,()=>Q("/api/diam")),z("change",Bo,Pl),It(Bo,()=>l(rn),(s)=>A(rn,s)),z("change",qt,y),pt("submit",Cn,Yl),It(Ba,()=>l(Tn),(s)=>A(Tn,s)),pt("submit",Vo,Bl),It(Ya,()=>l(Sn),(s)=>A(Sn,s)),pt("submit",Go,qe),It(zo,()=>l(ee),(s)=>A(ee,s)),En(On,()=>l(le),(s)=>A(le,s)),It(Jo,()=>l(Ee),(s)=>A(Ee,s)),En(In,()=>l(ke),(s)=>A(ke,s)),z("change",Dn,_t),z("click",ii,()=>kn("/api/sekeliling","Zond menoleh dan memotret. Ceritanya dikirim ke Telegram.")),z("click",qa,()=>kn("/api/suit","Siapkan tanganmu di depan kamera!")),D(e,wo),un()}var Nl=pu;uo(["click","change","contextmenu","pointerdown","pointerup","input"]);Wr(Nl,{target:document.body});
+`).filter((s)=>!s.includes("svelte/src/internal")).join(`
+`)}}function rl(e){let t=qi.get(e);if(t)xe(e,"message",{value:t.message}),xe(e,"stack",{value:t.stack})}function nl(e){if(k===null){if(N===null)Es(e);ws()}if(dt)ys(e)}function lc(e,t){var r=t.last;if(r===null)t.last=t.first=e;else r.next=e,e.prev=r,t.last=e}function It(e,t){var r=k;if(d)while(r!==null&&(r.f&Zt)!==0)r=r.parent;if(r!==null&&(r.f&de)!==0)e|=de;var n={ctx:P,deps:null,nodes:null,f:e|j|Pe,first:null,fn:t,last:null,next:null,parent:r,b:r&&r.b,prev:null,teardown:null,wv:0,ac:null};if(d)n.component_function=xt;S?.register_created_effect(n);var o=n;if((e&Tt)!==0)if(Ur!==null)Ur.push(n);else Oe.ensure().schedule(n);else if(t!==null){try{Ct(n)}catch(s){throw se(n),s}if(o.deps===null&&o.teardown===null&&o.nodes===null&&o.first===o.last&&(o.f&At)===0){if(o=o.first,(e&Ne)!==0&&(e&qe)!==0&&o!==null)o.f|=qe}}if(o!==null){if(o.parent=r,r!==null)lc(o,r);if(N!==null&&(N.f&ne)!==0&&(e&Ge)===0){var i=N;(i.effects??=[]).push(o)}}return n}function er(){return N!==null&&!Ye}function we(e){let t=It(Wt,null);return K(t,z),t.teardown=e,t}function zr(e){if(nl("$effect"),d)xe(e,"name",{value:"$effect"});var t=k.f,r=!N&&(t&$e)!==0&&P!==null&&!P.i;if(r){var n=P;(n.e??=[]).push(e)}else return Ci(e)}function Ci(e){return It(Tt|ns,e)}function Ki(e){Oe.ensure();let t=It(Ge|At,e);return()=>{se(t)}}function ol(e){Oe.ensure();let t=It(Ge|At,e);return(r={})=>new Promise((n)=>{if(r.outro)Dt(t,()=>{se(t),n(void 0)});else se(t),n(void 0)})}function at(e){return It(Tt,e)}function Ys(e){return It(Qe|At,e)}function Te(e,t=0){return It(Wt|t,e)}function H(e,t=[],r=[],n=[]){no(n,t,r,(o)=>{It(Wt,()=>{e(...o.map(l))})})}function st(e,t=0){var r=It(Ne|t,e);if(d)r.dev_stack=Nt;return r}function ge(e){return It($e|At,e)}function Wi(e){var t=e.teardown;if(t!==null){let r=dt,n=N;zi(!0),he(null);try{t.call(null)}catch(o){Ke(o,e.parent)}finally{zi(r),he(n)}}}function mn(e,t=!1){var r=e.first;e.first=e.last=null;while(r!==null){let o=r.ac;if(o!==null)rt(()=>{o.abort(Bt)});var n=r.next;if((r.f&Ge)!==0)r.parent=null;else se(r,t);r=n}}function il(e){var t=e.first;while(t!==null){var r=t.next;if((t.f&$e)===0)se(t);t=r}}function se(e,t=!0){var r=!1;if((t||(e.f&xi)!==0)&&e.nodes!==null&&e.nodes.end!==null)al(e.nodes.start,e.nodes.end),r=!0;e.f|=Pt,mn(e,t&&!r),xr(e,0);var n=e.nodes&&e.nodes.t;if(n!==null)for(let i of n)i.stop();Wi(e),e.f^=Pt,e.f|=Z;var o=e.parent;if(o!==null&&o.first!==null)Hi(e);if(d)e.component_function=null;e.next=e.prev=e.teardown=e.ctx=e.deps=e.fn=e.nodes=e.ac=e.b=null}function al(e,t){while(e!==null){var r=e===t?null:ye(e);e.remove(),e=r}}function Hi(e){var{parent:t,prev:r,next:n}=e;if(r!==null)r.next=n;if(n!==null)n.prev=r;if(t!==null){if(t.first===e)t.first=n;if(t.last===e)t.last=r}}function Dt(e,t,r=!0){var n=[];e.f|=Yn,sl(e,n,!0);var o=()=>{if(r)se(e);if(t)t()},i=n.length;if(i>0){var s=()=>--i||o();for(var c of n)c.out(s)}else o()}function sl(e,t,r){if((e.f&de)!==0)return;e.f^=de;var n=e.nodes&&e.nodes.t;if(n!==null){for(let c of n)if(c.is_global||r)t.push(c)}var o=e.first;while(o!==null){var i=o.next;if((o.f&Ge)===0){var s=(o.f&qe)!==0||(o.f&$e)!==0&&(e.f&Ne)!==0;sl(o,t,s?r:!1)}o=i}}function Kr(e){e.f&=~Yn,ll(e,!0)}function ll(e,t){if((e.f&Yn)!==0)return;if((e.f&de)===0)return;if(e.f^=de,(e.f&z)===0)K(e,j),Oe.ensure().schedule(e);var r=e.first;while(r!==null){var n=r.next,o=(r.f&qe)!==0||(r.f&$e)!==0;ll(r,o?t:!1),r=n}var i=e.nodes&&e.nodes.t;if(i!==null){for(let s of i)if(s.is_global||t)s.in()}}function Wr(e,t){if(!e.nodes)return;var r=e.nodes.start,n=e.nodes.end;while(r!==null){var o=r===n?null:ye(r);t.append(r),r=o}}var fl=null;var dt=!1;function zi(e){dt=e}var N=null,Ye=!1;function he(e){N=e}var k=null;function me(e){k=e}var yt=null;function so(e){if(N!==null&&(!pe&&(N.f&Dr)!==0||(N.f&ne)!==0))(yt??=new Set).add(e)}var Ee=null,je=0,ot=null;function Zs(e){ot=e}var ul=1,kr=0,nr=kr;function Gi(e){nr=e}function Hr(){return++ul}function rr(e){var t=e.f;if((t&j)!==0)return!0;if((t&ie)!==0){var r=e.deps,n=r.length;for(var o=0;o<n;o++){var i=r[o];if(rr(i))Li(i);if(i.wv>e.wv)return!0}if((t&Pe)!==0&&ke===null)K(e,z)}return!1}function dl(e,t,r=!0){var n=e.reactions;if(n===null)return;if(!pe&&yt!==null&&yt.has(e))return;for(var o=0;o<n.length;o++){var i=n[o];if((i.f&ne)!==0)dl(i,t,!1);else if(t===i){if(r)K(i,j);else if((i.f&z)!==0)K(i,ie);bn(i)}}}function io(e){var t=Ee,r=je,n=ot,o=N,i=yt,s=P,c=Ye,u=nr,m=e.f;if(Ee=null,je=0,ot=null,N=(m&($e|Ge))===0?e:null,yt=null,Ht(e.ctx),Ye=!1,nr=++kr,e.ac!==null)rt(()=>{e.ac.abort(Bt)}),e.ac=null;try{e.f|=Dr;var h=e.fn,v=h();e.f|=Be;var _=cl(e);if(Rt()&&ot!==null&&!Ye&&_!==null&&(e.f&(ne|ie|j))===0)for(var p=0;p<ot.length;p++)dl(ot[p],e);if(o!==null&&o!==e){if(kr++,o.deps!==null)for(let y=0;y<r;y+=1)o.deps[y].rv=kr;if(t!==null)for(let y of t)y.rv=kr;if(ot!==null)if(n===null)n=ot;else n.push(...ot)}if((e.f&ft)!==0)e.f^=ft;return v}catch(y){return cl(e),tl(y)}finally{e.f^=Dr,Ee=t,je=r,ot=n,N=o,yt=i,Ht(s),Ye=c,nr=u}}function cl(e){var t=e.deps,r=S?.is_fork;if(Ee!==null){var n;if(!r)xr(e,je);if(t!==null&&je>0){t.length=je+Ee.length;for(n=0;n<Ee.length;n++)t[je+n]=Ee[n]}else e.deps=t=Ee;if(er()&&(e.f&Pe)!==0)for(n=je;n<t.length;n++)(t[n].reactions??=[]).push(e)}else if(!r&&t!==null&&je<t.length)xr(e,je),t.length=je;return t}function fc(e,t){let r=t.reactions;if(r!==null){var n=ts.call(r,e);if(n!==-1){var o=r.length-1;if(o===0)r=t.reactions=null;else r[n]=r[o],r.pop()}}if(r===null&&(t.f&ne)!==0&&(Ee===null||!Ft.call(Ee,t))){var i=t;if((i.f&Pe)!==0)i.f^=Pe;if(i.v!==X)Fr(i);if(i.ac!==null)rt(()=>{i.ac.abort(Bt),i.ac=null,K(i,j)});js(i),xr(i,0)}}function xr(e,t){var r=e.deps;if(r===null)return;for(var n=t;n<r.length;n++)fc(e,r[n])}function Ct(e){var t=e.f;if((t&Z)!==0)return;K(e,z);var r=k;if(k=e,d){var n=xt;Qn(e.component_function);var o=Nt;Lr(e.dev_stack??Nt)}try{if((t&(Ne|dr))!==0)il(e);else mn(e);Wi(e);var i=io(e);if(e.teardown=typeof i==="function"?i:null,e.wv=ul,d&&gt&&(e.f&j)!==0&&e.deps!==null){for(var s of e.deps)if(s.set_during_effect)s.wv=Hr(),s.set_during_effect=!1}}finally{if(k=r,d)Qn(n),Lr(o)}}async function yn(){if(pe)return new Promise((e)=>{requestAnimationFrame(()=>e()),setTimeout(()=>e())});await Promise.resolve(),tr()}function l(e){var t=e.f,r=(t&ne)!==0;if(fl?.add(e),N!==null&&!Ye){var n=k!==null&&(k.f&Z)!==0;if(!n&&(yt===null||!yt.has(e))){var o=N.deps;if((N.f&Dr)!==0){if(e.rv<kr)if(e.rv=kr,Ee===null&&o!==null&&o[je]===e)je++;else if(Ee===null)Ee=[e];else Ee.push(e)}else{if(N.deps??=[],!Ft.call(N.deps,e))N.deps.push(e);var i=e.reactions;if(i===null)e.reactions=[N];else if(!Ft.call(i,N))i.push(N)}}}if(d){if(!Ye&&We&&S===null&&nt===null&&!We.warned&&(We.effect.f&Dr)===0&&!We.effect_deps.has(e)){We.warned=!0,cs(e.label);var s=bt("traced at");if(s)console.warn(s)}if(vn.delete(e),gt&&!Ye&&cn!==null&&N!==null&&cn.reaction===N){if(e.trace)e.trace();else if(s=bt("traced at"),s){var c=cn.entries.get(e);if(c===void 0)c={traces:[]},cn.entries.set(e,c);var u=c.traces[c.traces.length-1];if(s.stack!==u?.stack)c.traces.push(s)}}}if(dt&&_t.has(e))return _t.get(e);if(r){var m=e;if(dt){var h=m.v;if((m.f&z)===0&&m.reactions!==null||_l(m))h=hn(m);return _t.set(m,h),h}var v=(m.f&Pe)===0&&!Ye&&N!==null&&(N.f&Pe)!==0,_=(m.f&Be)===0;if(rr(m)){if(v)m.f|=Pe;Li(m)}if(v&&!_)Fi(m),pl(m)}if(ke?.has(e))return ke.get(e);if((e.f&ft)!==0)throw e.v;return e.v}function pl(e){if(e.f|=Pe,e.deps===null)return;for(let r of e.deps){var t=r.reactions;if(t===null)r.reactions=[e];else if(!Ft.call(t,e))t.push(e);if((r.f&ne)!==0&&(r.f&Pe)===0)Fi(r),pl(r)}}function _l(e){if(e.v===X)return!0;if(e.deps===null)return!1;for(let t of e.deps){if(_t.has(t))return!0;if((t.f&ne)!==0&&_l(t))return!0}return!1}function ee(e){var t=Ye;try{return Ye=!0,e()}finally{Ye=t}}var uc=["allowfullscreen","async","autofocus","autoplay","checked","controls","default","disabled","formnovalidate","indeterminate","inert","ismap","loop","multiple","muted","nomodule","novalidate","open","playsinline","readonly","required","reversed","seamless","selected","webkitdirectory","defer","disablepictureinpicture","disableremoteplayback"];var rv=[...uc,"formNoValidate","isMap","noModule","playsInline","readOnly","value","volume","defaultValue","defaultChecked","srcObject","noValidate","allowFullscreen","disablePictureInPicture","disableRemotePlayback"];var dc=["touchstart","touchmove"];function vl(e){return dc.includes(e)}var pc=["$state","$state.raw","$derived","$derived.by"],nv=[...pc,"$state.eager","$state.snapshot","$props","$props.id","$bindable","$effect","$effect.pre","$effect.tracking","$effect.root","$effect.pending","$inspect","$inspect().with","$inspect.trace","$host"];var Zr=Symbol("events"),Ji=new Set,_o=new Set;function Qi(e){if(!w)return;e.removeAttribute("onload"),e.removeAttribute("onerror");let t=e.__e;if(t!==void 0)e.__e=void 0,queueMicrotask(()=>{if(e.isConnected)e.dispatchEvent(t)})}function gl(e,t,r,n={}){function o(i){if(!n.capture)ho.call(t,i);if(!i.cancelBubble)return rt(()=>r?.call(this,i))}if(e.startsWith("pointer")||e.startsWith("touch")||e==="wheel")o.__removed=!1,_e(()=>{if(!o.__removed)t.addEventListener(e,o,n)});else t.addEventListener(e,o,n);return o}function lt(e,t,r,n,o){var i={capture:n,passive:o},s=gl(e,t,r,i);if(t===document.body||t===window||t===document||t instanceof HTMLMediaElement)we(()=>{s.__removed=!0,t.removeEventListener(e,s,i)})}function G(e,t,r){(t[Zr]??={})[e]=r}function vo(e){for(var t=0;t<e.length;t++)Ji.add(e[t]);for(var r of _o)r(e)}var Zi=null,Xi=!1;function ho(e){var t=this,r=t.ownerDocument,n=e.type,o=e.composedPath?.()||[],i=o[0]||e.target;if(Zi=e,!Xi)Xi=!0,setTimeout(()=>{Xi=!1,Zi=null});var s=0,c=Zi===e&&e[Zr];if(c){var u=o.indexOf(c);if(u!==-1&&(t===document||t===window)){e[Zr]=t;return}var m=o.indexOf(t);if(m===-1)return;if(u<=m)s=u}if(i=o[s]||e.target,i===t)return;xe(e,"currentTarget",{configurable:!0,get(){return i||r}});var h=N,v=k;he(null),me(null);try{var _,p=[];while(i!==null){if(i===t)break;try{var y=i[Zr]?.[n];if(y!=null&&(!i.disabled||e.target===i))y.call(i,e)}catch(R){if(_)p.push(R);else _=R}if(e.cancelBubble)break;s++,i=s<o.length?o[s]:null}if(_){for(let R of p)queueMicrotask(()=>{throw R});throw _}}finally{e[Zr]=t,delete e.currentTarget,he(h),me(v)}}var vc=globalThis?.window?.trustedTypes&&globalThis.window.trustedTypes.createPolicy("svelte-trusted-html",{createHTML:(e)=>e});function bl(e){return vc?.createHTML(e)??e}function mo(e){var t=Ot("template");return t.innerHTML=bl(e.replaceAll("<!>","<!---->")),t.content}function Le(e,t){var r=k;if(r.nodes===null)r.nodes={start:e,end:t,a:null,t:null}}function J(e,t){var r=(t&ki)!==0,n=(t&fs)!==0,o,i=!e.startsWith("<!>");return()=>{if(w)return Le(C,null),C;if(o===void 0){if(o=mo(i?e:"<!>"+e),!r)o=ae(o)}var s=n||xn?document.importNode(o,!0):o.cloneNode(!0);if(r){var c=ae(s),u=s.lastChild;Le(c,u)}else Le(s,s);return s}}function gc(e,t,r="svg"){var n=!e.startsWith("<!>"),o=(t&ki)!==0,i=`<${r}>${n?e:"<!>"+e}</${r}>`,s;return()=>{if(w)return Le(C,null),C;if(!s){var c=mo(i),u=ae(c);if(o){s=document.createDocumentFragment();while(ae(u))s.appendChild(ae(u))}else s=ae(u)}var m=s.cloneNode(!0);if(o){var h=ae(m),v=m.lastChild;Le(h,v)}else Le(m,m);return m}}function ta(e,t){return gc(e,t,"svg")}function Ut(e=""){if(!w){var t=le(e+"");return Le(t,t),t}var r=C;if(r.nodeType!==pr)r.before(r=le()),q(r);else $n(r);return Le(r,r),r}function ra(){if(w)return Le(C,null),C;var e=document.createDocumentFragment(),t=document.createComment(""),r=le();return e.append(t,r),Le(t,r),e}function M(e,t){if(w){var r=k;if((r.f&Be)===0||r.nodes.end===null)r.nodes.end=C;Ie();return}if(e===null)return;e.before(t)}function xl(e){let t=0,r=Me(0),n;if(d)De(r,"createSubscriber version");return()=>{if(er())l(r),Te(()=>{if(t===0)n=ee(()=>e(()=>wr(r)));return t+=1,()=>{_e(()=>{if(t-=1,t===0)n?.(),n=void 0,wr(r)})}})}}var bc=qe|At;function na(e,t,r,n){new $l(e,t,r,n)}class $l{parent;is_pending=!1;transform_error;#e;#t=w?C:null;#r;#s;#o;#n=null;#a=null;#i=null;#l=null;#p=0;#f=0;#v=!1;#g=new Map;#c=null;#h=xl(()=>{if(this.#c=Me(this.#p),d)De(this.#c,"$effect.pending()");return()=>{this.#c=null}});constructor(e,t,r,n){if(this.#e=e,this.#r=t,this.#s=(o)=>{var i=k;i.b=this,i.f|=Ir,r(o)},this.parent=k.b,this.transform_error=n??this.parent?.transform_error??((o)=>o),this.#o=st(()=>{if(w){let o=hr(this.#t);Ie();let i=o===Jt;if(o.startsWith(Ti)){let c=JSON.parse(o.slice(Ti.length));this.#$(c)}else if(i)this.#_();else this.#b()}else this.#x()},bc),w)this.#e=C}#b(){try{this.#n=ge(()=>this.#s(this.#e))}catch(e){this.error(e)}}#$(e){let t=this.#r.failed,{reset:r,invoke_onerror:n}=this.#m(e);if(_e(n),!t)return;this.#i=ge(()=>{t(this.#e,()=>e,()=>r)})}#m(e){var t=!1,r=!1;let n=()=>{if(this.#u())return;if(t){hs();return}if(t=!0,r)Cs();if(this.#i!==null)Dt(this.#i,()=>{this.#i=null});this.#y(()=>{this.#x()})};return{reset:n,invoke_onerror:()=>{if(this.#u())return;try{r=!0,this.#r.onerror?.(e,n),r=!1}catch(i){Ke(i,this.#o&&this.#o.parent)}}}}#u(){return(this.#o.f&(Z|Pt))!==0}#_(){let e=this.#r.pending;if(!e)return;this.is_pending=!0,this.#a=ge(()=>e(this.#e)),_e(()=>{if(this.#u())return;var t=this.#l=document.createDocumentFragment(),r=le(),n=!1;if(t.append(r),this.#n=this.#y(()=>{try{return ge(()=>this.#s(r))}catch(o){try{this.error(o),n=!0}catch(i){Ke(i,this.#o.parent)}return null}}),this.#n===null){if(this.#l=null,n)this.#d(S);return}if(this.#f===0)this.#e.before(t),this.#l=null,Dt(this.#a,()=>{this.#a=null}),this.#d(S)})}#x(){try{if(this.is_pending=this.has_pending_snippet(),this.#f=0,this.#p=0,this.#n=ge(()=>{this.#s(this.#e)}),this.#f>0){var e=this.#l=document.createDocumentFragment();Wr(this.#n,e);let t=this.#r.pending;this.#a=ge(()=>t(this.#e))}else this.#d(S)}catch(t){this.error(t)}}#d(e){this.is_pending=!1,e.transfer_reactions(this.#g)}defer_effect(e){to(e,this.#g)}is_rendered(){return!this.is_pending&&(!this.parent||this.parent.is_rendered())}has_pending_snippet(){return!!this.#r.pending}#y(e){var t=k,r=N,n=P;me(this.#o),he(this.#o),Ht(this.#o.ctx);try{return Oe.ensure(),e()}finally{me(t),he(r),Ht(n)}}#w(e,t){if(!this.has_pending_snippet()){if(this.parent)this.parent.#w(e,t);return}if(this.#f+=e,this.#f===0){if(this.#d(t),this.#a)Dt(this.#a,()=>{this.#a=null});if(this.#l)this.#e.before(this.#l),this.#l=null}}update_pending_count(e,t){if(this.#w(e,t),this.#p+=e,!this.#c||this.#v)return;this.#v=!0,_e(()=>{if(this.#v=!1,this.#c)$t(this.#c,this.#p)})}get_effect_pending(){return this.#h(),l(this.#c)}error(e){if(e===tt)throw e;if(!this.#r.onerror&&!this.#r.failed)throw e;if(S?.is_fork){if(this.#n)S.skip_effect(this.#n);if(this.#a)S.skip_effect(this.#a);if(this.#i)S.skip_effect(this.#i);S.oncommit(()=>{if(!this.#u())this.#E(e)})}else this.#E(e)}#E(e){if(this.#n)se(this.#n),this.#n=null;if(this.#a)se(this.#a),this.#a=null;if(this.#i)se(this.#i),this.#i=null;if(w)q(this.#t),ze(),q(St());let t=this.#r.failed,r=(n)=>{if(this.#u())return;let{reset:o,invoke_onerror:i}=this.#m(n);if(i(),t&&!this.#u())this.#i=this.#y(()=>{try{return ge(()=>{var s=k;s.b=this,s.f|=Ir,t(this.#e,()=>n,()=>o)})}catch(s){return Ke(s,this.#o.parent),null}})};_e(()=>{if(this.#u())return;var n;try{n=this.transform_error(e)}catch(o){Ke(o,this.#o&&this.#o.parent);return}if(n!==null&&typeof n==="object"&&typeof n.then==="function")n.then(r,(o)=>Ke(o,this.#o&&this.#o.parent));else r(n)})}}var oa=!0;function L(e,t){var r=t==null?"":typeof t==="object"?`${t}`:t;if(r!==(e[fn]??=e.nodeValue))e[fn]=r,e.nodeValue=`${r}`}function Xr(e,t){return yl(e,t)}function aa(e,t){uo(),t.intro=t.intro??!1;let r=t.target,n=w,o=C;try{var i=ae(r);while(i&&(i.nodeType!==ct||i.data!==Mr))i=ye(i);if(!i)throw tt;ve(!0),q(i);let s=yl(e,{...t,anchor:i});return ve(!1),s}catch(s){if(s instanceof Error&&s.message.split(`
+`).some((c)=>c.startsWith("https://svelte.dev/e/")))throw s;if(s!==tt)console.warn("Failed to hydrate: ",s);if(t.recover===!1)Ts();return uo(),pn(r),ve(!1),Xr(e,t)}finally{ve(n),q(o)}}var go=new Map;function yl(e,{target:t,anchor:r,props:n={},events:o,context:i,intro:s=!0,transformError:c}){uo();var u=void 0,m=ol(()=>{var h=r??t.appendChild(le());na(h,{pending:()=>{}},(p)=>{un({});var y=P;if(i)y.c=i;if(o)n.$$events=o;if(w)Le(p,null);if(oa=s,u=e(p,n)||eo(),oa=!0,w){if(k.nodes.end=C,C===null||C.nodeType!==ct||C.data!==_r)throw vr(),tt}dn()},c);var v=new Set,_=(p)=>{for(var y=0;y<p.length;y++){var R=p[y];if(v.has(R))continue;v.add(R);var x=vl(R);for(let re of[t,document]){var D=go.get(re);if(D===void 0)D=new Map,go.set(re,D);var V=D.get(R);if(V===void 0)re.addEventListener(R,ho,{passive:x}),D.set(R,1);else D.set(R,V+1)}}};return _(Cr(Ji)),_o.add(_),()=>{for(var p of v)for(let x of[t,document]){var y=go.get(x),R=y.get(p);if(--R==0){if(x.removeEventListener(p,ho),y.delete(p),y.size===0)go.delete(x)}else y.set(p,R)}if(_o.delete(_),h!==r)h.parentNode?.removeChild(h)}});return ia.set(u,m),u}var ia=new WeakMap;function sa(e,t){let r=ia.get(e);if(r)return ia.delete(e),r(t);if(d)_s();return Promise.resolve()}class or{anchor;#e=new Map;#t=new Map;#r=new Map;#s=new Set;#o=!0;constructor(e,t=!0){this.anchor=e,this.#o=t}#n=(e)=>{if(!this.#e.has(e))return;var t=this.#e.get(e),r=this.#t.get(t);if(r)Kr(r),this.#s.delete(t);else{var n=this.#r.get(t);if(n){if(Kr(n.effect),this.#t.set(t,n.effect),this.#r.delete(t),d)n.fragment.lastChild[yi]=this.anchor;n.fragment.lastChild.remove(),this.anchor.before(n.fragment),r=n.effect}}for(let[o,i]of this.#e){if(this.#e.delete(o),o===e)break;let s=this.#r.get(i);if(s)se(s.effect),this.#r.delete(i)}for(let[o,i]of this.#t){if(o===t||this.#s.has(o))continue;let s=()=>{if(Array.from(this.#e.values()).includes(o)){var u=document.createDocumentFragment();Wr(i,u),u.append(le()),this.#r.set(o,{effect:i,fragment:u})}else se(i);this.#s.delete(o),this.#t.delete(o)};if(this.#o||!r)this.#s.add(o),Dt(i,s,!1);else s()}};#a=(e)=>{this.#e.delete(e);let t=Array.from(this.#e.values());for(let[r,n]of this.#r)if(!t.includes(r))se(n.effect),this.#r.delete(r)};ensure(e,t){var r=S,n=po();if(t&&!this.#t.has(e)&&!this.#r.has(e))if(n){var o=document.createDocumentFragment(),i=le();o.append(i),this.#r.set(e,{effect:ge(()=>t(i)),fragment:o})}else this.#t.set(e,ge(()=>t(this.anchor)));if(this.#e.set(r,e),n){for(let[s,c]of this.#t)if(s===e)r.unskip_effect(c);else r.skip_effect(c);for(let[s,c]of this.#r)if(s===e)r.unskip_effect(c.effect);else r.skip_effect(c.effect);r.oncommit(this.#n),r.ondiscard(this.#a)}else{if(w)this.anchor=C;this.#n(r)}}}function te(e,t,r=!1){var n;if(w)n=C,Ie();var o=new or(e),i=r?qe:0;function s(c,u){if(w){var m=hr(n);if(c!==parseInt(m.substring(1))){var h=St();q(h),o.anchor=h,ve(!1),o.ensure(c,u),ve(!0);return}}o.ensure(c,u)}st(()=>{var c=!1;if(t((u,m=0)=>{c=!0,s(m,u)}),!c)s(-1,null)},i)}var Cm=Symbol("NaN");function bo(e,t){return t}function $c(e,t,r){var n=[],o=t.length,i,s=t.length;for(var c=0;c<o;c++){let v=t[c];Dt(v,()=>{if(i){if(i.pending.delete(v),i.done.add(v),i.pending.size===0){var _=e.outrogroups;if(la(e,Cr(i.done)),_.delete(i),_.size===0)e.outrogroups=null}}else s-=1},!1)}if(s===0){var u=n.length===0&&r!==null&&e.pending.size===0;if(u){var m=r,h=m.parentNode;pn(h),h.append(m),e.items.clear()}la(e,t,!u)}else i={pending:new Set(t),done:new Set},(e.outrogroups??=new Set).add(i)}function la(e,t,r=!0){var n;if(e.pending.size>0){n=new Set;for(let s of e.pending.values())for(let c of s)n.add(e.items.get(c).e)}for(var o=0;o<t.length;o++){var i=t[o];if(n?.has(i)){i.f|=mt;let s=document.createDocumentFragment();Wr(i,s)}else se(t[o],r)}}var wl;function Gt(e,t,r,n,o,i=null){var s=e,c=new Map,u=(t&Ei)!==0;if(u){var m=e;s=w?q(ae(m)):m.appendChild(le())}if(w)Ie();var h=null,v=jr(()=>{var V=r();return ht(V)?V:V==null?[]:Cr(V)});if(d)De(v,"{#each ...}");var _=new Map,p=!0;function y(V){if((D.effect.f&Z)!==0)return;D.pending.delete(V);var re=l(v);if(D.fallback=h,yc(D,re,s,t,n),h!==null)if(re.length===0)if((h.f&mt)===0)Kr(h);else h.f^=mt,En(h,null,s);else Dt(h,()=>{h=null})}function R(V){D.pending.delete(V)}var x=st(()=>{var V=l(v),re=V.length;let fe=!1;if(w){var vt=hr(s)===Jt;if(vt!==(re===0))s=St(),q(s),ve(!1),fe=!0}var Ae=new Set,Se=S,Et=po();for(var Fe=0;Fe<re;Fe+=1){if(w&&C.nodeType===ct&&C.data===_r)s=C,fe=!0,ve(!1);var Xe=V[Fe],zt=n(Xe,Fe);if(d){var Ar=n(Xe,Fe);if(zt!==Ar)$s(String(Fe),String(zt),String(Ar))}var Ve=p?null:c.get(zt);if(Ve){if(Ve.v)$t(Ve.v,Xe);if(Ve.i)$t(Ve.i,Fe);if(Et)Se.unskip_effect(Ve.e)}else{if(Ve=wc(c,p?s:wl??=le(),Xe,zt,Fe,o,t,r),!p)Ve.e.f|=mt;c.set(zt,Ve)}Ae.add(zt)}if(re===0&&i&&!h)if(p)h=ge(()=>i(s));else h=ge(()=>i(wl??=le())),h.f|=mt;if(re>Ae.size)if(d)Ec(V,n);else Ri("","","");if(w&&re>0)q(St());if(!p)if(_.set(Se,Ae),Et){for(let[sr,lr]of c)if(!Ae.has(sr))Se.skip_effect(lr.e);Se.oncommit(y),Se.ondiscard(R)}else y(Se);if(fe)ve(!0);l(v)}),D={effect:x,flags:t,items:c,pending:_,outrogroups:null,fallback:h};if(p=!1,w)s=C}function wn(e){while(e!==null&&(e.f&$e)===0)e=e.next;return e}function yc(e,t,r,n,o){var i=(n&ss)!==0,s=t.length,c=e.items,u=wn(e.effect.first),m,h=null,v,_=[],p=[],y,R,x,D;if(i){for(D=0;D<s;D+=1)if(y=t[D],R=o(y,D),x=c.get(R).e,(x.f&mt)===0)x.nodes?.a?.measure(),(v??=new Set).add(x)}for(D=0;D<s;D+=1){if(y=t[D],R=o(y,D),x=c.get(R).e,e.outrogroups!==null)for(let Xe of e.outrogroups)Xe.pending.delete(x),Xe.done.delete(x);if((x.f&de)!==0){if(Kr(x),i)x.nodes?.a?.unfix(),(v??=new Set).delete(x)}if((x.f&mt)!==0)if(x.f^=mt,x===u)En(x,null,r);else{var V=h?h.next:u;if(x===e.effect.last)e.effect.last=x.prev;if(x.prev)x.prev.next=x.next;if(x.next)x.next.prev=x.prev;ir(e,h,x),ir(e,x,V),En(x,V,r),h=x,_=[],p=[],u=wn(h.next);continue}if(x!==u){if(m!==void 0&&m.has(x)){if(_.length<p.length){var re=p[0],fe;h=re.prev;var vt=_[0],Ae=_[_.length-1];for(fe=0;fe<_.length;fe+=1)En(_[fe],re,r);for(fe=0;fe<p.length;fe+=1)m.delete(p[fe]);ir(e,vt.prev,Ae.next),ir(e,h,vt),ir(e,Ae,re),u=re,h=Ae,D-=1,_=[],p=[]}else m.delete(x),En(x,u,r),ir(e,x.prev,x.next),ir(e,x,h===null?e.effect.first:h.next),ir(e,h,x),h=x;continue}_=[],p=[];while(u!==null&&u!==x)(m??=new Set).add(u),p.push(u),u=wn(u.next);if(u===null)continue}if((x.f&mt)===0)_.push(x);h=x,u=wn(x.next)}if(e.outrogroups!==null){for(let Xe of e.outrogroups)if(Xe.pending.size===0)la(e,Cr(Xe.done)),e.outrogroups?.delete(Xe);if(e.outrogroups.size===0)e.outrogroups=null}if(u!==null||m!==void 0){var Se=[];if(m!==void 0){for(x of m)if((x.f&de)===0)Se.push(x)}while(u!==null){if((u.f&de)===0&&u!==e.fallback)Se.push(u);u=wn(u.next)}var Et=Se.length;if(Et>0){var Fe=(n&Ei)!==0&&s===0?r:null;if(i){for(D=0;D<Et;D+=1)Se[D].nodes?.a?.measure();for(D=0;D<Et;D+=1)Se[D].nodes?.a?.fix()}$c(e,Se,Fe)}}if(i)_e(()=>{if(v===void 0)return;for(x of v)x.nodes?.a?.apply()})}function wc(e,t,r,n,o,i,s,c){var u=(s&is)!==0?(s&ls)===0?yr(r,!1,!1):Me(r):null,m=(s&as)!==0?Me(o):null;if(d&&u)u.trace=()=>{c()[m?.v??o]};return{v:u,i:m,e:ge(()=>(i(t,u??r,m??o,c),()=>{e.delete(n)}))}}function En(e,t,r){if(!e.nodes)return;var n=e.nodes.start,o=e.nodes.end,i=t&&(t.f&mt)===0?t.nodes.start:r;while(n!==null){var s=ye(n);if(i.before(n),n===o)return;n=s}}function ir(e,t,r){if(t===null)e.effect.first=r;else t.next=r;if(r===null)e.effect.last=t;else r.prev=t}function Ec(e,t){let r=new Map,n=e.length;for(let o=0;o<n;o++){let i=t(e[o],o);if(r.has(i)){let s=String(r.get(i)),c=String(o),u=String(i);if(u.startsWith("[object "))u=null;Ri(s,c,u)}r.set(i,o)}}var kl=[...` 	
+\r\f \v\uFEFF`];function Tl(e,t,r){var n=e==null?"":""+e;if(t)n=n?n+" "+t:t;if(r){for(var o of Object.keys(r))if(r[o])n=n?n+" "+o:o;else if(n.length){var i=o.length,s=0;while((s=n.indexOf(o,s))>=0){var c=s+i;if((s===0||kl.includes(n[s-1]))&&(c===n.length||kl.includes(n[c])))n=(s===0?"":n.substring(0,s))+n.substring(c+1);else s=c}}}return n===""?null:n}function qt(e,t,r,n,o,i){var s=e[ln];if(w||s!==r||s===void 0){var c=Tl(r,n,i);if(!w||c!==e.getAttribute("class"))if(c==null)e.removeAttribute("class");else if(t)e.className=c;else e.setAttribute("class",c);e[ln]=r}else if(i&&o!==i)for(var u in i){var m=!!i[u];if(o==null||m!==!!o[u])e.classList.toggle(u,m)}return i}function fa(e,t){if(t){if(!e.hasAttribute("selected"))e.setAttribute("selected","")}else e.removeAttribute("selected")}function Rc(e,t){var{__defaultValue:r,multiple:n}=e,o=n?r??[]:null;if(n&&!ht(o))return;var i=e.selectedIndex,s=t&&n?new Set(e.selectedOptions):null;for(var c of e.options){var u=Jr(c);fa(c,n?o.includes(u):co(u,r))}if(!t)return;if(s!==null)for(c of e.options){var m=s.has(c);if(c.selected!==m)c.selected=m}else if(e.selectedIndex!==i)e.selectedIndex=i}function Qr(e,t,r=!1){if(e.multiple){if(t==null)return;if(!ht(t))return vs();for(var n of e.options)n.selected=t.includes(Jr(n));return}for(n of e.options){var o=Jr(n);if(co(o,t)){n.selected=!0;return}}if(!r||t!==void 0)e.selectedIndex=-1}function Tr(e){var t=new MutationObserver((r)=>{if(r.every(Cc))return;if("__defaultValue"in e)Rc(e,!1);if("__value"in e)Qr(e,e.__value)});t.observe(e,{childList:!0,subtree:!0,attributes:!0,attributeFilter:["value"]}),we(()=>{t.disconnect()})}function kn(e,t,r=t){var n=new WeakSet,o=!0;_n(e,"change",(i)=>{var s=i?"[selected]":":checked",c;if(e.multiple)c=[].map.call(e.querySelectorAll(s),Jr);else{var u=e.querySelector(s)??e.querySelector("option:not([disabled])");c=u&&Jr(u)}if(r(c),e.__value=c,S!==null)n.add(S)}),at(()=>{var i=t();if(e===document.activeElement){var s=pe?nt:S;if(n.has(s))return}if(Qr(e,i,o),o&&i===void 0){var c=e.querySelector(":checked");if(c!==null)i=Jr(c),r(i)}e.__value=i,o=!1})}function Jr(e){if("__value"in e)return e.__value;else return e.value}function Cc(e){if(e.target.closest("selectedcontent")!==null)return!0;if(e.type==="childList"){var t=[...e.addedNodes,...e.removedNodes];return t.length>0&&t.every((r)=>r.nodeName==="SELECTEDCONTENT")}return!1}var Lc=Symbol("class"),Fc=Symbol("style"),Pc=Symbol("is custom element"),Bc=Symbol("is html"),jc=wi?"link":"LINK";function He(e){if(!w)return;var t=!1,r=()=>{if(t)return;if(t=!0,e.hasAttribute("value")){var n=e.value;Ze(e,"value",null),e.value=n}if(e.hasAttribute("checked")){var o=e.checked;Ze(e,"checked",null),e.checked=o}};e[Xt]=r,_e(r),ro()}function Tn(e,t){var r=Rl(e);if(r.checked===(r.checked=t??void 0))return;e.checked=t}function Ze(e,t,r,n){var o=Rl(e);if(w){if(o[t]=e.getAttribute(t),t==="src"||t==="srcset"||t==="href"&&e.nodeName===jc){if(!n)Hc(e,t,r??"");return}}var i=o[t];if(i===(o[t]=r))return;if(t==="loading")e[os]=r;if(r==null)e.removeAttribute(t);else if(typeof r!=="string"&&Yc(e).has(t))e[t]=r;else if(!(w&&(typeof r==="number"||typeof r==="boolean")&&i===String(r)))e.setAttribute(t,r)}function Rl(e){return e[Gn]??={[Pc]:e.nodeName.includes("-"),[Bc]:e.namespaceURI===qn}}var Al=new Map;function Yc(e){var t=e.getAttribute("is")||e.nodeName,r=Al.get(t);if(r)return r;Al.set(t,r=new Set);var n,o=e,i=Element.prototype;while(i!==o){n=hi(o);for(var s in n)if(n[s].set&&s!=="innerHTML"&&s!=="textContent"&&s!=="innerText")r.add(s);o=Or(o)}return r}function Hc(e,t,r){if(!d)return;if(t==="srcset"&&Vc(e,r))return;if(ca(e.getAttribute(t)??"",r))return;ps(t,e.outerHTML.replace(e.innerHTML,e.innerHTML&&"..."),String(r))}function ca(e,t){if(e===t)return!0;return new URL(e,document.baseURI).href===new URL(t,document.baseURI).href}function Sl(e){return e.split(",").map((t)=>t.trim().split(" ").filter(Boolean))}function Vc(e,t){var r=Sl(e.srcset),n=Sl(t);return n.length===r.length&&n.every(([o,i],s)=>i===r[s][1]&&(ca(r[s][0],o)||ca(o,r[s][0])))}function wt(e,t,r=t){var n=new WeakSet;if(_n(e,"input",async(o)=>{if(d&&e.type==="checkbox")Ni();var i=o?e.defaultValue:e.value;if(i=ua(e)?da(i):i,r(i),S!==null)n.add(S);if(await yn(),i!==(i=t())){var{selectionStart:s,selectionEnd:c}=e,u=e.value.length;if(e.value=i??"",c!==null){var m=e.value.length;if(s===c&&c===u&&m>u)e.selectionStart=m,e.selectionEnd=m;else e.selectionStart=s,e.selectionEnd=Math.min(c,m)}}}),w&&e.defaultValue!==e.value||ee(t)==null&&e.value){if(r(ua(e)?da(e.value):e.value),S!==null)n.add(S)}Te(()=>{if(d&&e.type==="checkbox")Ni();var o=t();if(e===document.activeElement){var i=pe?nt:S;if(n.has(i))return}if(ua(e)&&o===da(e.value))return;if(e.type==="date"&&!o&&!e.value)return;if(o!==e.value)e.value=o??""})}function pa(e,t,r=t){if(_n(e,"change",(n)=>{var o=n?e.defaultChecked:e.checked;r(o)}),w&&e.defaultChecked!==e.checked||ee(t)==null)r(e.checked);Te(()=>{var n=t();e.checked=Boolean(n)})}function ua(e){var t=e.type;return t==="number"||t==="range"}function da(e){return e===""?null:+e}var W$=Symbol("unmounted");function Cl(e){return new Ol(e)}class Ol{#e;#t;constructor(e){var t=new Map,r=(o,i)=>{var s=yr(i,!1,!1);return t.set(o,s),s};let n=new Proxy({...e.props||{},$$events:{}},{get(o,i){return l(t.get(i)??r(i,Reflect.get(o,i)))},has(o,i){if(i===Vn)return!0;return l(t.get(i)??r(i,Reflect.get(o,i))),Reflect.has(o,i)},set(o,i,s){return T(t.get(i)??r(i,s),s),Reflect.set(o,i,s)}});if(this.#t=(e.hydrate?aa:Xr)(e.component,{target:e.target,anchor:e.anchor,props:n,context:e.context,intro:e.intro??!1,recover:e.recover,transformError:e.transformError}),!pe&&(!e?.props?.$$host||e.sync===!1))tr();this.#e=n.$$events;for(let o of Object.keys(this.#t)){if(o==="$set"||o==="$destroy"||o==="$on")continue;xe(this,o,{get(){return this.#t[o]},set(i){this.#t[o]=i},enumerable:!0})}this.#t.$set=(o)=>{Object.assign(n,o)},this.#t.$destroy=()=>{sa(this.#t)}}$set(e){this.#t.$set(e)}$on(e,t){this.#e[e]=this.#e[e]||[];let r=(...n)=>t.call(this,...n);return this.#e[e].push(r),()=>{this.#e[e]=this.#e[e].filter((n)=>n!==r)}}$destroy(){this.#t.$destroy()}}var Qc;if(typeof HTMLElement==="function")Qc=class extends HTMLElement{$$ctor;$$s;$$c;$$cn=!1;$$d={};$$r=!1;$$p_d={};$$l={};$$l_u=new Map;$$me;$$shadowRoot=null;constructor(e,t,r){super();if(this.$$ctor=e,this.$$s=t,r)this.$$shadowRoot=this.attachShadow(r)}addEventListener(e,t,r){if(this.$$l[e]=this.$$l[e]||[],this.$$l[e].push(t),this.$$c){let n=this.$$c.$on(e,t);this.$$l_u.set(t,n)}super.addEventListener(e,t,r)}removeEventListener(e,t,r){if(super.removeEventListener(e,t,r),this.$$c){let n=this.$$l_u.get(t);if(n)n(),this.$$l_u.delete(t)}}async connectedCallback(){if(this.$$cn=!0,!this.$$c){let e=function(n){return(o)=>{let i=Ot("slot");if(n!=="default")i.name=n;M(o,i)}};if(await Promise.resolve(),!this.$$cn||this.$$c)return;let t={},r=eu(this);for(let n of this.$$s)if(n in r)if(n==="default"&&!this.$$d.children)this.$$d.children=e(n),t.default=!0;else t[n]=e(n);for(let n of this.attributes){let o=this.$$g_p(n.name);if(!(o in this.$$d))this.$$d[o]=va(o,n.value,this.$$p_d,"toProp")}for(let n in this.$$p_d)if(!(n in this.$$d)&&this[n]!==void 0)this.$$d[n]=this[n],delete this[n];this.$$c=Cl({component:this.$$ctor,target:this.$$shadowRoot||this,props:{...this.$$d,$$slots:t,$$host:this}}),this.$$me=Ki(()=>{Te(()=>{this.$$r=!0;for(let n of vi(this.$$c)){if(!this.$$p_d[n]?.reflect)continue;this.$$d[n]=this.$$c[n];let o=va(n,this.$$d[n],this.$$p_d,"toAttribute");if(o==null)this.removeAttribute(this.$$p_d[n].attribute||n);else this.setAttribute(this.$$p_d[n].attribute||n,o)}this.$$r=!1})});for(let n in this.$$l)for(let o of this.$$l[n]){let i=this.$$c.$on(n,o);this.$$l_u.set(o,i)}this.$$l={}}}attributeChangedCallback(e,t,r){if(this.$$r)return;e=this.$$g_p(e),this.$$d[e]=va(e,r,this.$$p_d,"toProp"),this.$$c?.$set({[e]:this.$$d[e]})}disconnectedCallback(){this.$$cn=!1,Promise.resolve().then(()=>{if(!this.$$cn&&this.$$c)this.$$c.$destroy(),this.$$me(),this.$$c=void 0})}$$g_p(e){return vi(this.$$p_d).find((t)=>this.$$p_d[t].attribute===e||!this.$$p_d[t].attribute&&t.toLowerCase()===e)||e}};function va(e,t,r,n){let o=r[e]?.type;if(t=o==="Boolean"&&typeof t!=="boolean"?t!=null:t,!n||!r[e])return t;else if(n==="toAttribute")switch(o){case"Object":case"Array":return t==null?null:JSON.stringify(t);case"Boolean":return t?"":null;case"Number":return t==null?null:t;default:return t}else switch(o){case"Object":case"Array":return t&&JSON.parse(t);case"Boolean":return t;case"Number":return t!=null?+t:t;default:return t}}function eu(e){let t={};return e.childNodes.forEach((r)=>{t[r.slot||"default"]=!0}),t}if(d){let e=function(t){if(!(t in globalThis)){let r;Object.defineProperty(globalThis,t,{configurable:!0,get:()=>{if(r!==void 0)return r;As(t)},set:(n)=>{r=n}})}};e("$state"),e("$effect"),e("$derived"),e("$inspect"),e("$props"),e("$bindable")}function Il(e){if(P===null)Zn("onMount");if(Qt&&P.l!==null)ou(P).m.push(e);else zr(()=>{let t=ee(e);if(typeof t==="function")return t})}function ou(e){var t=e.l;return t.u??={a:[],b:[],m:[]}}var Dl="5";if(typeof window<"u")((window.__svelte??={}).v??=new Set).add(Dl);var iu=J('<br class="svelte-7xbc87edh957"/> ',1),au=J('<p class="waktu svelte-7xbc87edh957"> <!></p>'),su=J('<span class="svelte-7xbc87edh957"> </span>'),lu=J('<div class="peringatan svelte-7xbc87edh957"></div>'),ar=J('<p class="ket svelte-7xbc87edh957"> </p>'),fu=J('<img alt=""/> <!>',1),cu=J('<button class="stop svelte-7xbc87edh957"> </button>'),uu=J("<button> </button>"),du=J('<button class="aktif-jelajah svelte-7xbc87edh957"> </button>'),pu=J('<select aria-label="Lama jelajah" class="svelte-7xbc87edh957"><option class="svelte-7xbc87edh957">5 menit</option><option class="svelte-7xbc87edh957">10 menit</option><option class="svelte-7xbc87edh957">15 menit</option><option class="svelte-7xbc87edh957">30 menit</option></select> <button class="svelte-7xbc87edh957">Jelajah sendiri</button>',1),Ml=J('<small class="svelte-7xbc87edh957"> </small>'),_u=ta('<line x1="0" class="svelte-7xbc87edh957"></line><text x="2" class="svelte-7xbc87edh957"> </text>',1),vu=J('<svg class="grafik svelte-7xbc87edh957" role="img"><!><path class="svelte-7xbc87edh957"></path></svg> <div class="sumbu svelte-7xbc87edh957"><span class="svelte-7xbc87edh957"> </span><span class="svelte-7xbc87edh957">sekarang</span></div>',1),hu=J('<p class="ket svelte-7xbc87edh957">Grafik muncul setelah robot menyala 2 menit (satu titik per menit, paling lama 6 jam).</p>'),mu=J(" <!>",1),gu=J('<li class="svelte-7xbc87edh957"><b class="svelte-7xbc87edh957"> </b> <span class="svelte-7xbc87edh957"> <small class="svelte-7xbc87edh957"> </small></span> <button class="hapus svelte-7xbc87edh957">✕</button></li>'),bu=J('<ul class="alarm svelte-7xbc87edh957"></ul>'),xu=J('<label class="svelte-7xbc87edh957"><input type="checkbox" class="svelte-7xbc87edh957"/> </label>'),$u=J('<div class="hari svelte-7xbc87edh957"></div>'),yu=J('<li><label class="svelte-7xbc87edh957"><input type="checkbox" class="svelte-7xbc87edh957"/><span class="svelte-7xbc87edh957"> </span></label> <button class="hapus svelte-7xbc87edh957">✕</button></li>'),wu=J('<ul class="alarm catatan svelte-7xbc87edh957"></ul>'),Eu=J('<p class="ket svelte-7xbc87edh957">Belum ada catatan. Bisa juga dari layar Zond (Alat, Catatan) atau Telegram: /catat beli susu.</p>'),ku=J('<button><b class="svelte-7xbc87edh957"> </b> <span class="svelte-7xbc87edh957"> </span></button>'),Tu=J('<p class="status svelte-7xbc87edh957"> </p>'),Au=J('<main class="svelte-7xbc87edh957"><header class="svelte-7xbc87edh957"><h1 class="svelte-7xbc87edh957"> </h1> <span></span> <span class="kecil svelte-7xbc87edh957"><!></span></header> <!> <!> <section class="bicara svelte-7xbc87edh957"><button> </button> <p class="ket kecil-ket svelte-7xbc87edh957">Ketuk, lalu bicara ke mikrofon robot. Robot berhenti merekam saat kamu diam (paling lama 6 detik).</p> <label class="saklar svelte-7xbc87edh957"><input type="checkbox" class="svelte-7xbc87edh957"/> </label></section> <section class="kamera svelte-7xbc87edh957"><!> <button class="kecil-btn svelte-7xbc87edh957"> </button></section> <section class="svelte-7xbc87edh957"><h2 class="svelte-7xbc87edh957">Gerak <small class="svelte-7xbc87edh957">tahan untuk jalan, lepas untuk berhenti</small></h2> <div class="dpad svelte-7xbc87edh957"></div> <label class="svelte-7xbc87edh957"> <input type="range" min="100" max="255" class="svelte-7xbc87edh957"/></label> <div class="baris belok svelte-7xbc87edh957"><button class="svelte-7xbc87edh957">⟲ 90° kiri</button> <button class="svelte-7xbc87edh957">↻ balik</button> <button class="svelte-7xbc87edh957">90° kanan ⟳</button></div> <p class="ket kecil-ket svelte-7xbc87edh957">Belok tepat memakai giroskop di badan; sudutnya tidak berubah walau baterai melemah.</p> <div class="baris jelajah svelte-7xbc87edh957"><!></div> <p class="ket kecil-ket svelte-7xbc87edh957">Maju sampai ada halangan, lalu belok ke arah acak. Berhenti sendiri kalau waktunya habis, baterai tinggal 10%, atau tombol STOP ditekan. Tombol arah juga menghentikannya.</p></section> <section class="svelte-7xbc87edh957"><h2 class="svelte-7xbc87edh957">Baterai <!></h2> <!> <p class="ket kecil-ket svelte-7xbc87edh957"><!> Peringatan dikirim ke Telegram saat tinggal 20% dan 10%.</p></section> <section class="svelte-7xbc87edh957"><h2 class="svelte-7xbc87edh957">Kepala</h2> <label class="svelte-7xbc87edh957"> <input type="range" min="-60" max="60" class="svelte-7xbc87edh957"/></label> <label class="svelte-7xbc87edh957"> <input type="range" min="40" max="150" class="svelte-7xbc87edh957"/></label> <button class="kecil-btn svelte-7xbc87edh957">Lurus ke depan</button></section> <section class="svelte-7xbc87edh957"><h2 class="svelte-7xbc87edh957">Musik dan suara</h2> <div class="baris svelte-7xbc87edh957"><button class="svelte-7xbc87edh957">Lagu berikutnya</button> <button class="svelte-7xbc87edh957">Radio berikutnya</button> <button class="svelte-7xbc87edh957">Diam</button></div> <label class="svelte-7xbc87edh957"> <input type="range" min="0" max="21" class="svelte-7xbc87edh957"/></label> <label class="suara svelte-7xbc87edh957">Suara bicara <select class="svelte-7xbc87edh957"><option class="svelte-7xbc87edh957"> </option><option class="svelte-7xbc87edh957">Google</option></select></label> <p class="ket kecil-ket svelte-7xbc87edh957"><!></p> <form class="svelte-7xbc87edh957"><input type="text" placeholder="Suruh Zond bilang..." maxlength="140" class="svelte-7xbc87edh957"/> <button type="submit" class="svelte-7xbc87edh957">Bilang</button></form> <form class="svelte-7xbc87edh957"><input type="text" placeholder="Pesan untuk layar Zond..." maxlength="190" class="svelte-7xbc87edh957"/> <button type="submit" class="svelte-7xbc87edh957">Kirim</button></form></section> <section class="svelte-7xbc87edh957"><h2 class="svelte-7xbc87edh957">Alarm dan pengingat</h2> <!> <form class="form-alarm svelte-7xbc87edh957"><div class="baris svelte-7xbc87edh957"><input type="time" required="" class="svelte-7xbc87edh957"/> <select class="svelte-7xbc87edh957"><option class="svelte-7xbc87edh957">Sekali</option><option class="svelte-7xbc87edh957">Setiap hari</option><option class="svelte-7xbc87edh957">Senin-Jumat</option><option class="svelte-7xbc87edh957">Sabtu-Minggu</option><option class="svelte-7xbc87edh957">Pilih hari</option></select></div> <!> <input type="text" placeholder="Pesan, misalnya: bangun, minum obat" maxlength="79" class="svelte-7xbc87edh957"/> <div class="baris svelte-7xbc87edh957"><select class="svelte-7xbc87edh957"><option class="svelte-7xbc87edh957">Suara saja</option><option class="svelte-7xbc87edh957">Suara + radio</option><option class="svelte-7xbc87edh957">Suara + lagu SD</option></select> <button type="submit" class="svelte-7xbc87edh957">Pasang</button></div> <!></form> <p class="ket kecil-ket svelte-7xbc87edh957">Alarm sebelum jam 11 siang sekalian menyebut cuaca hari ini. Pengingat juga dikirim ke Telegram.</p></section> <section class="svelte-7xbc87edh957"><h2 class="svelte-7xbc87edh957">Catatan</h2> <!> <form class="svelte-7xbc87edh957"><input type="text" placeholder="Catatan atau tugas baru..." maxlength="79" class="svelte-7xbc87edh957"/> <button type="submit" class="svelte-7xbc87edh957">Tambah</button></form> <!></section> <section class="svelte-7xbc87edh957"><h2 class="svelte-7xbc87edh957">Fitur kamera AI</h2> <label class="saklar svelte-7xbc87edh957"><input type="checkbox" class="svelte-7xbc87edh957"/> Aktifkan "lihat sekeliling" dan "suit". Tiap kali dipakai, foto dikirim ke AI dan memakai jatah AI lebih cepat.</label> <div class="baris svelte-7xbc87edh957"><button class="svelte-7xbc87edh957">Lihat sekeliling</button> <button class="svelte-7xbc87edh957">Main suit</button></div> <!> <!></section> <section class="svelte-7xbc87edh957"><h2 class="svelte-7xbc87edh957">Otak AI <!></h2> <div class="ai svelte-7xbc87edh957"></div> <!> <p class="ket kecil-ket svelte-7xbc87edh957">Kalau pilihanmu gagal (jatah habis atau saldo kosong), robot otomatis memakai yang gratis.</p></section> <!></main>');function Su(e,t){un(t,!0);let r=B(5);async function n(a){await Q(`/api/jelajah?menit=${a}`),await cr()}function o(a){let f=Math.max(0,a);return`${Math.floor(f/60)}:${String(f%60).padStart(2,"0")}`}let i=B(it([]));async function s(){let a=await Q("/api/baterai");if(a&&a.ok)T(i,(await a.json()).v,!0)}let c=6.4,u=8.4,m=320,h=120;function v(a){let f=(Math.min(u,Math.max(c,a))-c)/(u-c);return h-4-f*(h-8)}let _=ao(()=>{let a=l(i).length;if(a<2)return"";return l(i).map((f,b)=>`${b?"L":"M"}${(b/(a-1)*m).toFixed(1)},${v(f/100).toFixed(1)}`).join("")});function p(a){if(a<60)return`${a} menit`;return`${Math.floor(a/60)} jam${a%60?` ${a%60} menit`:""}`}async function y(a){await Q(`/api/suara?pakai=${a.currentTarget.value}`),await cr()}function R(a){Q(`/api/belok?d=${a}`)}let x=["Min","Sen","Sel","Rab","Kam","Jum","Sab"],D=["suara","radio","lagu SD"],V=B(it([])),re=B("06:00"),fe=B("0"),vt=it([!1,!0,!0,!0,!0,!0,!1]),Ae=B(""),Se=B(0),Et=B("");async function Fe(){let a=await Q("/api/alarm");if(a&&a.ok)T(V,(await a.json()).alarm,!0)}async function Xe(a){a.preventDefault();let f=l(fe)==="pilih"?vt.reduce((Y,F,U)=>F?Y|1<<U:Y,0):Number(l(fe)),b=new URLSearchParams({jam:l(re),hari:String(f),pesan:l(Ae).trim(),bunyi:String(l(Se))}),I=await Q(`/api/alarm/tambah?${b}`);if(T(Et,!I?"Robot tidak menjawab":I.ok?"":await I.text(),!0),I?.ok)T(Ae,"");await Fe()}async function zt(a){await Q(`/api/alarm/hapus?i=${a}`),await Fe()}let Ar=B(it([])),Ve=B(""),sr=B("");async function lr(a=""){let f=await Q(`/api/catatan${a}`,3000);if(!f)T(sr,"Robot tidak menjawab");else if(!f.ok)T(sr,await f.text(),!0);else T(sr,""),T(Ar,await f.json(),!0)}async function Fl(a){a.preventDefault();let f=l(Ve).trim();if(!f)return;T(Ve,""),await lr(`?aksi=tambah&teks=${encodeURIComponent(f)}`)}let An=B("");async function Pl(a){let f=a.currentTarget.checked;await Q(`/api/fiturkamera?on=${f?1:0}`),await cr()}async function ha(a,f){let b=await Q(a);T(An,!b?"Robot tidak menjawab":b.ok?f:await b.text(),!0),setTimeout(()=>T(An,""),6000)}let $o=B(!1);async function Bl(){T($o,!0),await Q("/api/bicara"),setTimeout(()=>T($o,!1),1500)}async function jl(a){let f=a.currentTarget.checked;await Q(`/api/dengar?on=${f?1:0}`),await cr()}let Yl=[{id:"otomatis",nama:"Otomatis",ket:"gratis: Gemini, lalu Gemma, lalu Groq"},{id:"gemini",nama:"Gemini",ket:"gratis, jatah harian kecil"},{id:"gemma",nama:"Gemma",ket:"gratis, jatah besar"},{id:"groq",nama:"Groq",ket:"gratis, cepat"},{id:"haiku",nama:"Claude Haiku",ket:"berbayar per pemakaian"}],yo=B(""),en=B("");async function Hl(a){T(yo,a,!0),T(en,"");let f=await Q(`/api/ai?m=${a}`);if(!f)T(en,"Robot tidak menjawab");else if(!f.ok)T(en,await f.text(),!0);await cr(),T(yo,"")}let E=B(null),Mt=B(!1),tn=B(160),Sr=B(null),Nr=B(0),rn=B(90),nn=B(12),wo=!1,Sn=B(""),fr=B(!0),Nn=B(!1),ma=B("");async function Q(a,f=1500){let b=new AbortController,I=setTimeout(()=>b.abort(),f);try{return await fetch(a,{signal:b.signal,cache:"no-store"})}catch{return null}finally{clearTimeout(I)}}async function cr(){let a=await Q("/api/status");if(!a||!a.ok){T(Mt,!1);return}if(T(Mt,!0),T(E,await a.json(),!0),!wo)T(nn,l(E).vol,!0)}let Vl={maju:[1,1],mundur:[-1,-1],kiri:[-1,1],kanan:[1,-1],majukiri:[0.35,1],majukanan:[1,0.35],mundurkiri:[-0.35,-1],mundurkanan:[-1,-0.35]},Rr=null,Eo=!1;function ga(){if(!l(Sr)||Eo)return;let[a,f]=Vl[l(Sr)];Eo=!0,Q(`/api/gerak?l=${Math.round(a*l(tn))}&r=${Math.round(f*l(tn))}`,600).finally(()=>Eo=!1)}function ba(a){if(T(Sr,a,!0),ga(),Rr)clearInterval(Rr);Rr=setInterval(ga,150)}function Lt(){if(Rr)clearInterval(Rr);if(Rr=null,l(Sr))Q("/api/stop");T(Sr,null)}function Ul(a,f){a.currentTarget.setPointerCapture(a.pointerId),ba(f)}let xa={ArrowUp:"maju",w:"maju",ArrowDown:"mundur",s:"mundur",ArrowLeft:"kiri",a:"kiri",ArrowRight:"kanan",d:"kanan"};function Gl(a){if(a.target.tagName==="INPUT")return;if(a.key===" "){a.preventDefault(),Lt(),Q("/api/stop");return}let f=xa[a.key];if(f&&!a.repeat)a.preventDefault(),ba(f)}function ql(a){if(xa[a.key])Lt()}let $a=0,ko=null;function To(){let a=Date.now();if(ko)clearTimeout(ko);let f=()=>{$a=Date.now(),Q(`/api/kepala?p=${90-l(Nr)}&t=${l(rn)}`)};if(a-$a>150)f();else ko=setTimeout(f,150)}function zl(){T(Nr,0),T(rn,90),To()}async function Kl(){wo=!0,await Q(`/api/volume?v=${l(nn)}`),setTimeout(()=>wo=!1,1500)}let Rn=B("");async function Wl(a){a.preventDefault();let f=l(Rn).trim();if(!f)return;T(Rn,""),await Q(`/api/pesan?teks=${encodeURIComponent(f)}`,3000)}async function Zl(a){a.preventDefault();let f=l(Sn).trim();if(!f)return;T(Sn,""),await Q(`/api/bilang?t=${encodeURIComponent(f)}`,3000)}function Cn(a){setTimeout(()=>{if(!l(fr)||!l(E)?.kamera){if(l(fr))Cn(1000);return}T(ma,`http://${l(E).kamera}/capture?res=vga&t=${Date.now()}`)},a)}function Xl(a){let f=[];if(a&1)f.push("Tombol STOP terkunci");if(a&2)f.push("Baterai lemah");if(a&4)f.push("Halangan depan");if(a&8)f.push("Halangan belakang");if(a&16)f.push("Robot miring");return f}Il(()=>{cr(),Fe(),s(),lr();let a=setInterval(cr,1000),f=setInterval(()=>(Fe(),lr()),30000),b=setInterval(s,60000),I=()=>Lt(),Y=()=>document.hidden&&Lt();return window.addEventListener("blur",I),document.addEventListener("visibilitychange",Y),()=>{clearInterval(a),clearInterval(f),clearInterval(b),window.removeEventListener("blur",I),document.removeEventListener("visibilitychange",Y),Lt()}}),zr(()=>{if(l(fr))Cn(0)});var Ao=Au();lt("keydown",qr,Gl),lt("keyup",qr,ql);var So=O(Ao),ya=O(So),Jl=W(ya,!0),wa=g(ya,2);let Ea;var ka=g(wa,2),Ql=O(ka);{var ef=(a)=>{var f=Ut("otak tidak terhubung");M(a,f)},tf=(a)=>{var f=Ut("badan tidak menjawab");M(a,f)},rf=(a)=>{var f=Ut();H((b)=>L(f,`${l(E).bateraiPersen>=0?`${l(E).bateraiPersen}% · `:""}${b??""} V · depan ${l(E).depan??""} cm · belakang ${l(E).belakang??""} cm`),[()=>l(E).baterai.toFixed(1)]),M(a,f)};te(Ql,(a)=>{if(!l(Mt))a(ef);else if(!l(E)?.hidup)a(tf,1);else a(rf,-1)})}A(ka),A(So);var Ta=g(So,2);{var nf=(a)=>{var f=au(),b=O(f),I=g(b);{var Y=(F)=>{var U=iu(),ce=g(Vt(U),1,!0);H(()=>L(ce,l(E).cuaca)),M(F,U)};te(I,(F)=>{if(l(E).cuaca)F(Y)})}A(f),H(()=>L(b,`${l(E).jam??""} · ${l(E).tanggal??""}`)),M(a,f)};te(Ta,(a)=>{if(l(E)?.jam)a(nf)})}var Aa=g(Ta,2);{var of=(a)=>{var f=lu();Gt(f,20,()=>Xl(l(E).flag),(b)=>b,(b,I)=>{var Y=su(),F=W(Y,!0);H(()=>L(F,I)),M(b,Y)}),A(f),M(a,f)};te(Aa,(a)=>{if(l(E)&&l(E).flag)a(of)})}var No=g(Aa,2),on=O(No);let Sa;var af=W(on,!0),Na=g(on,4),an=O(Na);He(an);var sf=g(an);A(Na),A(No);var Ro=g(No,2),Ra=O(Ro);{var lf=(a)=>{var f=fu(),b=Vt(f);let I;var Y=g(b,2);{var F=(U)=>{var ce=ar(),oe=W(ce);H(()=>L(oe,`Kamera tidak terhubung (${l(E).kamera??""})`)),M(U,ce)};te(Y,(U)=>{if(l(Nn))U(F)})}H(()=>{Ze(b,"src",l(ma)),I=qt(b,1,"svelte-7xbc87edh957",null,I,{redup:l(Nn)})}),lt("load",b,()=>{T(Nn,!1),Cn(100)}),lt("error",b,()=>{T(Nn,!0),Cn(1500)}),Qi(b),M(a,f)},ff=(a)=>{var f=ar(),b=W(f,!0);H(()=>L(b,l(E)?.kamera?"Kamera dimatikan":"Alamat kamera belum diketahui")),M(a,f)};te(Ra,(a)=>{if(l(fr)&&l(E)?.kamera)a(lf);else a(ff,-1)})}var Ca=g(Ra,2),cf=W(Ca,!0);A(Ro);var Co=g(Ro,2),On=g(O(Co),2);Gt(On,20,()=>[["majukiri","↖"],["maju","▲"],["majukanan","↗"],["kiri","◀"],["stop","■"],["kanan","▶"],["mundurkiri","↙"],["mundur","▼"],["mundurkanan","↘"]],([a,f])=>a,(a,f)=>{var b=ao(()=>bi(f,2));let I=()=>l(b)[0],Y=()=>l(b)[1];var F=ra(),U=Vt(F);{var ce=(ue)=>{var be=cu(),Ue=W(be,!0);H(()=>L(Ue,Y())),G("pointerdown",be,()=>{Lt(),Q("/api/stop")}),M(ue,be)},oe=(ue)=>{var be=uu();let Ue;var ur=W(be,!0);H(()=>{Ue=qt(be,1,"svelte-7xbc87edh957",null,Ue,{aktif:l(Sr)===I()}),L(ur,Y())}),G("pointerdown",be,(_i)=>Ul(_i,I())),G("pointerup",be,Lt),lt("pointercancel",be,Lt),lt("lostpointercapture",be,Lt),M(ue,be)};te(U,(ue)=>{if(I()==="stop")ue(ce);else ue(oe,-1)})}M(a,F)}),A(On);var Oo=g(On,2),Oa=O(Oo),Ia=g(Oa);He(Ia),A(Oo);var Io=g(Oo,2),Da=O(Io),Ma=g(Da,2),uf=g(Ma,2);A(Io);var La=g(Io,4),df=O(La);{var pf=(a)=>{var f=du(),b=W(f);H((I)=>L(b,`Berhenti menjelajah (sisa ${I??""})`),[()=>o(l(E).jelajahSisa)]),G("click",f,()=>n(0)),M(a,f)},_f=(a)=>{var f=pu(),b=Vt(f),I=O(b);I.value=I.__value=5;var Y=g(I);Y.value=Y.__value=10;var F=g(Y);F.value=F.__value=15;var U=g(F);U.value=U.__value=30,A(b),Tr(b);var ce=g(b,2);H(()=>ce.disabled=!l(Mt)||!l(E)?.hidup),kn(b,()=>l(r),(oe)=>T(r,oe)),G("click",ce,()=>n(l(r))),M(a,f)};te(df,(a)=>{if(l(E)?.mode==="jelajah")a(pf);else a(_f,-1)})}A(La),ze(2),A(Co);var Do=g(Co,2),Mo=O(Do),vf=g(O(Mo));{var hf=(a)=>{var f=Ml(),b=W(f);H((I)=>L(b,`${l(E).bateraiPersen??""}% · ${I??""} V`),[()=>l(E).baterai.toFixed(2)]),M(a,f)};te(vf,(a)=>{if(l(E)&&l(E).bateraiPersen>=0)a(hf)})}A(Mo);var Fa=g(Mo,2);{var mf=(a)=>{var f=vu(),b=Vt(f);Ze(b,"viewBox","0 0 320 120");var I=O(b);Gt(I,16,()=>[8.4,7.8,7.2,6.6],(oe)=>oe,(oe,ue)=>{var be=_u(),Ue=Vt(be);Ze(Ue,"x2",m);var ur=g(Ue),_i=W(ur);H((qf,zf,Kf,Wf)=>{Ze(Ue,"y1",qf),Ze(Ue,"y2",zf),Ze(ur,"y",Kf),L(_i,`${Wf??""} V`)},[()=>v(ue),()=>v(ue),()=>ue===u?v(ue)+11:v(ue)-3,()=>ue.toFixed(1)]),M(oe,be)});var Y=g(I);A(b);var F=g(b,2),U=O(F),ce=W(U);ze(),A(F),H((oe,ue)=>{Ze(b,"aria-label",`Tegangan baterai ${oe??""} terakhir`),Ze(Y,"d",l(_)),L(ce,`${ue??""} lalu`)},[()=>p(l(i).length),()=>p(l(i).length)]),M(a,f)},gf=(a)=>{var f=hu();M(a,f)};te(Fa,(a)=>{if(l(i).length>=2)a(mf);else a(gf,-1)})}var Pa=g(Fa,2),bf=O(Pa);{var xf=(a)=>{var f=Ut();H((b)=>L(f,`Perkiraan sisa ${b??""}, kalau pemakaiannya seperti setengah jam terakhir.`),[()=>p(l(E).sisaMenit)]),M(a,f)},$f=(a)=>{var f=Ut("Perkiraan sisa waktu muncul setelah sekitar 10 menit menyala.");M(a,f)};te(bf,(a)=>{if(l(E)&&l(E).sisaMenit>=0)a(xf);else a($f,-1)})}ze(),A(Pa),A(Do);var Lo=g(Do,2),Fo=g(O(Lo),2),Ba=O(Fo),Po=g(Ba);He(Po),A(Fo);var Bo=g(Fo,2),ja=O(Bo),jo=g(ja);He(jo),A(Bo);var yf=g(Bo,2);A(Lo);var Yo=g(Lo,2),Ho=g(O(Yo),2),Ya=O(Ho),Ha=g(Ya,2),wf=g(Ha,2);A(Ho);var Vo=g(Ho,2),Va=O(Vo),Uo=g(Va);He(Uo),A(Vo);var Go=g(Vo,2),Kt=g(O(Go)),sn=O(Kt),Ef=W(sn);sn.value=sn.__value="gemini";var Ua=g(sn);Ua.value=Ua.__value="google",A(Kt);var In;Tr(Kt),A(Go);var qo=g(Go,2),kf=O(qo);{var Tf=(a)=>{var f=Ut("Suara cowok belum aktif: isi SUARA_GEMINI dan GEMINI_API_KEY di kode.");M(a,f)},Af=(a)=>{var f=mu(),b=Vt(f),I=g(b);{var Y=(F)=>{var U=Ut();H(()=>L(U,`Galat terakhir: kode ${l(E).suaraGalat??""}, sementara memakai suara Google.`)),M(F,U)};te(I,(F)=>{if(l(E).suaraGalat)F(Y)})}H(()=>L(b,`Suara Gemini hari ini ${l(E).suaraHariIni??""} kalimat (jatah gratis harian).`)),M(a,f)};te(kf,(a)=>{if(!l(E)?.suaraSiap)a(Tf);else a(Af,-1)})}A(qo);var Dn=g(qo,2),Ga=O(Dn);He(Ga),ze(2),A(Dn);var zo=g(Dn,2),qa=O(zo);He(qa),ze(2),A(zo),A(Yo);var Ko=g(Yo,2),za=g(O(Ko),2);{var Sf=(a)=>{var f=bu();Gt(f,21,()=>l(V),bo,(b,I,Y)=>{var F=gu(),U=O(F),ce=W(U,!0),oe=g(U,2),ue=O(oe,!0),be=g(ue),Ue=W(be);A(oe);var ur=g(oe,2);A(F),H(()=>{L(ce,l(I).jam),L(ue,l(I).pesan),L(Ue,`${l(I).kapan??""} · ${D[l(I).bunyi]??"suara"??""}`),Ze(ur,"aria-label",`Hapus alarm ${l(I).jam??""}`)}),G("click",ur,()=>zt(Y)),M(b,F)}),A(f),M(a,f)},Nf=(a)=>{var f=ar(),b=W(f);H(()=>L(b,`Belum ada alarm. Bisa juga lewat suara: "${l(E)?.nama??"Zond"??""}, ingatkan aku jam 5 sore minum obat".`)),M(a,f)};te(za,(a)=>{if(l(V).length)a(Sf);else a(Nf,-1)})}var Wo=g(za,2),Zo=O(Wo),Xo=O(Zo);He(Xo);var Mn=g(Xo,2),Jo=O(Mn);Jo.value=Jo.__value="0";var Qo=g(Jo);Qo.value=Qo.__value="127";var ei=g(Qo);ei.value=ei.__value="62";var ti=g(ei);ti.value=ti.__value="65";var Ka=g(ti);Ka.value=Ka.__value="pilih",A(Mn),Tr(Mn),A(Zo);var Wa=g(Zo,2);{var Rf=(a)=>{var f=$u();Gt(f,22,()=>x,(b)=>b,(b,I,Y)=>{var F=xu(),U=O(F);He(U);var ce=g(U,1,!0);A(F),H(()=>L(ce,I)),pa(U,()=>vt[l(Y)],(oe)=>vt[l(Y)]=oe),M(b,F)}),A(f),M(a,f)};te(Wa,(a)=>{if(l(fe)==="pilih")a(Rf)})}var ri=g(Wa,2);He(ri);var ni=g(ri,2),Ln=O(ni),oi=O(Ln);oi.value=oi.__value=0;var ii=g(oi);ii.value=ii.__value=1;var Za=g(ii);Za.value=Za.__value=2,A(Ln),Tr(Ln),ze(2),A(ni);var Cf=g(ni,2);{var Of=(a)=>{var f=ar(),b=W(f,!0);H(()=>L(b,l(Et))),M(a,f)};te(Cf,(a)=>{if(l(Et))a(Of)})}A(Wo),ze(2),A(Ko);var ai=g(Ko,2),Xa=g(O(ai),2);{var If=(a)=>{var f=wu();Gt(f,21,()=>l(Ar),bo,(b,I,Y)=>{var F=yu();let U;var ce=O(F),oe=O(ce);He(oe);var ue=g(oe),be=W(ue,!0);A(ce);var Ue=g(ce,2);A(F),H(()=>{U=qt(F,1,"svelte-7xbc87edh957",null,U,{selesai:l(I).s}),Tn(oe,l(I).s),L(be,l(I).t),Ze(Ue,"aria-label",`Hapus catatan ${l(I).t??""}`)}),G("change",oe,()=>lr(`?aksi=centang&i=${Y}`)),G("click",Ue,()=>lr(`?aksi=hapus&i=${Y}`)),M(b,F)}),A(f),M(a,f)},Df=(a)=>{var f=Eu();M(a,f)};te(Xa,(a)=>{if(l(Ar).length)a(If);else a(Df,-1)})}var Fn=g(Xa,2),Ja=O(Fn);He(Ja),ze(2),A(Fn);var Mf=g(Fn,2);{var Lf=(a)=>{var f=ar(),b=W(f,!0);H(()=>L(b,l(sr))),M(a,f)};te(Mf,(a)=>{if(l(sr))a(Lf)})}A(ai);var si=g(ai,2),li=g(O(si),2),Pn=O(li);He(Pn),ze(),A(li);var fi=g(li,2),ci=O(fi),Qa=g(ci,2);A(fi);var es=g(fi,2);{var Ff=(a)=>{var f=ar(),b=W(f);H(()=>L(b,`Skor suit: kamu ${l(E).skorKamu??""}, ${l(E).nama??""} ${l(E).skorZond??""}`)),M(a,f)};te(es,(a)=>{if(l(E)?.fiturKamera&&(l(E).skorKamu||l(E).skorZond))a(Ff)})}var Pf=g(es,2);{var Bf=(a)=>{var f=ar(),b=W(f,!0);H(()=>L(b,l(An))),M(a,f)};te(Pf,(a)=>{if(l(An))a(Bf)})}A(si);var ui=g(si,2),di=O(ui),jf=g(O(di));{var Yf=(a)=>{var f=Ml(),b=W(f);H(()=>L(b,`terakhir menjawab: ${l(E).aiTerakhir??""}`)),M(a,f)};te(jf,(a)=>{if(l(E)?.aiTerakhir)a(Yf)})}A(di);var pi=g(di,2);Gt(pi,21,()=>Yl,(a)=>a.id,(a,f)=>{var b=ku();let I;var Y=O(b),F=W(Y,!0),U=g(Y,2),ce=W(U,!0);A(b),H(()=>{b.disabled=!l(E)?.aiTersedia?.[l(f).id]||l(yo)!=="",I=qt(b,1,"svelte-7xbc87edh957",null,I,{pilih:l(E)?.ai===l(f).id}),L(F,l(f).nama),L(ce,l(E)?.aiTersedia?.[l(f).id]===!1?"API key belum diisi":l(f).ket)}),G("click",b,()=>Hl(l(f).id)),M(a,b)}),A(pi);var Hf=g(pi,2);{var Vf=(a)=>{var f=ar(),b=W(f,!0);H(()=>L(b,l(en))),M(a,f)};te(Hf,(a)=>{if(l(en))a(Vf)})}ze(2),A(ui);var Uf=g(ui,2);{var Gf=(a)=>{var f=Tu(),b=W(f,!0);H(()=>L(b,l(E).status)),M(a,f)};te(Uf,(a)=>{if(l(E)?.status)a(Gf)})}A(Ao),H(()=>{if(L(Jl,l(E)?.nama??"Robot"),Ea=qt(wa,1,"titik svelte-7xbc87edh957",null,Ea,{on:l(Mt)&&l(E)?.hidup}),Sa=qt(on,1,"mik svelte-7xbc87edh957",null,Sa,{dengar:l(E)?.mendengar||l($o)}),on.disabled=!l(Mt),L(af,l(E)?.mendengar?"Mendengarkan... bicara sekarang":"Bicara ke "+(l(E)?.nama??"robot")),Tn(an,l(E)?.dengarTerus??!1),an.disabled=!l(Mt),L(sf,` Dengar terus (cukup sebut "${l(E)?.nama??"nama robot"??""}"). Boros: setiap suara di ruangan memakai jatah suara-ke-teks.`),L(cf,l(fr)?"Matikan kamera":"Nyalakan kamera"),L(Oa,`Kecepatan ${l(tn)??""}`),L(Ba,`Toleh ${l(Nr)<0?"kiri":l(Nr)>0?"kanan":"lurus"}`),L(ja,`Angguk ${l(rn)??""}°`),L(Va,`Volume ${l(nn)??""}`),Kt.disabled=!l(Mt),sn.disabled=!l(E)?.suaraSiap,L(Ef,`Cowok (${(l(E)?.suaraNama||"Gemini")??""})`),In!==(In=l(E)?.suara??"gemini"))Kt.value=(Kt.__value=In)??"",Qr(Kt,In);Tn(Pn,l(E)?.fiturKamera??!1),Pn.disabled=!l(Mt),ci.disabled=!l(E)?.fiturKamera,Qa.disabled=!l(E)?.fiturKamera}),G("click",on,Bl),G("change",an,jl),G("click",Ca,()=>T(fr,!l(fr))),G("contextmenu",On,(a)=>a.preventDefault()),wt(Ia,()=>l(tn),(a)=>T(tn,a)),G("click",Da,()=>R(-90)),G("click",Ma,()=>R(180)),G("click",uf,()=>R(90)),G("input",Po,To),wt(Po,()=>l(Nr),(a)=>T(Nr,a)),G("input",jo,To),wt(jo,()=>l(rn),(a)=>T(rn,a)),G("click",yf,zl),G("click",Ya,()=>Q("/api/lagu",4000)),G("click",Ha,()=>Q("/api/radio",4000)),G("click",wf,()=>Q("/api/diam")),G("change",Uo,Kl),wt(Uo,()=>l(nn),(a)=>T(nn,a)),G("change",Kt,y),lt("submit",Dn,Zl),wt(Ga,()=>l(Sn),(a)=>T(Sn,a)),lt("submit",zo,Wl),wt(qa,()=>l(Rn),(a)=>T(Rn,a)),lt("submit",Wo,Xe),wt(Xo,()=>l(re),(a)=>T(re,a)),kn(Mn,()=>l(fe),(a)=>T(fe,a)),wt(ri,()=>l(Ae),(a)=>T(Ae,a)),kn(Ln,()=>l(Se),(a)=>T(Se,a)),lt("submit",Fn,Fl),wt(Ja,()=>l(Ve),(a)=>T(Ve,a)),G("change",Pn,Pl),G("click",ci,()=>ha("/api/sekeliling","Zond menoleh dan memotret. Ceritanya dikirim ke Telegram.")),G("click",Qa,()=>ha("/api/suit","Siapkan tanganmu di depan kamera!")),M(e,Ao),dn()}var Ll=Su;vo(["click","change","contextmenu","pointerdown","pointerup","input"]);Xr(Ll,{target:document.body});
 </script></body></html>)PANEL";
 // </PANEL_WEB>
 
@@ -3965,6 +4853,22 @@ void siapkanWeb() {
     if (!t.length()) { web.send(400, "text/plain", "teks kosong"); return; }
     tambahPesan(web.arg("dari").length() ? web.arg("dari") : String("Panel web"), t.substring(0, 199));
     jawabOk();
+  });
+  web.on("/api/catatan", HTTP_GET, [] {               // ?aksi=tambah&teks=.. | centang&i=0 | hapus&i=0 | hapus&i=selesai
+    String a = web.arg("aksi");
+    if (a == "tambah") {
+      String g = tambahCatatan(web.arg("teks").substring(0, 79));
+      if (g.length()) { web.send(400, "text/plain", g); return; }
+    } else if (a == "centang") centangCatatan(web.arg("i").toInt());
+    else if (a == "hapus") hapusCatatan(web.arg("i") == "selesai" ? -1 : web.arg("i").toInt());
+    if (a.length()) infoBaru = true;
+    JsonDocument d;
+    JsonArray arr = d.to<JsonArray>();
+    xSemaphoreTake(kunciCatatan, portMAX_DELAY);
+    for (int i = 0; i < jumlahCatatan; i++) { JsonObject o = arr.add<JsonObject>(); o["t"] = (const char*)daftarCatatan[i].teks; o["s"] = daftarCatatan[i].selesai != 0; }
+    xSemaphoreGive(kunciCatatan);
+    String out; serializeJson(d, out);
+    web.send(200, "application/json", out);
   });
   web.on("/api/jelajah", HTTP_GET, [] { jelajah(argAngka("menit", 5, 0, 60)); jawabOk(); });   // menit=0: berhenti
   web.on("/api/suara", HTTP_GET, [] { aturSuara(web.arg("pakai") != "google"); jawabOk(); });   // pakai=gemini|google
@@ -4140,8 +5044,10 @@ void setup() {
   kunciAlarm = xSemaphoreCreateMutex();
   kunciPesan = xSemaphoreCreateMutex();
   kunciInfo = xSemaphoreCreateMutex();
+  kunciCatatan = xSemaphoreCreateMutex();
   muatAlarm();
   muatPesan();
+  muatCatatan();
 
   pref.begin("robot", false);
   uint8_t arah = ARAH_LAYAR, geo = pref.getUChar("geo", 1), rgb = pref.getUChar("rgb", 1);   // geo dan rgb: pilihan di tes_layar
@@ -4151,6 +5057,7 @@ void setup() {
   fiturKamera = pref.getUChar("kamAI", 0) != 0;                         // lihat sekeliling dan suit: bawaan mati
   pakaiSuaraAI = pref.getUChar("suara", 1) != 0;
   pengingatSholat = pref.getUChar("sholat", 1);
+  bahasaTerjemah = pref.getUChar("bhs", 0) % JUMLAH_BAHASA;
   suaraHariIni = pref.getUInt("tsN", 0);
   if (pilihanAI >= AI_JUMLAH || !aiTersedia(pilihanAI)) pilihanAI = AI_OTOMATIS;
   pref.end();

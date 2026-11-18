@@ -112,6 +112,25 @@
     await ambilAlarm()
   }
 
+  // ---------- catatan / daftar tugas (sama dengan layar Zond dan /catat di Telegram) ----------
+  type Catatan = { t: string; s: boolean }
+  let catatan = $state<Catatan[]>([])
+  let catatanBaru = $state('')
+  let catatanGagal = $state('')
+  async function ambilCatatan(aksi = '') {
+    const r = await api(`/api/catatan${aksi}`, 3000)
+    if (!r) catatanGagal = 'Robot tidak menjawab'
+    else if (!r.ok) catatanGagal = await r.text()
+    else { catatanGagal = ''; catatan = (await r.json()) as Catatan[] }
+  }
+  async function tambahCatatan(e: SubmitEvent) {
+    e.preventDefault()
+    const t = catatanBaru.trim()
+    if (!t) return
+    catatanBaru = ''
+    await ambilCatatan(`?aksi=tambah&teks=${encodeURIComponent(t)}`)
+  }
+
   // ---------- fitur kamera AI: lihat sekeliling dan suit ----------
   let kameraAIPesan = $state('')
   async function aturFiturKamera(e: Event) {
@@ -325,8 +344,9 @@
     ambilStatus()
     ambilAlarm()
     ambilBaterai()
+    ambilCatatan()
     const id = setInterval(ambilStatus, 1000)
-    const idAlarm = setInterval(ambilAlarm, 30000) // alarm sekali hilang sendiri setelah berbunyi
+    const idAlarm = setInterval(() => (ambilAlarm(), ambilCatatan()), 30000) // alarm sekali hilang sendiri setelah berbunyi
     const idBaterai = setInterval(ambilBaterai, 60000)
     const henti = () => berhenti()
     const sembunyi = () => document.hidden && berhenti()
@@ -537,6 +557,27 @@
       {#if alarmPesanGagal}<p class="ket">{alarmPesanGagal}</p>{/if}
     </form>
     <p class="ket kecil-ket">Alarm sebelum jam 11 siang sekalian menyebut cuaca hari ini. Pengingat juga dikirim ke Telegram.</p>
+  </section>
+
+  <section>
+    <h2>Catatan</h2>
+    {#if catatan.length}
+      <ul class="alarm catatan">
+        {#each catatan as c, i (i)}
+          <li class:selesai={c.s}>
+            <label><input type="checkbox" checked={c.s} onchange={() => ambilCatatan(`?aksi=centang&i=${i}`)} /><span>{c.t}</span></label>
+            <button class="hapus" aria-label="Hapus catatan {c.t}" onclick={() => ambilCatatan(`?aksi=hapus&i=${i}`)}>✕</button>
+          </li>
+        {/each}
+      </ul>
+    {:else}
+      <p class="ket">Belum ada catatan. Bisa juga dari layar Zond (Alat, Catatan) atau Telegram: /catat beli susu.</p>
+    {/if}
+    <form onsubmit={tambahCatatan}>
+      <input type="text" placeholder="Catatan atau tugas baru..." bind:value={catatanBaru} maxlength="79" />
+      <button type="submit">Tambah</button>
+    </form>
+    {#if catatanGagal}<p class="ket">{catatanGagal}</p>{/if}
   </section>
 
   <section>
@@ -820,6 +861,16 @@
   .alarm li small {
     color: #8a94a3;
     font-size: 0.75rem;
+  }
+  .catatan label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .catatan .selesai span {
+    text-decoration: line-through;
+    color: #8a94a3;
   }
   .hapus {
     padding: 4px 10px;

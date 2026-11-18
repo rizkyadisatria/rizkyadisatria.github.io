@@ -1,4 +1,3 @@
-9696f3847fdb	The full code is about 3,500 lines (mostly the compressed web panel): <a href="../kode/robot_otak/robot_otak.ino" download>download robot_otak.ino</a>. Do not upload a file that already contains your token and API keys anywhere public.
 e9d85ec2adfc	Screen: <b>Beranda</b> (home)
 3bdeed6bcbf0	Zond's face, clock, battery, and two big buttons: BICARA (talk) and MENU. The face only shows on the home screen. At night, after 2 minutes unused, the face is replaced by a big clock. Other screens return to home by themselves after 45 seconds without a touch
 fa3f9ee430fa	Screen: <b>MENU</b>

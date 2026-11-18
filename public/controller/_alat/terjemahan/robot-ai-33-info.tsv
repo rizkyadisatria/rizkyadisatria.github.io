@@ -1,4 +1,3 @@
-c1970e93660f	six tiles: Musik (SD songs, radio), Info (robot status, weather, prayer times, news, calendar, exchange rates, Wikipedia), Alat (motion modes, camera), Main (rock-paper-scissors), Pesan (messages), and Setelan (settings). Tiles that are still grey come in the next stage. Buttons act when your finger lifts; the ◀ button at top left goes back
 1441e6060de7	Screen: Info → <b>Cuaca</b> (weather)
 8ab49d7b89a3	current temperature, the next 12 hours (temperature and rain-chance bars), and the next 3 days, from Open-Meteo for the location in <code>CUACA_LAT</code>/<code>CUACA_LON</code>
 2081eb86e92c	Screen: Info → <b>Jadwal sholat</b> (prayer times), or Telegram <code>/sholat</code>
