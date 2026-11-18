@@ -346,8 +346,21 @@ void tulisHeaderWav(File& f, uint32_t pcmByte, uint32_t rate) {
   f.write(h, 44);
 }
 
+// Bentuk permintaan: 0 = PCM 16 kHz + gaya bicara (paling kecil), 1 = WAV bawaan 24 kHz + gaya, 2 = WAV bawaan tanpa gaya.
+// Kalau Google menolak (kode 400), bentuk berikutnya dicoba dan yang berhasil dipakai terus sampai robot menyala ulang.
+int tingkatSuara = 0;
+
 // 0 = berhasil. Selain itu kode HTTP dari Google, atau negatif kalau sambungan/isi jawaban/penyimpanan gagal.
 int unduhSuaraGemini(const String& teks) {
+  for (;;) {
+    int h = mintaSuaraGemini(teks, tingkatSuara);
+    if (h != 400 || tingkatSuara >= 2) return h;
+    tingkatSuara++;
+    Serial.printf("[suara] ditolak (400), coba bentuk permintaan %d\n", tingkatSuara);
+  }
+}
+
+int mintaSuaraGemini(const String& teks, int tingkat) {
   static WiFiClientSecure klien;                       // sambungan dipakai ulang supaya kalimat berikutnya lebih cepat
   klien.setInsecure();
   HTTPClient http;
@@ -362,10 +375,11 @@ int unduhSuaraGemini(const String& teks) {
   isi["type"] = "user_input";
   JsonObject teksObj = isi["content"].add<JsonObject>();
   teksObj["type"] = "text"; teksObj["text"] = teks;
-  if (strlen(SUARA_GAYA)) { JsonObject g = teksObj["annotations"].add<JsonObject>(); g["type"] = "speech_metadata"; g["style"] = SUARA_GAYA; }
+  if (strlen(SUARA_GAYA) && tingkat < 2) {
+    JsonObject g = teksObj["annotations"].add<JsonObject>(); g["type"] = "speech_metadata"; g["style"] = SUARA_GAYA;
+  }
   q["response_format"]["type"] = "audio";
-  q["response_format"]["mime_type"] = "audio/wav";
-  q["response_format"]["sample_rate"] = SUARA_RATE;
+  if (tingkat == 0) { q["response_format"]["mime_type"] = "audio/l16"; q["response_format"]["sample_rate"] = SUARA_RATE; }
   q["generation_config"]["speech_config"].add<JsonObject>()["voice"] = SUARA_GEMINI;
   String permintaan; serializeJson(q, permintaan);
   int kode = http.POST(permintaan);
@@ -395,7 +409,7 @@ int unduhSuaraGemini(const String& teks) {
   if (mbedtls_base64_decode(audioBuf, ukuran, &hasil, (const uint8_t*)awal, n) != 0 || hasil < 100) { free(audioBuf); return -6; }
   File f = FFat.open("/suara.wav", FILE_WRITE);
   if (!f) { free(audioBuf); return -7; }
-  if (memcmp(audioBuf, "RIFF", 4) != 0) tulisHeaderWav(f, hasil, SUARA_RATE);   // PCM tanpa header: tambahkan
+  if (memcmp(audioBuf, "RIFF", 4) != 0) tulisHeaderWav(f, hasil, tingkat == 0 ? SUARA_RATE : 24000);   // PCM tanpa header
   size_t tertulis = f.write(audioBuf, hasil);
   f.close();
   free(audioBuf);
@@ -408,10 +422,11 @@ bool bicaraSuaraAI(const String& teks) {
   unsigned long t0 = millis();
   int h = unduhSuaraGemini(teks);
   if (h != 0) {
-    Serial.printf("[suara] Gemini TTS gagal (%d), kalimat ini memakai suara Google. %s\n", h, suaraPesanGalat.c_str());
+    Serial.printf("[suara] Gemini TTS gagal (%d, bentuk %d), kalimat ini memakai suara Google. %s\n", h, tingkatSuara, suaraPesanGalat.c_str());
     if (h != suaraGalat && h != -2)                     // satu kali per jenis galat (putus internet tidak dilaporkan)
       kirimTelegram("Suara Gemini gagal (kode " + String(h) + (h == 429 ? ": jatah habis atau terlalu sering" : "") +
-                    "). Sementara memakai suara Google. " + suaraPesanGalat);
+                    ", " SUARA_MODEL ", suara " SUARA_GEMINI ", bentuk " + String(tingkatSuara) + "). Sementara memakai suara Google. " +
+                    suaraPesanGalat);
     suaraGalat = h;
     if (h == 429) suaraIstirahat = millis() + 300000UL;                          // jatah: coba lagi 5 menit kemudian
     else if (h == 400 || h == 401 || h == 403 || h == 404) suaraIstirahat = millis() + 600000UL;
@@ -419,7 +434,7 @@ bool bicaraSuaraAI(const String& teks) {
   }
   suaraGalat = 0;
   catatSuaraHariIni();
-  Serial.printf("[suara] Gemini %u ms, kalimat ke-%u hari ini\n", (unsigned)(millis() - t0), (unsigned)suaraHariIni);
+  Serial.printf("[suara] Gemini %u ms (bentuk %d), kalimat ke-%u hari ini\n", (unsigned)(millis() - t0), tingkatSuara, (unsigned)suaraHariIni);
   return audio.connecttoFS(FFat, "/suara.wav");
 }
 
