@@ -1,0 +1,21 @@
+9696f3847fdb	The full code is about 3,500 lines (mostly the compressed web panel): <a href="../kode/robot_otak/robot_otak.ino" download>download robot_otak.ino</a>. Do not upload a file that already contains your token and API keys anywhere public.
+e9d85ec2adfc	Screen: <b>Beranda</b> (home)
+3bdeed6bcbf0	Zond's face, clock, battery, and two big buttons: BICARA (talk) and MENU. The face only shows on the home screen. At night, after 2 minutes unused, the face is replaced by a big clock. Other screens return to home by themselves after 45 seconds without a touch
+fa3f9ee430fa	Screen: <b>MENU</b>
+bcd5bf286746	six tiles: Musik (SD songs, radio), Info (robot status), Alat (motion modes, camera), Main (rock-paper-scissors), Pesan (messages), and Setelan (settings). Tiles that are still grey come in the next stage. Buttons act when your finger lifts; the ◀ button at top left goes back
+7457bc68be37	Screen: Musik → <b>Lagu SD</b>
+4ed871c6ec91	title, time bar, previous / play-pause / next, shuffle, repeat, volume, and the song list. The next song plays by itself when one finishes
+eca7ee9192a6	Screen: Info → <b>Status robot</b>
+4330f61991f7	battery with its graph, front and rear distance, tilt, temperature. The JARINGAN (network) tab shows a QR code of the web panel address: scan it with your phone to open it
+81b95c240696	Screen: Alat → <b>Mode gerak</b>
+c7c175d9d76a	Biasa, Jaga, Ikuti, Jelajah (normal, guard, follow, explore). Follow and explore start after a 5-second countdown. While the robot moves on its own, the screen turns red: touch anywhere to stop
+658b9e25bed1	Screen: <b>STOP</b> (top right, on every screen)
+fae454777716	motors and sound stop the moment it is pressed, mode returns to normal
+1958a4d89ca2	Screen: tap the face on the home screen
+2934e4d7fba6	live camera view (touch to close). If there is a new message, tapping the face opens it
+f10f68da3d3e	Telegram: <code>/pesan Makan malam sudah siap</code>, or the message field in the web panel
+6344768184dd	the message shows on the screen (yellow envelope icon in the top bar) and Zond says "Ada pesan dari ..." (message from ...). Open it in MENU → Pesan: read, read aloud, delete. The last 10 messages are kept even when the robot is switched off
+0ad8c1596390	Screen: <b>Setelan</b> (settings)
+d353500b49f6	speaking voice, AI brain, camera AI features, brightness, night dimming, rotate screen 180 degrees, touch calibration, WiFi info, restart
+0f6ef6784cdb	Screen buttons often miss: open Setelan → Kalibrasi sentuh. Press in the middle of a button and hold briefly; a resistive screen needs pressure, not a light touch.
+70d39829d6eb	Want adjustable screen brightness (and automatic night dimming)? Move the screen's LED wire from the 3.3 V rail to <b>IO38</b>, then set <code>#define LAYAR_LED 38</code>. First check there is a small transistor (three legs, marked Q1) near the LED pin of your module; almost every red 2.8" module has one. Without a transistor, the backlight draws too much current for an S3 pin.

@@ -282,6 +282,16 @@
     await api(`/api/volume?v=${volume}`)
     setTimeout(() => (ubahVolume = false), 1500)
   }
+  // ---------- pesan ke layar Zond ----------
+  let pesan = $state('')
+  async function kirimPesan(e: SubmitEvent) {
+    e.preventDefault()
+    const t = pesan.trim()
+    if (!t) return
+    pesan = ''
+    await api(`/api/pesan?teks=${encodeURIComponent(t)}`, 3000)
+  }
+
   async function bilang(e: SubmitEvent) {
     e.preventDefault()
     const t = kalimat.trim()
@@ -475,6 +485,10 @@
     <form onsubmit={bilang}>
       <input type="text" placeholder="Suruh Zond bilang..." bind:value={kalimat} maxlength="140" />
       <button type="submit">Bilang</button>
+    </form>
+    <form onsubmit={kirimPesan}>
+      <input type="text" placeholder="Pesan untuk layar Zond..." bind:value={pesan} maxlength="190" />
+      <button type="submit">Kirim</button>
     </form>
   </section>
 

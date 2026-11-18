@@ -70,6 +70,7 @@ const uint8_t ARAH_LAYAR    = 6;                      // 6 = slot SD di atas, 4 
 #define SUARA_GEMINI     "Puck"                   // suara cowok Gemini TTS: Puck (ceria), Charon (tenang), Orus (tegas), Fenrir. Kosong = Google
 #define SUARA_MODEL      "gemini-3.8-flash-tts"   // lebih cepat tapi sedikit kurang natural: gemini-3.8-flash-lite-tts
 #define SUARA_GAYA       "santai dan ramah"       // gaya bicara (bahasa bebas). Kosong = biasa
+#define LAYAR_LED        -1                       // isi 38 kalau kabel LED layar dipindah ke IO38 (kecerahan bisa diatur)
 const char* NAMA_PEMILIK    = "Rizky";
 const int   VOLUME_AWAL     = 12;                     // 0..21
 // Stasiun untuk tombol RADIO di layar (ketuk lagi = stasiun berikutnya). Alamat stream MP3/AAC,
@@ -163,11 +164,15 @@ protected:
 #ifndef SUARA_GAYA
 #define SUARA_GAYA ""
 #endif
+#ifndef LAYAR_LED
+#define LAYAR_LED -1
+#endif
 
 class LGFX : public lgfx::LGFX_Device {
   PanelKu _panel;
   lgfx::Bus_SPI _bus;
   lgfx::Touch_XPT2046 _touch;
+  lgfx::Light_PWM _light;
 public:
   LGFX() {
     { auto c = _bus.config();
@@ -188,6 +193,11 @@ public:
       c.spi_host = SPI2_HOST; c.freq = 1000000;
       c.pin_sclk = TFT_SCK; c.pin_mosi = TFT_MOSI; c.pin_miso = TFT_MISO; c.pin_cs = TOUCH_CS;
       _touch.config(c); _panel.setTouch(&_touch); }
+    if (LAYAR_LED >= 0) {                   // lampu layar lewat PWM (kalau kabel LED ke GPIO)
+      auto c = _light.config();
+      c.pin_bl = LAYAR_LED; c.invert = false; c.freq = 12000; c.pwm_channel = 7;
+      _light.config(c); _panel.setLight(&_light);
+    }
     setPanel(&_panel);
   }
   void pakaiLayar(bool ic, bool fh, bool fv) { _panel.ic = ic; _panel.fh = fh; _panel.fv = fv; }
@@ -207,7 +217,6 @@ public:
 
 LGFX lcd;
 
-LGFX_Sprite wajah(&lcd);
 Audio audio;                 // memakai I2S_NUM_0 untuk speaker
 I2SClass mic;                // otomatis memakai I2S_NUM_1
 Preferences pref;
@@ -252,7 +261,10 @@ float batHalus = -1;                         // tegangan baterai yang dihaluskan
 volatile unsigned long jelajahSampai = 0;    // mode jelajah berhenti sendiri pada waktu ini
 
 // ======================= AUDIO (task sendiri) =======================
-enum JenisAudio { A_FILE, A_URL, A_TTS, A_STOP, A_VOL };
+enum JenisAudio { A_FILE, A_URL, A_TTS, A_STOP, A_VOL, A_JEDA };
+char laguFile[100] = "";                       // lagu SD yang sedang/terakhir diputar, misalnya "/lagu1.mp3"
+volatile bool musikJeda = false, laguHabis = false;   // laguHabis: lagu SD selesai sendiri (untuk lagu berikutnya)
+volatile uint32_t laguDetik = 0, laguDurasi = 0;
 int volSekarang = VOLUME_AWAL;   // volume yang sedang dipakai, 0..21
 struct PerintahAudio { JenisAudio jenis; char isi[320]; };
 
@@ -495,18 +507,21 @@ void tugasAudio(void*) {
   std::vector<String> antreTTS;
   bool pakaiSD = false;          // sedang memutar dari SD
   String laguSekarang;           // untuk menyambung ulang kalau pembacaan SD macet
-  uint32_t posLalu = 0; unsigned long tPosBerubah = 0;
+  uint32_t posLalu = 0; unsigned long tPosBerubah = 0, tPosisi = 0;
+  bool sengaja = true, jalanLalu = false;   // sengaja: lagu dihentikan orang (bukan selesai sendiri)
   for (;;) {
     PerintahAudio p;
     while (xQueueReceive(antrianAudio, &p, 0) == pdTRUE) {
       kunciSD();
       switch (p.jenis) {
-        case A_FILE: antreTTS.clear(); pakaiSD = true; laguSekarang = p.isi; audio.connecttoFS(SD, p.isi); break;
-        case A_URL:  antreTTS.clear(); pakaiSD = false; audio.connecttohost(p.isi); break;
-        case A_TTS:  if (audio.isRunning() && !sedangBicara) audio.stopSong();   // bicara memotong musik
+        case A_FILE: antreTTS.clear(); pakaiSD = true; laguSekarang = p.isi; strlcpy(laguFile, p.isi, sizeof(laguFile));
+                     musikJeda = false; sengaja = false; laguDetik = laguDurasi = 0; audio.connecttoFS(SD, p.isi); break;
+        case A_URL:  antreTTS.clear(); pakaiSD = false; sengaja = true; musikJeda = false; laguFile[0] = 0; audio.connecttohost(p.isi); break;
+        case A_TTS:  if ((audio.isRunning() || musikJeda) && !sedangBicara) { audio.stopSong(); sengaja = true; musikJeda = false; }   // bicara memotong musik
                      antreTTS.push_back(String(p.isi)); break;
-        case A_STOP: antreTTS.clear(); audio.stopSong(); break;
+        case A_STOP: antreTTS.clear(); audio.stopSong(); sengaja = true; musikJeda = false; break;
         case A_VOL:  volSekarang = constrain(atoi(p.isi), 0, 21); audio.setVolume(volSekarang); break;
+        case A_JEDA: if (pakaiSD && laguFile[0]) { audio.pauseResume(); musikJeda = !musikJeda; } break;
       }
       lepasSD();
     }
@@ -528,6 +543,10 @@ void tugasAudio(void*) {
     if (pakaiSD) kunciSD();
     audio.loop();
     if (pakaiSD) lepasSD();
+    bool jalanSD = pakaiSD && audio.isRunning();
+    if (jalanLalu && !jalanSD && !musikJeda && !sengaja) { laguHabis = true; sengaja = true; }   // lagu selesai sendiri
+    jalanLalu = jalanSD;
+    if (jalanSD && millis() - tPosisi > 500) { tPosisi = millis(); laguDetik = audio.getAudioCurrentTime(); laguDurasi = audio.getAudioFileDuration(); }
     // Pembacaan SD kadang macet di tengah lagu (gangguan di kabel SPI): posisi file berhenti naik.
     // Pasang ulang SD lalu lanjutkan lagu dari detik terakhir.
     if (pakaiSD && audio.isRunning()) {
@@ -539,7 +558,7 @@ void tugasAudio(void*) {
         audio.stopSong();
         adaSD = false; pasangSD();
         if (adaSD) { kunciSD(); audio.connecttoFS(SD, laguSekarang.c_str(), detik); lepasSD(); }
-        else { pakaiSD = false; setStatus("SD card terlepas"); }
+        else { pakaiSD = false; sengaja = true; setStatus("SD card terlepas"); }
         posLalu = 0; tPosBerubah = millis();
       }
     }
@@ -1868,7 +1887,7 @@ const char* BANTUAN =
   "/foto  kirim foto kamera\n/lihat [pertanyaan]  AI melihat lewat kamera\n/bilang teks  robot mengucapkan teks\n"
   "/panel  alamat panel kontrol web\n/dengar on|off  mendengar terus (boros) atau hanya saat BICARA\n/ai  pilih otak AI (gemini, gemma, groq, haiku)\n/lagu  daftar lagu di SD\n/putar nama lagu (cukup sebagian)\n/radio url\n/diam  hentikan suara\n/volume 0-21\n"
   "/ikuti  ikuti benda di depan\n/jaga  berjaga, kirim foto kalau ada gerakan\n/jelajah [menit]  jalan-jalan sendiri (bawaan 5 menit)\n/biasa  kembali normal\n"
-  "/baterai  isi dan perkiraan sisa baterai\n/suara  suara bicara (/suara gemini atau /suara google)\n\n"
+  "/baterai  isi dan perkiraan sisa baterai\n/pesan teks  tampilkan pesan di layar\n/suara  suara bicara (/suara gemini atau /suara google)\n\n"
   "Pesan biasa tanpa / = ngobrol dengan AI (bisa menyuruh bergerak).";
 
 void tanganiPesan(const telegramMessage& m) {
@@ -1984,6 +2003,10 @@ void tanganiPesan(const telegramMessage& m) {
   else if (cmd == "/jaga")   { gantiMode(M_JAGA);  bot.sendMessage(chat, "Mode jaga aktif dalam 4 detik. Aku kirim foto kalau ada gerakan di depan. /biasa untuk berhenti."); }
   else if (cmd == "/biasa")  { gantiMode(M_BIASA); bot.sendMessage(chat, "Kembali ke mode biasa."); }
   else if (cmd == "/bilang") { ucapkan(arg); bot.sendMessage(chat, "Oke."); }
+  else if (cmd == "/pesan") {
+    if (!arg.length()) bot.sendMessage(chat, "Tulis isinya, misalnya: /pesan Makan malam sudah siap");
+    else { tambahPesan(m.from_name.length() ? m.from_name : String("Telegram"), arg); bot.sendMessage(chat, "Pesan tampil di layar Zond."); }
+  }
   else if (cmd == "/lagu")   bot.sendMessage(chat, daftarLagu());
   else if (cmd == "/putar")  {
     String lagu = cariLagu(arg);
@@ -2065,123 +2088,6 @@ void tugasJaringan(void*) {
     }
     vTaskDelay(pdMS_TO_TICKS(20));
   }
-}
-
-// ======================= TAMPILAN =======================
-const int TOMBOL_Y = 192, TOMBOL_H = 48, TOMBOL_N = 6, TOMBOL_W = 320 / TOMBOL_N;
-// Tombol layar hanya untuk hiburan dan suara. Gerak lewat suara atau Telegram, karena orang yang menyentuh layar
-// berdiri dekat robot, dan robot yang bergerak saat disentuh bisa menabrak kaki atau terjatuh dari meja.
-enum { T_BICARA, T_LAGU, T_RADIO, T_VOLKURANG, T_VOLTAMBAH, T_STOP };
-const char* labelTombol[TOMBOL_N] = {"BICARA", "LAGU", "RADIO", "VOL -", "VOL +", "STOP"};
-const uint16_t warnaTombol[TOMBOL_N] = {0x0320, 0x2945, 0x2945, 0x4208, 0x4208, 0xA000};
-
-void gambarTombol(int tekan = -1) {
-  xSemaphoreTake(kunciSPI, portMAX_DELAY);
-  for (int i = 0; i < TOMBOL_N; i++) {
-    int x = i * TOMBOL_W;
-    lcd.fillRoundRect(x + 2, TOMBOL_Y + 2, TOMBOL_W - 4, TOMBOL_H - 4, 6, i == tekan ? TFT_WHITE : warnaTombol[i]);
-    lcd.setTextColor(i == tekan ? TFT_BLACK : TFT_WHITE);
-    lcd.setTextDatum(middle_center); lcd.setFont(&fonts::Font2);
-    lcd.drawString(labelTombol[i], x + TOMBOL_W / 2, TOMBOL_Y + TOMBOL_H / 2);
-  }
-  xSemaphoreGive(kunciSPI);
-}
-
-void gambarWajah() {
-  static unsigned long tKedip = 0; static bool kedip = false;
-  if (!kedip && millis() - tKedip > 3500 + (esp_random() % 2000)) { kedip = true; tKedip = millis(); }
-  if (kedip && millis() - tKedip > 140) { kedip = false; tKedip = millis(); }
-
-  wajah.fillScreen(TFT_BLACK);
-  if (otaJalan) {                                          // upload lewat WiFi: tampilkan kemajuannya saja
-    wajah.setFont(&fonts::Font2); wajah.setTextColor(TFT_WHITE); wajah.setTextDatum(middle_center);
-    wajah.drawString("Memperbarui kode lewat WiFi", 160, 70);
-    wajah.drawRect(40, 92, 240, 18, TFT_CYAN);
-    wajah.fillRect(42, 94, 236 * otaPersen / 100, 14, TFT_CYAN);
-    wajah.drawString(String(otaPersen) + " %  -  jangan matikan robot", 160, 128);
-    xSemaphoreTake(kunciSPI, portMAX_DELAY); wajah.pushSprite(0, 0); xSemaphoreGive(kunciSPI);
-    return;
-  }
-  // baris status atas
-  wajah.setFont(&fonts::Font2); wajah.setTextDatum(top_left); wajah.setTextColor(0x9CF3);
-  char atas[80];
-  bool hidup = badan.terakhir && millis() - badan.terakhir < 2000;
-  char pb[8] = "";
-  if (persenBat >= 0) snprintf(pb, sizeof(pb), "%d%% ", (int)persenBat);
-  if (hidup && adaSensorSuhu()) snprintf(atas, sizeof(atas), "%s%.1fV  depan %dcm  %.0fC", pb, badan.baterai, badan.depan, badan.suhu);
-  else if (hidup) snprintf(atas, sizeof(atas), "%s%.1fV  depan %dcm", pb, badan.baterai, badan.depan);
-  else snprintf(atas, sizeof(atas), "badan belum terhubung");
-  wajah.drawString(atas, 4, 2);
-  wajah.setTextDatum(top_right);
-  String jam = teksJam();                                   // jam di kanan atas, tanggal di baris kedua
-  wajah.drawString(jam.length() ? jam.c_str() : (WiFi.status() == WL_CONNECTED ? "WiFi" : "no WiFi"), 316, 2);
-  if (jam.length()) {                                       // baris kedua: tanggal, lalu cuaca kalau ada
-    wajah.setTextDatum(top_center);
-    String c = teksCuaca(false), tgl = teksTanggal();
-    struct tm tt;
-    if (c.length() && jamSiap(tt)) {                        // ada cuaca: nama bulan disingkat supaya muat
-      char b[40]; snprintf(b, sizeof(b), "%s, %d %.3s %d  ", NAMA_HARI[tt.tm_wday], tt.tm_mday, NAMA_BULAN[tt.tm_mon], tt.tm_year + 1900);
-      tgl = String(b) + c;
-    }
-    wajah.drawString(tgl.c_str(), 160, 20);
-  }
-
-  Ekspresi e = ekspresi;
-  uint16_t warna = (e == KAGET) ? TFT_ORANGE : (e == LEMAH || e == NGANTUK) ? 0x7BEF : (e == DENGAR) ? TFT_GREEN : (e == PUSING) ? 0xFD20 : TFT_CYAN;
-  int geser = arahMata * 14;
-  int tinggi = kedip ? 6 : (e == KAGET ? 62 : e == LEMAH ? 18 : e == NGANTUK ? 8 : 50);
-  for (int s = -1; s <= 1; s += 2) {
-    int cx = 160 + s * 62 + geser, cy = 80;
-    if (e == PUSING) {                                      // mata berputar: lingkaran bertumpuk yang bergeser
-      int putaran = (millis() / 120) % 8;
-      for (int r = 6; r <= 24; r += 6) wajah.drawCircle(cx + (putaran % 4 - 2) * (r / 6), cy + (putaran / 4) * 2, r, warna);
-      continue;
-    }
-    int y = (e == NGANTUK) ? cy + 12 : cy;                  // mengantuk: kelopak turun
-    wajah.fillRoundRect(cx - 26, y - tinggi / 2, 52, tinggi, e == NGANTUK ? 4 : 14, warna);
-    if (e == PIKIR && !kedip) wajah.fillCircle(cx + 10, cy - 10, 7, TFT_BLACK);   // melirik ke atas
-  }
-  if (e == NGANTUK) {                                       // "z z z" naik pelan di kanan atas
-    wajah.setTextDatum(middle_center); wajah.setTextColor(0x7BEF);
-    int n = (millis() / 600) % 3;
-    for (int i = 0; i <= n; i++) wajah.drawString("z", 236 + i * 12, 58 - i * 10);
-  }
-  // mulut
-  int my = 132;
-  if (sedangBicara) { int h = 4 + (millis() / 90) % 3 * 6; wajah.fillRoundRect(130, my - h / 2, 60, h, 4, warna); }
-  else if (e == KAGET) wajah.drawCircle(160, my, 9, warna);
-  else if (e == PUSING) { for (int i = 0; i < 4; i++) wajah.drawLine(136 + i * 12, my + (i % 2 ? 4 : -4), 148 + i * 12, my + (i % 2 ? -4 : 4), warna); }
-  else if (e == NGANTUK || e == LEMAH) wajah.drawFastHLine(144, my, 32, warna);
-  else wajah.drawArc(160, my - 22, 30, 27, 50, 130, warna);
-  // teks status bawah
-  wajah.setTextDatum(middle_center); wajah.setTextColor(TFT_WHITE);
-  String s = teksStatus; if (s.length() > 44) s = s.substring(0, 42) + "..";
-  wajah.drawString(s, 160, 168);
-
-  xSemaphoreTake(kunciSPI, portMAX_DELAY);
-  wajah.pushSprite(0, 0);
-  xSemaphoreGive(kunciSPI);
-}
-
-void lihatKameraDiLayar() {                       // ketuk wajah = lihat kamera 10 detik
-  setStatus("Membuka kamera...");
-  unsigned long t0 = millis();
-  int32_t x, y;
-  while (millis() - t0 < 10000) {
-    xSemaphoreTake(kunciFoto, portMAX_DELAY);
-    bool ok = ambilFoto("qvga");
-    if (ok) { xSemaphoreTake(kunciSPI, portMAX_DELAY); lcd.drawJpg(fotoBuf, fotoLen, 0, 0, 320, 192); xSemaphoreGive(kunciSPI); }
-    xSemaphoreGive(kunciFoto);
-    if (!ok) { setStatus("Kamera tidak bisa dihubungi"); return; }
-    bacaBadan();
-    xSemaphoreTake(kunciSPI, portMAX_DELAY); bool sentuh = lcd.getTouch(&x, &y); xSemaphoreGive(kunciSPI);
-    if (millis() - t0 > 800 && sentuh) break;
-  }
-  for (int i = 0; i < 100; i++) {                 // tunggu jari diangkat
-    xSemaphoreTake(kunciSPI, portMAX_DELAY); bool sentuh = lcd.getTouch(&x, &y); xSemaphoreGive(kunciSPI);
-    if (!sentuh) break; delay(20);
-  }
-  setStatus("Siap");
 }
 
 // ---- kalibrasi sentuh: sama dengan tes_layar (5 titik + 1 titik uji, diulang sendiri kalau meleset) ----
@@ -2309,56 +2215,959 @@ void kalibrasiSentuh(bool paksa) {
   lcd.fillScreen(TFT_BLACK);
 }
 
-void tanganiSentuh() {
-  static int tombolLalu = -1;
-  int32_t x, y; bool ada;
-  xSemaphoreTake(kunciSPI, portMAX_DELAY);
-  ada = lcd.getTouch(&x, &y);
-  xSemaphoreGive(kunciSPI);
-  // zona: 0..5 = tombol bawah, 10 = area wajah, -1 = tidak disentuh
-  int baca = !ada ? -1 : (y >= TOMBOL_Y) ? constrain(x / TOMBOL_W, 0, TOMBOL_N - 1) : (y < TOMBOL_Y - 20) ? 10 : -1;
-  // Sentuhan palsu (bising listrik dari speaker yang keras) hanya terbaca sesaat. Zona baru dianggap
-  // sungguhan setelah terbaca sama 4 kali berturut-turut (sekitar 40 milidetik).
-  static int calon = -1, ulang = 0;
-  if (baca == calon) ulang++; else { calon = baca; ulang = 1; }
-  int tombol = (ulang >= 4) ? calon : tombolLalu;
-  if (tombol != tombolLalu && tombol >= 0) Serial.printf("[sentuh] tombol %d (x %d, y %d)\n", tombol, (int)x, (int)y);
-  if (tombol != tombolLalu) {
-    gambarTombol(tombol <= 5 ? tombol : -1);
-    if (tombol >= 0 && tombol <= 5) tekanTombol(tombol);
-    tombolLalu = tombol;
-    if (tombol == 10) { lihatKameraDiLayar(); tombolLalu = -1; }
+// ======================= TAMPILAN (layar sentuh) =======================
+// Beranda: wajah Zond, tombol BICARA dan MENU. MENU berisi 6 ubin: Musik, Info, Alat, Main, Pesan, Setelan.
+// Tiap halaman digambar dulu di memori (sprite di PSRAM) lalu dikirim sekaligus, jadi tidak berkedip.
+// Tombol dibuat besar karena layar sentuh resistif kurang presisi, dan perintah baru dijalankan saat jari DILEPAS
+// (kecuali STOP: langsung saat ditekan).
+// Tidak ada tombol gerak: orang yang menyentuh layar berdiri dekat robot. Saat robot bergerak sendiri
+// (ikuti/jelajah), layar hanya menampilkan tombol berhenti, dan sentuhan di mana saja menghentikan robot.
+#define WARNA(r, g, b) (uint16_t)((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3))
+const uint16_t W_BILAH = WARNA(18, 22, 28), W_TOMBOL = WARNA(42, 50, 62), W_MATI = WARNA(28, 32, 38), W_TEKAN = 0xFFFF,
+               W_REDUP = WARNA(140, 150, 160), W_GARIS = WARNA(55, 65, 78), W_MERAH = WARNA(190, 30, 30),
+               W_HIJAU = WARNA(20, 140, 60), W_BIRU = WARNA(30, 100, 200);
+const uint16_t W_UBIN[6] = {WARNA(130, 60, 190), WARNA(30, 110, 200), WARNA(20, 140, 100), WARNA(220, 120, 20),
+                            WARNA(190, 150, 20), WARNA(90, 100, 115)};
+const int BILAH_H = 28, ISI_Y = 28, ISI_H = 212, MUKA_H = 144;
+LGFX_Sprite bilah(&lcd), kanvas(&lcd), muka(&lcd), bawah(&lcd);   // muka dan bawah: khusus Beranda
+
+enum { H_BERANDA, H_MENU, H_SUB, H_MUSIK, H_DAFTARLAGU, H_RADIO, H_STATUS, H_PESAN, H_SETELAN, H_MODE, H_HITUNG, H_BERGERAK };
+// id tombol: 1-9 umum, 10-99 khusus halaman, 100 ke atas = baris daftar
+enum { B_KEMBALI = 1, B_STOP, B_MUKA, B_BICARA, B_MENU, B_ATAS, B_BAWAH };
+int halaman = H_BERANDA, halamanSub = 0, halamanHal = 0, tabStatus = 0;
+bool gambarUlang = true, bilahUlang = true, abaikanSentuh = false, konfirmasiRestart = false, layarRedup = false;
+unsigned long tSentuh = 0, tIsi = 0;
+String toastTeks; unsigned long toastSampai = 0;
+int hitungMode = 0; unsigned long hitungMulai = 0;              // mode yang menunggu hitung mundur (ikuti/jelajah)
+uint8_t kecerahan = 100; bool redupMalam = true;                // hanya berlaku kalau LAYAR_LED diisi
+
+struct TombolLayar { int16_t x, y, w, h, id; };
+TombolLayar tombolLayar[48]; int jumlahTombolLayar = 0;
+int tombolDitekan = -1;
+
+// ---- pesan di layar (dikirim lewat Telegram /pesan atau panel web) ----
+struct PesanLayar { char dari[24]; char isi[200]; uint32_t waktu; uint8_t dibaca; };
+const int PESAN_MAKS = 10;
+PesanLayar daftarPesan[PESAN_MAKS]; int jumlahPesan = 0, pesanDilihat = 0;
+SemaphoreHandle_t kunciPesan;
+volatile bool pesanMasuk = false;
+
+void muatPesan() {
+  Preferences q; q.begin("robot", true);
+  size_t n = q.getBytesLength("psn");
+  if (n && n % sizeof(PesanLayar) == 0 && n <= sizeof(daftarPesan)) { q.getBytes("psn", daftarPesan, n); jumlahPesan = n / sizeof(PesanLayar); }
+  q.end();
+}
+
+void simpanPesan() {
+  Preferences q; q.begin("robot", false);
+  if (jumlahPesan) q.putBytes("psn", daftarPesan, jumlahPesan * sizeof(PesanLayar)); else q.remove("psn");
+  q.end();
+}
+
+void tambahPesan(const String& dari, const String& isi) {
+  xSemaphoreTake(kunciPesan, portMAX_DELAY);
+  for (int i = min(jumlahPesan, PESAN_MAKS - 1); i > 0; i--) daftarPesan[i] = daftarPesan[i - 1];
+  if (jumlahPesan < PESAN_MAKS) jumlahPesan++;
+  strlcpy(daftarPesan[0].dari, dari.c_str(), sizeof(daftarPesan[0].dari));
+  strlcpy(daftarPesan[0].isi, isi.c_str(), sizeof(daftarPesan[0].isi));
+  time_t sk; time(&sk); daftarPesan[0].waktu = (uint32_t)sk; daftarPesan[0].dibaca = 0;
+  simpanPesan();
+  xSemaphoreGive(kunciPesan);
+  pesanMasuk = true;
+}
+
+int pesanBelumDibaca() {
+  int n = 0;
+  for (int i = 0; i < jumlahPesan; i++) if (!daftarPesan[i].dibaca) n++;
+  return n;
+}
+
+// ---- musik dari SD: daftar lagu, putar, berikutnya, acak, ulang ----
+std::vector<String> laguSD;
+int laguKe = -1, radioKe = -1;
+bool acakLagu = false, ulangLagu = false;
+
+void muatDaftarLagu() {
+  laguSD.clear();
+  String d = daftarLagu();
+  if (d.indexOf('\n') < 0) return;                         // pesan galat (SD tidak terbaca / belum ada lagu)
+  int a = 0;
+  while (a < (int)d.length()) {
+    int b = d.indexOf('\n', a); if (b < 0) b = d.length();
+    String n = d.substring(a, b); n.trim();
+    if (n.length()) laguSD.push_back(n);
+    a = b + 1;
+  }
+  std::sort(laguSD.begin(), laguSD.end());
+}
+
+void putarLaguKe(int i) {
+  if (i < 0 || i >= (int)laguSD.size()) return;
+  laguKe = i; radioKe = -1;
+  kirimAudio(A_FILE, "/" + laguSD[i]);
+  setStatus("Lagu " + String(i + 1) + "/" + String(laguSD.size()) + ": " + laguSD[i]);
+}
+
+// arah +1 = berikutnya, -1 = sebelumnya. Mengikuti lagu yang sedang diputar walau dimulai dari Telegram.
+void laguBerikut(int arah) {
+  if (laguSD.empty()) muatDaftarLagu();
+  int n = laguSD.size();
+  if (!n) { setStatus("Tidak ada lagu di SD card"); return; }
+  if (laguFile[0]) for (int i = 0; i < n; i++) if (laguSD[i] == String(laguFile + 1)) { laguKe = i; break; }
+  if (acakLagu && n > 1) { int j; do j = esp_random() % n; while (j == laguKe); putarLaguKe(j); }
+  else putarLaguKe(laguKe < 0 ? 0 : (laguKe + arah + n) % n);
+}
+
+const int JUMLAH_RADIO = sizeof(DAFTAR_RADIO) / sizeof(DAFTAR_RADIO[0]);
+
+void putarRadioKe(int i) {
+  if (WiFi.status() != WL_CONNECTED) { setStatus("Radio butuh WiFi"); return; }
+  radioKe = (i + JUMLAH_RADIO) % JUMLAH_RADIO; laguKe = -1;
+  kirimAudio(A_URL, DAFTAR_RADIO[radioKe]);
+  setStatus("Radio " + String(radioKe + 1) + "/" + String(JUMLAH_RADIO));
+}
+
+void hentikanSemua() {
+  gantiMode(M_BIASA); kirimBadan("S"); kirimAudio(A_STOP);
+  radioKe = -1; setStatus("Berhenti");
+}
+
+// ---- alat gambar ----
+void toast(const String& t) { toastTeks = t; toastSampai = millis() + 2500; gambarUlang = true; }
+
+void daftarkan(int id, int x, int y, int w, int h) {
+  if (jumlahTombolLayar < 48) tombolLayar[jumlahTombolLayar++] = {(int16_t)x, (int16_t)y, (int16_t)w, (int16_t)h, (int16_t)id};
+}
+
+// Huruf di luar ASCII (misalnya é) tidak ada di font layar: ganti dengan '?'.
+String asciiSaja(const String& t) {
+  String o; o.reserve(t.length());
+  for (unsigned int i = 0; i < t.length(); i++) {
+    uint8_t c = t[i];
+    if (c < 0x80) o += (char)c;
+    else if ((c & 0xC0) == 0xC0) o += '?';                 // awal huruf UTF-8; byte lanjutan dibuang
+  }
+  return o;
+}
+
+String potongLebar(LGFX_Sprite& s, const String& teks, int lebar) {
+  String t = asciiSaja(teks);
+  if (s.textWidth(t.c_str()) <= lebar) return t;
+  while (t.length() > 1 && s.textWidth((t + "..").c_str()) > lebar) t.remove(t.length() - 1);
+  return t + "..";
+}
+
+// Tulis teks dengan pindah baris di batas lebar. Kembalikan jumlah baris yang ditulis.
+int tulisBungkus(LGFX_Sprite& s, const String& teks, int x, int y, int lebar, int tinggiBaris, int maksBaris) {
+  String t = asciiSaja(teks), baris;
+  int n = 0, i = 0;
+  s.setTextDatum(top_left);
+  while (i <= (int)t.length() && n < maksBaris) {
+    int j = t.indexOf(' ', i); if (j < 0) j = t.length();
+    String kata = t.substring(i, j);
+    String coba = baris.length() ? baris + " " + kata : kata;
+    if (s.textWidth(coba.c_str()) > lebar && baris.length()) {
+      s.drawString(baris.c_str(), x, y + n * tinggiBaris); n++;
+      baris = kata;
+    } else baris = coba;
+    i = j + 1;
+  }
+  if (baris.length() && n < maksBaris) { s.drawString(baris.c_str(), x, y + n * tinggiBaris); n++; }
+  return n;
+}
+
+// Tombol di sprite s yang tampil mulai baris layar oy. Teks yang terlalu lebar memakai huruf lebih kecil.
+void tombol(LGFX_Sprite& s, int oy, int id, int x, int y, int w, int h, const char* teks, uint16_t warna, bool aktif) {
+  bool tekan = aktif && id == tombolDitekan;
+  s.fillRoundRect(x, y, w, h, 8, tekan ? W_TEKAN : aktif ? warna : W_MATI);
+  s.setTextColor(tekan ? TFT_BLACK : aktif ? TFT_WHITE : WARNA(95, 100, 108));
+  s.setFont(&fonts::FreeSansBold9pt7b);
+  if (s.textWidth(teks) > w - 8) s.setFont(&fonts::Font2);
+  s.setTextDatum(middle_center);
+  s.drawString(teks, x + w / 2, y + h / 2 + 1);
+  if (aktif) daftarkan(id, x, y + oy, w, h);
+}
+
+uint16_t warnaIkon(int id) { return id == tombolDitekan ? TFT_BLACK : TFT_WHITE; }
+
+// Ikon sederhana dari garis dan bidang (font layar tidak punya emoji).
+enum { I_MUSIK, I_INFO, I_ALAT, I_MAIN, I_PESAN, I_SETELAN, I_PLAY, I_JEDA, I_MAJU, I_MUNDUR, I_MIK };
+void ikon(LGFX_Sprite& s, int jenis, int cx, int cy, uint16_t w) {
+  switch (jenis) {
+    case I_MUSIK:   s.fillCircle(cx - 8, cy + 10, 7, w); s.fillCircle(cx + 12, cy + 6, 7, w);
+                    s.fillRect(cx - 3, cy - 14, 4, 24, w); s.fillRect(cx + 17, cy - 18, 4, 24, w);
+                    s.fillTriangle(cx - 3, cy - 14, cx + 21, cy - 18, cx + 21, cy - 10, w); break;
+    case I_INFO:    s.drawCircle(cx, cy, 18, w); s.drawCircle(cx, cy, 17, w); s.fillCircle(cx, cy - 9, 3, w);
+                    s.fillRect(cx - 2, cy - 3, 5, 14, w); break;
+    case I_ALAT:    for (int i = 0; i < 4; i++) s.fillRoundRect(cx - 17 + (i % 2) * 19, cy - 17 + (i / 2) * 19, 15, 15, 3, w); break;
+    case I_MAIN:    s.fillRoundRect(cx - 22, cy - 11, 44, 24, 10, w);
+                    s.fillRect(cx - 15, cy - 1, 11, 3, TFT_BLACK); s.fillRect(cx - 11, cy - 5, 3, 11, TFT_BLACK);
+                    s.fillCircle(cx + 9, cy - 3, 3, TFT_BLACK); s.fillCircle(cx + 15, cy + 3, 3, TFT_BLACK); break;
+    case I_PESAN:   s.drawRect(cx - 20, cy - 13, 40, 27, w); s.drawRect(cx - 19, cy - 12, 38, 25, w);
+                    s.drawLine(cx - 19, cy - 12, cx, cy + 2, w); s.drawLine(cx + 19, cy - 12, cx, cy + 2, w); break;
+    case I_SETELAN: for (int i = 0; i < 8; i++) { float a = i * PI / 4; s.fillCircle(cx + cosf(a) * 15, cy + sinf(a) * 15, 4, w); }
+                    s.fillCircle(cx, cy, 14, w); s.fillCircle(cx, cy, 6, TFT_BLACK); break;
+    case I_PLAY:    s.fillTriangle(cx - 8, cy - 11, cx - 8, cy + 11, cx + 11, cy, w); break;
+    case I_JEDA:    s.fillRect(cx - 9, cy - 11, 6, 22, w); s.fillRect(cx + 3, cy - 11, 6, 22, w); break;
+    case I_MAJU:    s.fillTriangle(cx - 10, cy - 10, cx - 10, cy + 10, cx + 5, cy, w); s.fillRect(cx + 6, cy - 10, 4, 20, w); break;
+    case I_MUNDUR:  s.fillTriangle(cx + 10, cy - 10, cx + 10, cy + 10, cx - 5, cy, w); s.fillRect(cx - 10, cy - 10, 4, 20, w); break;
+    case I_MIK:     s.fillRoundRect(cx - 5, cy - 13, 10, 18, 5, w); s.drawArc(cx, cy, 10, 9, 0, 180, w);
+                    s.fillRect(cx - 1, cy + 10, 3, 5, w); break;
   }
 }
 
+// Tampilan kamera langsung di layar, sentuh untuk menutup (paling lama 30 detik).
+void lihatKameraDiLayar() {
+  setStatus("Membuka kamera...");
+  unsigned long t0 = millis();
+  int32_t x, y;
+  while (millis() - t0 < 30000) {
+    xSemaphoreTake(kunciFoto, portMAX_DELAY);
+    bool ok = ambilFoto("qvga");
+    if (ok) { xSemaphoreTake(kunciSPI, portMAX_DELAY); lcd.drawJpg(fotoBuf, fotoLen, 0, ISI_Y, 320, ISI_H); xSemaphoreGive(kunciSPI); }
+    xSemaphoreGive(kunciFoto);
+    if (!ok) { setStatus("Kamera tidak bisa dihubungi"); toast("Kamera tidak bisa dihubungi"); return; }
+    bacaBadan();
+    xSemaphoreTake(kunciSPI, portMAX_DELAY); bool sentuh = lcd.getTouch(&x, &y); xSemaphoreGive(kunciSPI);
+    if (millis() - t0 > 800 && sentuh) break;
+  }
+  for (int i = 0; i < 100; i++) {                           // tunggu jari diangkat
+    xSemaphoreTake(kunciSPI, portMAX_DELAY); bool sentuh = lcd.getTouch(&x, &y); xSemaphoreGive(kunciSPI);
+    if (!sentuh) break;
+    delay(20);
+  }
+  tSentuh = millis();
+  setStatus("Siap");
+}
+
+String judulHalaman() {
+  const char* SUB[4] = {"Musik", "Info", "Alat", "Main"};
+  switch (halaman) {
+    case H_MENU: return "Menu";
+    case H_SUB: return SUB[halamanSub];
+    case H_MUSIK: return "Lagu SD";
+    case H_DAFTARLAGU: return "Daftar lagu";
+    case H_RADIO: return "Radio";
+    case H_STATUS: return "Status robot";
+    case H_PESAN: return "Pesan";
+    case H_SETELAN: return "Setelan";
+    case H_MODE: return "Mode gerak";
+    default: return "";
+  }
+}
+
+bool musikJalan() { return audioJalan && !sedangBicara; }
+
+// ---- bilah status atas: kembali / jam, lalu pesan, musik, WiFi, baterai, STOP ----
+void gambarBilah() {
+  LGFX_Sprite& s = bilah;
+  s.fillScreen(W_BILAH);
+  bool ts = tombolDitekan == B_STOP;
+  s.fillRoundRect(264, 2, 54, 24, 6, ts ? W_TEKAN : W_MERAH);
+  s.setFont(&fonts::FreeSansBold9pt7b); s.setTextDatum(middle_center); s.setTextColor(ts ? TFT_BLACK : TFT_WHITE);
+  s.drawString("STOP", 291, 15);
+  int x = 258;
+  s.setFont(&fonts::Font2); s.setTextDatum(middle_right); s.setTextColor(TFT_WHITE);
+  if (persenBat >= 0) {
+    uint16_t wb = persenBat <= 20 ? TFT_RED : persenBat <= 40 ? TFT_ORANGE : TFT_GREEN;
+    s.drawRect(x - 22, 8, 20, 12, TFT_WHITE); s.fillRect(x - 2, 11, 2, 6, TFT_WHITE);
+    s.fillRect(x - 20, 10, max(1, 16 * (int)persenBat / 100), 8, wb);
+    char b[6]; snprintf(b, sizeof(b), "%d%%", (int)persenBat);
+    s.drawString(b, x - 26, 15);
+    x -= 26 + s.textWidth(b) + 8;
+  }
+  bool beranda = halaman == H_BERANDA || halaman == H_BERGERAK || halaman == H_HITUNG;
+  if (beranda) {                                            // halaman lain: judul butuh tempat, cukup baterai dan STOP
+  if (WiFi.status() == WL_CONNECTED) {
+    int r = WiFi.RSSI(), bar = r > -60 ? 4 : r > -70 ? 3 : r > -80 ? 2 : 1;
+    for (int i = 0; i < 4; i++) {
+      int h = 4 + i * 3;
+      if (i < bar) s.fillRect(x - 16 + i * 4, 21 - h, 3, h, TFT_WHITE); else s.drawRect(x - 16 + i * 4, 21 - h, 3, h, W_REDUP);
+    }
+  } else { s.setTextColor(TFT_RED); s.drawString("noWiFi", x, 15); x -= s.textWidth("noWiFi") - 16; s.setTextColor(TFT_WHITE); }
+  x -= 24;
+  if (pesanBelumDibaca() > 0) {
+    s.drawRect(x - 18, 8, 18, 13, TFT_YELLOW); s.drawLine(x - 18, 8, x - 9, 15, TFT_YELLOW); s.drawLine(x - 1, 8, x - 9, 15, TFT_YELLOW);
+    x -= 24;
+  }
+  if (musikJalan()) {
+    s.fillCircle(x - 12, 18, 3, TFT_CYAN); s.fillRect(x - 10, 6, 2, 12, TFT_CYAN); s.fillRect(x - 10, 6, 7, 2, TFT_CYAN);
+    x -= 18;
+  }
+  }
+  s.setTextDatum(middle_left); s.setTextColor(TFT_WHITE);
+  if (!beranda) {
+    bool t = tombolDitekan == B_KEMBALI;
+    s.fillRoundRect(2, 2, 54, 24, 6, t ? W_TEKAN : W_TOMBOL);
+    s.fillTriangle(12, 14, 24, 6, 24, 22, t ? TFT_BLACK : TFT_WHITE);
+    s.fillRect(24, 11, 20, 6, t ? TFT_BLACK : TFT_WHITE);
+    s.setFont(&fonts::FreeSansBold9pt7b);
+    s.drawString(potongLebar(s, judulHalaman(), x - 66).c_str(), 62, 15);
+  } else {
+    String j = teksJam();
+    s.setFont(&fonts::FreeSansBold9pt7b);
+    s.drawString(j.length() ? j.c_str() : "--:--", 6, 15);
+    struct tm tt;
+    if (jamSiap(tt) && x > 170) {
+      char b[24]; snprintf(b, sizeof(b), "%.3s %d %.3s", NAMA_HARI[tt.tm_wday], tt.tm_mday, NAMA_BULAN[tt.tm_mon]);
+      s.setFont(&fonts::Font2); s.setTextColor(W_REDUP); s.drawString(b, 62, 15);
+    }
+  }
+  xSemaphoreTake(kunciSPI, portMAX_DELAY); s.pushSprite(0, 0); xSemaphoreGive(kunciSPI);
+}
+
+// ---- Beranda: wajah (dianimasikan) dan dua tombol besar ----
+void gambarMuka() {
+  static unsigned long tKedip = 0; static bool kedip = false;
+  if (!kedip && millis() - tKedip > 3500 + (esp_random() % 2000)) { kedip = true; tKedip = millis(); }
+  if (kedip && millis() - tKedip > 140) { kedip = false; tKedip = millis(); }
+  LGFX_Sprite& s = muka;
+  s.fillScreen(TFT_BLACK);
+  Ekspresi e = ekspresi;
+  struct tm tt;
+  if (e == NGANTUK && jamSiap(tt)) {                       // malam dan lama tidak dipakai: jam besar
+    char b[8]; snprintf(b, sizeof(b), "%02d:%02d", tt.tm_hour, tt.tm_min);
+    s.setFont(&fonts::Font7); s.setTextDatum(middle_center); s.setTextColor(WARNA(90, 110, 130));
+    s.drawString(b, 160, 58);
+    s.setFont(&fonts::Font2); s.setTextColor(WARNA(70, 80, 90));
+    s.drawString(teksTanggal().c_str(), 160, 104);
+    int n = (millis() / 600) % 3;
+    for (int i = 0; i <= n; i++) s.drawString("z", 262 + i * 10, 26 - i * 8);
+  } else {
+    uint16_t warna = (e == KAGET) ? TFT_ORANGE : (e == LEMAH || e == NGANTUK) ? 0x7BEF : (e == DENGAR) ? TFT_GREEN : (e == PUSING) ? 0xFD20 : TFT_CYAN;
+    int geser = arahMata * 14;
+    int tinggi = kedip ? 6 : (e == KAGET ? 62 : e == LEMAH ? 18 : e == NGANTUK ? 8 : 50);
+    for (int sisi = -1; sisi <= 1; sisi += 2) {
+      int cx = 160 + sisi * 62 + geser, cy = 50;
+      if (e == PUSING) {
+        int putaran = (millis() / 120) % 8;
+        for (int r = 6; r <= 24; r += 6) s.drawCircle(cx + (putaran % 4 - 2) * (r / 6), cy + (putaran / 4) * 2, r, warna);
+        continue;
+      }
+      int y = (e == NGANTUK) ? cy + 12 : cy;
+      s.fillRoundRect(cx - 26, y - tinggi / 2, 52, tinggi, e == NGANTUK ? 4 : 14, warna);
+      if (e == PIKIR && !kedip) s.fillCircle(cx + 10, cy - 10, 7, TFT_BLACK);
+    }
+    int my = 102;
+    if (sedangBicara) { int h = 4 + (millis() / 90) % 3 * 6; s.fillRoundRect(130, my - h / 2, 60, h, 4, warna); }
+    else if (e == KAGET) s.drawCircle(160, my, 9, warna);
+    else if (e == PUSING) { for (int i = 0; i < 4; i++) s.drawLine(136 + i * 12, my + (i % 2 ? 4 : -4), 148 + i * 12, my + (i % 2 ? -4 : 4), warna); }
+    else if (e == NGANTUK || e == LEMAH) s.drawFastHLine(144, my, 32, warna);
+    else s.drawArc(160, my - 22, 30, 27, 50, 130, warna);
+  }
+  s.setFont(&fonts::Font2); s.setTextDatum(middle_center);
+  if (pesanBelumDibaca() > 0) {
+    s.setTextColor(TFT_YELLOW);
+    s.drawString(potongLebar(s, String("Pesan dari ") + daftarPesan[0].dari + " - ketuk wajah untuk membaca", 310).c_str(), 160, 134);
+  } else {
+    s.setTextColor(TFT_WHITE);
+    s.drawString(potongLebar(s, teksStatus, 310).c_str(), 160, 134);
+  }
+  xSemaphoreTake(kunciSPI, portMAX_DELAY); s.pushSprite(0, ISI_Y); xSemaphoreGive(kunciSPI);
+}
+
+void gambarBawahBeranda() {
+  LGFX_Sprite& s = bawah;
+  s.fillScreen(TFT_BLACK);
+  jumlahTombolLayar = 0;
+  int oy = ISI_Y + MUKA_H;
+  bool dengar = ekspresi == DENGAR;
+  tombol(s, oy, B_BICARA, 6, 6, 150, 56, dengar ? "  MENDENGAR" : "  BICARA", dengar ? WARNA(40, 190, 90) : W_HIJAU, true);
+  ikon(s, I_MIK, 30, 34, warnaIkon(B_BICARA));
+  tombol(s, oy, B_MENU, 164, 6, 150, 56, "  MENU", W_BIRU, true);
+  for (int i = 0; i < 3; i++) s.fillRect(184, 24 + i * 9, 18, 4, warnaIkon(B_MENU));
+  xSemaphoreTake(kunciSPI, portMAX_DELAY); s.pushSprite(0, oy); xSemaphoreGive(kunciSPI);
+}
+
+// ---- halaman menu dan sub-menu ----
+struct ItemMenu { const char* nama; int16_t tujuan; };        // tujuan: halaman, -1 = menyusul, -2 kamera, -3 suit
+const ItemMenu MENU_MUSIK[] = {{"Lagu SD", H_MUSIK}, {"Radio", H_RADIO}, {"Podcast", -1}, {"Murottal", -1}};
+const ItemMenu MENU_INFO[]  = {{"Status robot", H_STATUS}, {"Cuaca", -1}, {"Jadwal sholat", -1}, {"Berita", -1},
+                               {"Kalender", -1}, {"Kurs", -1}, {"Wikipedia", -1}};
+const ItemMenu MENU_ALAT[]  = {{"Mode gerak", H_MODE}, {"Kamera", -2}, {"Alarm", -1}, {"Timer", -1}, {"Kalkulator", -1},
+                               {"Senter", -1}, {"Penerjemah", -1}, {"Catatan", -1}, {"Rekam suara", -1}, {"Galeri foto", -1}};
+const ItemMenu MENU_MAIN[]  = {{"Suit", -3}, {"Tic-tac-toe", -1}, {"2048", -1}, {"Ketuk terbang", -1}};
+const ItemMenu* MENU_SUB[4] = {MENU_MUSIK, MENU_INFO, MENU_ALAT, MENU_MAIN};
+const int JUMLAH_SUB[4] = {sizeof(MENU_MUSIK) / sizeof(ItemMenu), sizeof(MENU_INFO) / sizeof(ItemMenu),
+                           sizeof(MENU_ALAT) / sizeof(ItemMenu), sizeof(MENU_MAIN) / sizeof(ItemMenu)};
+
+// Tombol ▲ ▼ di baris bawah untuk daftar yang lebih dari satu halaman.
+void navigasiHalaman(int jumlahHal) {
+  tombol(kanvas, ISI_Y, B_ATAS, 6, 180, 96, 28, "", W_TOMBOL, halamanHal > 0);
+  if (halamanHal > 0) kanvas.fillTriangle(54, 186, 44, 202, 64, 202, warnaIkon(B_ATAS));
+  tombol(kanvas, ISI_Y, B_BAWAH, 218, 180, 96, 28, "", W_TOMBOL, halamanHal < jumlahHal - 1);
+  if (halamanHal < jumlahHal - 1) kanvas.fillTriangle(256, 186, 276, 186, 266, 202, warnaIkon(B_BAWAH));
+  kanvas.setFont(&fonts::Font2); kanvas.setTextDatum(middle_center); kanvas.setTextColor(W_REDUP);
+  kanvas.drawString((String(halamanHal + 1) + " / " + String(jumlahHal)).c_str(), 160, 194);
+}
+
+void gambarMenu() {
+  const char* NAMA[6] = {"Musik", "Info", "Alat", "Main", "Pesan", "Setelan"};
+  const int IKON[6] = {I_MUSIK, I_INFO, I_ALAT, I_MAIN, I_PESAN, I_SETELAN};
+  for (int i = 0; i < 6; i++) {
+    int x = 6 + (i % 3) * 104, y = 6 + (i / 3) * 104, id = 10 + i;
+    bool tekan = id == tombolDitekan;
+    kanvas.fillRoundRect(x, y, 100, 98, 10, tekan ? W_TEKAN : W_UBIN[i]);
+    ikon(kanvas, IKON[i], x + 50, y + 38, tekan ? TFT_BLACK : TFT_WHITE);
+    kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextDatum(middle_center); kanvas.setTextColor(tekan ? TFT_BLACK : TFT_WHITE);
+    kanvas.drawString(NAMA[i], x + 50, y + 80);
+    if (i == 4 && pesanBelumDibaca() > 0) {
+      kanvas.fillCircle(x + 86, y + 14, 11, TFT_RED);
+      kanvas.setFont(&fonts::Font2); kanvas.setTextColor(TFT_WHITE);
+      kanvas.drawString(String(pesanBelumDibaca()).c_str(), x + 86, y + 14);
+    }
+    daftarkan(id, x, y + ISI_Y, 100, 98);
+  }
+}
+
+void gambarSub() {
+  const ItemMenu* m = MENU_SUB[halamanSub];
+  int n = JUMLAH_SUB[halamanSub], hal = (n + 5) / 6;
+  halamanHal = constrain(halamanHal, 0, hal - 1);
+  for (int k = 0; k < 6; k++) {
+    int i = halamanHal * 6 + k; if (i >= n) break;
+    int x = 6 + (k % 2) * 157, y = 6 + (k / 2) * 58, id = 100 + i;
+    bool ada = m[i].tujuan != -1 && !(m[i].tujuan == -3 && !fiturKamera);
+    bool tekan = id == tombolDitekan;
+    kanvas.fillRoundRect(x, y, 151, 52, 8, tekan ? W_TEKAN : ada ? W_TOMBOL : W_MATI);
+    kanvas.fillRect(x, y + 8, 5, 36, W_UBIN[halamanSub]);
+    kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextDatum(middle_left);
+    kanvas.setTextColor(tekan ? TFT_BLACK : ada ? TFT_WHITE : WARNA(110, 116, 124));
+    kanvas.drawString(m[i].nama, x + 14, y + (ada ? 26 : 20));
+    if (!ada) {
+      kanvas.setFont(&fonts::Font2); kanvas.setTextColor(WARNA(110, 116, 124));
+      kanvas.drawString(m[i].tujuan == -3 ? "nyalakan fitur kamera" : "menyusul", x + 14, y + 38);
+    }
+    daftarkan(id, x, y + ISI_Y, 151, 52);
+  }
+  if (hal > 1) navigasiHalaman(hal);
+}
+
+// Daftar baris (lagu, radio, setelan). teks(i) boleh berisi "label\tnilai": nilai ditulis rata kanan.
+void gambarDaftar(int jumlah, int perHal, String (*teks)(int), bool (*sorot)(int)) {
+  int hal = max(1, (jumlah + perHal - 1) / perHal);
+  halamanHal = constrain(halamanHal, 0, hal - 1);
+  for (int k = 0; k < perHal; k++) {
+    int i = halamanHal * perHal + k; if (i >= jumlah) break;
+    int y = 4 + k * 44, id = 100 + i;
+    bool tekan = id == tombolDitekan;
+    kanvas.fillRoundRect(6, y, 308, 40, 8, tekan ? W_TEKAN : (sorot && sorot(i)) ? W_HIJAU : W_TOMBOL);
+    String t = teks(i), nilai;
+    int tab = t.indexOf('\t');
+    if (tab >= 0) { nilai = t.substring(tab + 1); t = t.substring(0, tab); }
+    kanvas.setFont(&fonts::FreeSans9pt7b); kanvas.setTextColor(tekan ? TFT_BLACK : TFT_WHITE);
+    int lebarNilai = 0;
+    if (nilai.length()) {
+      kanvas.setFont(&fonts::Font2); kanvas.setTextDatum(middle_right);
+      kanvas.setTextColor(tekan ? TFT_BLACK : WARNA(170, 200, 230));
+      String v = potongLebar(kanvas, nilai, 140);
+      kanvas.drawString(v.c_str(), 304, y + 21);
+      lebarNilai = kanvas.textWidth(v.c_str()) + 12;
+      kanvas.setFont(&fonts::FreeSans9pt7b); kanvas.setTextColor(tekan ? TFT_BLACK : TFT_WHITE);
+    }
+    kanvas.setTextDatum(middle_left);
+    kanvas.drawString(potongLebar(kanvas, t, 286 - lebarNilai).c_str(), 16, y + 21);
+    daftarkan(id, 6, y + ISI_Y, 308, 40);
+  }
+  if (hal > 1) navigasiHalaman(hal);
+}
+
+String waktuMenit(uint32_t detik) { char b[12]; snprintf(b, sizeof(b), "%u:%02u", (unsigned)(detik / 60), (unsigned)(detik % 60)); return b; }
+
+// ---- Musik: pemutar lagu SD ----
+void gambarMusik() {
+  bool adaLagu = !laguSD.empty();
+  String judul = laguFile[0] ? String(laguFile + 1) : String(adaLagu ? "Pilih lagu atau tekan putar" : "Belum ada lagu di SD card");
+  kanvas.setFont(&fonts::Font2); kanvas.setTextDatum(top_left); kanvas.setTextColor(W_REDUP);
+  String atas = laguFile[0] ? (musikJeda ? "Dijeda" : musikJalan() ? "Sedang diputar" : "Berhenti") : String("Lagu SD");
+  if (adaLagu && laguKe >= 0) atas += "  -  " + String(laguKe + 1) + " dari " + String(laguSD.size());
+  kanvas.drawString(atas.c_str(), 10, 6);
+  kanvas.setFont(&fonts::FreeSansBold12pt7b); kanvas.setTextColor(TFT_WHITE);
+  kanvas.drawString(potongLebar(kanvas, judul, 300).c_str(), 10, 24);
+  uint32_t d = laguDurasi, p = laguDetik;
+  if (d && p > d) p = d;
+  kanvas.fillRoundRect(10, 56, 300, 8, 4, W_GARIS);
+  if (d) kanvas.fillRoundRect(10, 56, max(8, (int)(300 * p / d)), 8, 4, TFT_CYAN);
+  kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP);
+  kanvas.setTextDatum(top_left); kanvas.drawString(waktuMenit(p).c_str(), 10, 68);
+  kanvas.setTextDatum(top_right); kanvas.drawString(d ? waktuMenit(d).c_str() : "--:--", 310, 68);
+  // kendali
+  tombol(kanvas, ISI_Y, 20, 6, 92, 58, 54, "", W_TOMBOL, adaLagu);
+  ikon(kanvas, I_MUNDUR, 35, 119, adaLagu ? warnaIkon(20) : W_REDUP);
+  tombol(kanvas, ISI_Y, 21, 70, 92, 70, 54, "", W_BIRU, adaLagu);
+  ikon(kanvas, (musikJalan() && !musikJeda && laguFile[0]) ? I_JEDA : I_PLAY, 105, 119, adaLagu ? warnaIkon(21) : W_REDUP);
+  tombol(kanvas, ISI_Y, 22, 146, 92, 58, 54, "", W_TOMBOL, adaLagu);
+  ikon(kanvas, I_MAJU, 175, 119, adaLagu ? warnaIkon(22) : W_REDUP);
+  tombol(kanvas, ISI_Y, 23, 210, 92, 50, 54, "ACAK", acakLagu ? W_HIJAU : W_TOMBOL, adaLagu);
+  tombol(kanvas, ISI_Y, 24, 264, 92, 50, 54, "ULANG", ulangLagu ? W_HIJAU : W_TOMBOL, adaLagu);
+  // volume dan daftar
+  tombol(kanvas, ISI_Y, 25, 6, 156, 52, 50, "-", W_TOMBOL, true);
+  kanvas.fillRoundRect(64, 176, 132, 10, 5, W_GARIS);
+  kanvas.fillRoundRect(64, 176, max(10, 132 * volSekarang / 21), 10, 5, TFT_GREEN);
+  kanvas.setFont(&fonts::Font2); kanvas.setTextDatum(top_center); kanvas.setTextColor(W_REDUP);
+  kanvas.drawString(("Volume " + String(volSekarang)).c_str(), 130, 158);
+  tombol(kanvas, ISI_Y, 26, 202, 156, 52, 50, "+", W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 27, 258, 156, 56, 50, "DAFTAR", W_TOMBOL, adaLagu);
+}
+
+String teksLagu(int i) { return laguSD[i]; }
+bool sorotLagu(int i) { return laguFile[0] && laguSD[i] == String(laguFile + 1); }
+String teksRadio(int i) {
+  String u = DAFTAR_RADIO[i];
+  u.replace("http://", ""); u.replace("https://", "");
+  int g = u.indexOf('/'); if (g > 0) u = u.substring(0, g);
+  return "Radio " + String(i + 1) + "\t" + u;
+}
+bool sorotRadio(int i) { return radioKe == i && musikJalan(); }
+
+void gambarRadio() {
+  gambarDaftar(JUMLAH_RADIO, 3, teksRadio, sorotRadio);
+  tombol(kanvas, ISI_Y, 30, 6, 136, 150, 40, "BERHENTI", W_MERAH, true);
+  tombol(kanvas, ISI_Y, 25, 162, 136, 74, 40, "VOL -", W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 26, 240, 136, 74, 40, "VOL +", W_TOMBOL, true);
+}
+
+// ---- Status robot: baterai, jarak, kemiringan / jaringan dan QR panel web ----
+void gambarStatus() {
+  tombol(kanvas, ISI_Y, 40, 6, 4, 151, 32, "ROBOT", tabStatus == 0 ? W_BIRU : W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 41, 163, 4, 151, 32, "JARINGAN", tabStatus == 1 ? W_BIRU : W_TOMBOL, true);
+  kanvas.setTextDatum(top_left);
+  bool hidup = badan.terakhir && millis() - badan.terakhir < 2000;
+  if (tabStatus == 0) {
+    kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE);
+    String b = !hidup ? String("Badan belum terhubung") : persenBat >= 0 ? "Baterai " + String((int)persenBat) + "%  -  " + String(badan.baterai, 2) + " V"
+                                                                           : String("Baterai ") + String(badan.baterai, 2) + " V";
+    kanvas.drawString(b.c_str(), 10, 44);
+    kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP);
+    kanvas.drawString(sisaMenitBat >= 0 ? ("Perkiraan sisa " + teksDurasi(sisaMenitBat)).c_str() : "Perkiraan sisa muncul setelah 10 menit menyala", 10, 64);
+    // grafik tegangan (paling lama di kiri)
+    kanvas.drawRect(10, 82, 300, 40, W_GARIS);
+    int n = jumlahRiwayat;
+    if (n >= 2) {
+      int sebelum = -1;
+      for (int i = 0; i < n; i++) {
+        float v = riwayatBat[(ujungRiwayat - n + i + RIWAYAT_BAT) % RIWAYAT_BAT] / 100.0f;
+        int y = 120 - (int)(constrain((v - 6.4f) / 2.0f, 0.0f, 1.0f) * 36), x = 11 + i * 298 / (n - 1);
+        if (sebelum >= 0) kanvas.drawLine(11 + (i - 1) * 298 / (n - 1), sebelum, x, y, TFT_GREEN);
+        sebelum = y;
+      }
+    } else { kanvas.setTextDatum(middle_center); kanvas.drawString("grafik muncul setelah 2 menit", 160, 102); kanvas.setTextDatum(top_left); }
+    // jarak depan dan belakang (bar 0-200 cm)
+    const char* LBL[2] = {"Depan", "Belakang"};
+    int jarak[2] = {badan.depan, badan.belakang};
+    for (int k = 0; k < 2; k++) {
+      int y = 132 + k * 22;
+      kanvas.setTextColor(TFT_WHITE); kanvas.drawString(LBL[k], 10, y);
+      kanvas.fillRoundRect(84, y + 3, 160, 10, 5, W_GARIS);
+      if (hidup && jarak[k] > 0) {
+        int w = constrain(jarak[k] * 160 / 200, 6, 160);
+        kanvas.fillRoundRect(84, y + 3, w, 10, 5, jarak[k] < 25 ? TFT_RED : jarak[k] < 50 ? TFT_ORANGE : TFT_GREEN);
+      }
+      kanvas.setTextDatum(top_right);
+      kanvas.drawString(hidup && jarak[k] > 0 ? (String(jarak[k]) + " cm").c_str() : "-", 310, y);
+      kanvas.setTextDatum(top_left);
+    }
+    kanvas.setTextColor(W_REDUP);
+    String l = hidup ? "Miring " + String(badan.pitch) + " / " + String(badan.roll) + " derajat" : String("");
+    if (hidup && adaSensorSuhu()) l += "   Suhu " + String(badan.suhu, 0) + " C, lembap " + String(badan.lembap, 0) + "%";
+    kanvas.drawString(l.c_str(), 10, 180);
+  } else {
+    if (WiFi.status() == WL_CONNECTED) {
+      String url = "http://" + WiFi.localIP().toString() + "/";
+      kanvas.fillRect(8, 42, 128, 128, TFT_WHITE);
+      kanvas.qrcode(url.c_str(), 12, 46, 120, 3);
+      kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP); kanvas.setTextDatum(top_center);
+      kanvas.drawString("pindai dari HP", 72, 176);
+      kanvas.setTextDatum(top_left); kanvas.setTextColor(TFT_WHITE);
+      kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.drawString("Panel web", 146, 44);
+      kanvas.setFont(&fonts::Font2);
+      kanvas.drawString(url.c_str(), 146, 68);
+      kanvas.drawString(("atau http://" + namaHost() + ".local/").c_str(), 146, 86);
+      kanvas.setTextColor(W_REDUP);
+      kanvas.drawString(potongLebar(kanvas, "WiFi: " + WiFi.SSID(), 168).c_str(), 146, 116);
+      kanvas.drawString(("Sinyal: " + String(WiFi.RSSI()) + " dBm").c_str(), 146, 134);
+      kanvas.drawString(("Menyala " + teksDurasi(millis() / 60000)).c_str(), 146, 152);
+    } else {
+      kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE); kanvas.setTextDatum(middle_center);
+      kanvas.drawString("WiFi tidak tersambung", 160, 110);
+    }
+  }
+}
+
+// ---- Pesan ----
+void gambarPesan() {
+  if (!jumlahPesan) {
+    kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE); kanvas.setTextDatum(middle_center);
+    kanvas.drawString("Belum ada pesan", 160, 80);
+    kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP);
+    kanvas.drawString("Kirim dari Telegram:  /pesan isi pesannya", 160, 110);
+    kanvas.drawString("atau dari panel web", 160, 130);
+    return;
+  }
+  xSemaphoreTake(kunciPesan, portMAX_DELAY);
+  pesanDilihat = constrain(pesanDilihat, 0, jumlahPesan - 1);
+  PesanLayar p = daftarPesan[pesanDilihat];
+  if (!daftarPesan[pesanDilihat].dibaca) { daftarPesan[pesanDilihat].dibaca = 1; simpanPesan(); bilahUlang = true; }
+  xSemaphoreGive(kunciPesan);
+  kanvas.setTextDatum(top_left); kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_YELLOW);
+  kanvas.drawString(potongLebar(kanvas, String("Dari ") + p.dari, 230).c_str(), 10, 6);
+  kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP); kanvas.setTextDatum(top_right);
+  kanvas.drawString((String(pesanDilihat + 1) + " / " + String(jumlahPesan)).c_str(), 310, 8);
+  if (p.waktu > 1700000000UL) {                             // jam sudah tersinkron saat pesan datang
+    time_t w = p.waktu; struct tm t; localtime_r(&w, &t);
+    char b[32]; snprintf(b, sizeof(b), "%d %.3s, %02d:%02d", t.tm_mday, NAMA_BULAN[t.tm_mon], t.tm_hour, t.tm_min);
+    kanvas.setTextDatum(top_left); kanvas.drawString(b, 10, 28);
+  }
+  kanvas.drawRoundRect(6, 46, 308, 104, 8, W_GARIS);
+  kanvas.setFont(&fonts::FreeSans9pt7b); kanvas.setTextColor(TFT_WHITE);
+  tulisBungkus(kanvas, p.isi, 14, 54, 292, 19, 5);
+  tombol(kanvas, ISI_Y, 50, 6, 156, 56, 50, "", W_TOMBOL, pesanDilihat > 0);
+  if (pesanDilihat > 0) kanvas.fillTriangle(24, 181, 44, 169, 44, 193, warnaIkon(50));
+  tombol(kanvas, ISI_Y, 51, 68, 156, 112, 50, "BACAKAN", W_BIRU, true);
+  tombol(kanvas, ISI_Y, 52, 186, 156, 66, 50, "HAPUS", W_MERAH, true);
+  tombol(kanvas, ISI_Y, 53, 258, 156, 56, 50, "", W_TOMBOL, pesanDilihat < jumlahPesan - 1);
+  if (pesanDilihat < jumlahPesan - 1) kanvas.fillTriangle(296, 181, 276, 169, 276, 193, warnaIkon(53));
+}
+
+// ---- Setelan ----
+const int JUMLAH_SETELAN = 10;
+String teksSetelan(int i) {
+  switch (i) {
+    case 0: return String("Suara bicara\t") + (pakaiSuaraAI && strlen(SUARA_GEMINI) ? "Cowok (" SUARA_GEMINI ")" : "Google");
+    case 1: return String("Otak AI\t") + namaAI[pilihanAI];
+    case 2: return String("Fitur kamera AI\t") + (fiturKamera ? "Nyala" : "Mati");
+    case 3: return String("Kecerahan\t") + (LAYAR_LED >= 0 ? String(kecerahan) + "%" : String("perlu kabel LED ke IO38"));
+    case 4: return String("Redup malam hari\t") + (LAYAR_LED >= 0 ? (redupMalam ? "Nyala" : "Mati") : "perlu kabel LED");
+    case 5: return "Putar layar 180 derajat\tketuk";
+    case 6: return "Kalibrasi sentuh\tketuk";
+    case 7: return "WiFi\t" + (WiFi.status() == WL_CONNECTED ? WiFi.SSID() : String("tidak tersambung"));
+    case 8: return "Alamat panel\t" + WiFi.localIP().toString();
+    default: return String("Mulai ulang robot\t") + (konfirmasiRestart ? "ketuk sekali lagi" : "ketuk");
+  }
+}
+
+void gambarSetelan() { gambarDaftar(JUMLAH_SETELAN, 4, teksSetelan, nullptr); }
+
+void aturKecerahan() {
+  struct tm t;
+  bool malam = redupMalam && jamSiap(t) && (t.tm_hour >= 22 || t.tm_hour < 5) && millis() - tSentuh > 120000;
+  layarRedup = malam;
+  static int lalu = -1;
+  int v = malam ? 15 : kecerahan;
+  if (v != lalu) { lalu = v; xSemaphoreTake(kunciSPI, portMAX_DELAY); lcd.setBrightness(v * 255 / 100); xSemaphoreGive(kunciSPI); }
+}
+
+// ---- Mode gerak (dengan hitung mundur untuk mode yang membuat robot berjalan) ----
+void gambarMode() {
+  const char* NAMA[4] = {"BIASA", "JAGA", "IKUTI", "JELAJAH"};
+  const int MODE_KE[4] = {M_BIASA, M_JAGA, M_IKUTI, M_JELAJAH};
+  for (int i = 0; i < 4; i++)
+    tombol(kanvas, ISI_Y, 60 + i, 6 + (i % 2) * 157, 6 + (i / 2) * 76, 151, 70, NAMA[i], mode == MODE_KE[i] ? W_HIJAU : W_TOMBOL, true);
+  kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP); kanvas.setTextDatum(top_left);
+  kanvas.drawString("Jaga: diam, kirim foto kalau ada yang lewat.", 10, 162);
+  kanvas.drawString("Ikuti dan Jelajah mulai 5 detik setelah ditekan.", 10, 182);
+}
+
+void gambarHitung() {
+  int sisa = 5 - (int)((millis() - hitungMulai) / 1000);
+  kanvas.fillScreen(WARNA(60, 40, 0));
+  kanvas.setFont(&fonts::Font7); kanvas.setTextDatum(middle_center); kanvas.setTextColor(TFT_YELLOW);
+  kanvas.drawString(String(max(sisa, 1)).c_str(), 160, 50);
+  kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE);
+  kanvas.drawString(hitungMode == M_JELAJAH ? "Jelajah dimulai" : "Ikuti dimulai", 160, 98);
+  kanvas.setFont(&fonts::Font2);
+  kanvas.drawString("Lepaskan tangan dan beri ruang di sekitar robot", 160, 120);
+  tombol(kanvas, ISI_Y, 70, 60, 144, 200, 56, "BATAL", W_MERAH, true);
+}
+
+void gambarBergerak() {
+  kanvas.fillScreen(WARNA(120, 15, 15));
+  kanvas.setFont(&fonts::FreeSansBold12pt7b); kanvas.setTextDatum(middle_center); kanvas.setTextColor(TFT_WHITE);
+  kanvas.drawString("SENTUH LAYAR", 160, 70);
+  kanvas.drawString("UNTUK BERHENTI", 160, 100);
+  kanvas.setFont(&fonts::Font2);
+  String m = mode == M_JELAJAH ? "Mode jelajah, sisa " + waktuMenit(max(0L, (long)(jelajahSampai - millis()) / 1000)) : String("Mode ikuti");
+  kanvas.drawString(m.c_str(), 160, 140);
+  kanvas.drawString(potongLebar(kanvas, teksStatus, 300).c_str(), 160, 164);
+}
+
+// ---- gambar isi halaman (selain Beranda) ----
+void gambarIsi() {
+  kanvas.fillScreen(TFT_BLACK);
+  jumlahTombolLayar = 0;
+  switch (halaman) {
+    case H_MENU: gambarMenu(); break;
+    case H_SUB: gambarSub(); break;
+    case H_MUSIK: gambarMusik(); break;
+    case H_DAFTARLAGU:
+      if (laguSD.empty()) { kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE); kanvas.setTextDatum(middle_center);
+                            kanvas.drawString(adaSD ? "Belum ada lagu di SD card" : "SD card tidak terbaca", 160, 100); }
+      else gambarDaftar(laguSD.size(), 4, teksLagu, sorotLagu);
+      break;
+    case H_RADIO: gambarRadio(); break;
+    case H_STATUS: gambarStatus(); break;
+    case H_PESAN: gambarPesan(); break;
+    case H_SETELAN: gambarSetelan(); break;
+    case H_MODE: gambarMode(); break;
+    case H_HITUNG: gambarHitung(); break;
+    case H_BERGERAK: gambarBergerak(); break;
+  }
+  if (millis() < toastSampai) {
+    kanvas.setFont(&fonts::FreeSansBold9pt7b);
+    int w = min(300, (int)kanvas.textWidth(asciiSaja(toastTeks).c_str()) + 28);
+    kanvas.fillRoundRect(160 - w / 2, 150, w, 40, 10, WARNA(240, 240, 240));
+    kanvas.setTextColor(TFT_BLACK); kanvas.setTextDatum(middle_center);
+    kanvas.drawString(potongLebar(kanvas, toastTeks, w - 20).c_str(), 160, 171);
+  }
+  xSemaphoreTake(kunciSPI, portMAX_DELAY); kanvas.pushSprite(0, ISI_Y); xSemaphoreGive(kunciSPI);
+}
+
+void buka(int h) {
+  if (h == H_MUSIK || h == H_DAFTARLAGU) { if (laguSD.empty()) muatDaftarLagu(); }
+  if (h == H_DAFTARLAGU && laguKe >= 0) halamanHal = laguKe / 4; else if (h != halaman) halamanHal = 0;
+  if (h == H_PESAN && pesanBelumDibaca() > 0) pesanDilihat = 0;
+  if (h != H_SETELAN) konfirmasiRestart = false;
+  halaman = h;
+  tombolDitekan = -1; jumlahTombolLayar = 0;
+  gambarUlang = bilahUlang = true;
+}
+
+void kembali() {
+  switch (halaman) {
+    case H_SUB: case H_PESAN: case H_SETELAN: buka(H_MENU); break;
+    case H_MUSIK: case H_RADIO: halamanSub = 0; buka(H_SUB); halamanHal = 0; break;
+    case H_DAFTARLAGU: buka(H_MUSIK); break;
+    case H_STATUS: halamanSub = 1; buka(H_SUB); break;
+    case H_MODE: halamanSub = 2; buka(H_SUB); break;
+    default: buka(H_BERANDA);
+  }
+}
+
+void jalankanTombol(int id) {
+  if (id == B_KEMBALI) { kembali(); return; }
+  if (id == B_ATAS) { halamanHal--; gambarUlang = true; return; }
+  if (id == B_BAWAH) { halamanHal++; gambarUlang = true; return; }
+  switch (halaman) {
+    case H_BERANDA:
+      if (id == B_BICARA) { kirimAudio(A_STOP); mintaDengar = true; }
+      else if (id == B_MENU) buka(H_MENU);
+      else if (id == B_MUKA) { if (pesanBelumDibaca() > 0) buka(H_PESAN); else { lihatKameraDiLayar(); gambarUlang = bilahUlang = true; } }
+      break;
+    case H_MENU:
+      if (id >= 10 && id <= 13) { halamanSub = id - 10; buka(H_SUB); }
+      else if (id == 14) buka(H_PESAN);
+      else if (id == 15) buka(H_SETELAN);
+      break;
+    case H_SUB: {
+      int i = id - 100;
+      if (i < 0 || i >= JUMLAH_SUB[halamanSub]) break;
+      int t = MENU_SUB[halamanSub][i].tujuan;
+      if (t >= 0) buka(t);
+      else if (t == -2) { lihatKameraDiLayar(); gambarUlang = bilahUlang = true; }
+      else if (t == -3) {
+        if (!fiturKamera) toast("Nyalakan dulu Fitur kamera AI di Setelan");
+        else { aksiTertunda = 2; toast("Tunjukkan tanganmu ke kamera"); }
+      }
+      else toast("Menyusul di tahap berikutnya");
+      break;
+    }
+    case H_MUSIK:
+      if (id == 20) laguBerikut(-1);
+      else if (id == 21) { if (laguFile[0] && (musikJalan() || musikJeda)) kirimAudio(A_JEDA); else laguBerikut(laguKe < 0 ? 1 : 0); }
+      else if (id == 22) laguBerikut(1);
+      else if (id == 23) acakLagu = !acakLagu;
+      else if (id == 24) ulangLagu = !ulangLagu;
+      else if (id == 25 || id == 26) { int v = constrain(volSekarang + (id == 26 ? 2 : -2), 0, 21); kirimAudio(A_VOL, String(v)); volSekarang = v; }
+      else if (id == 27) buka(H_DAFTARLAGU);
+      gambarUlang = true;
+      break;
+    case H_DAFTARLAGU:
+      if (id >= 100) { putarLaguKe(id - 100); buka(H_MUSIK); }
+      break;
+    case H_RADIO:
+      if (id >= 100) putarRadioKe(id - 100);
+      else if (id == 30) { kirimAudio(A_STOP); radioKe = -1; }
+      else if (id == 25 || id == 26) { int v = constrain(volSekarang + (id == 26 ? 2 : -2), 0, 21); kirimAudio(A_VOL, String(v)); volSekarang = v; toast("Volume " + String(v)); }
+      gambarUlang = true;
+      break;
+    case H_STATUS:
+      if (id == 40 || id == 41) { tabStatus = id - 40; gambarUlang = true; }
+      break;
+    case H_PESAN:
+      if (id == 50) pesanDilihat--;
+      else if (id == 53) pesanDilihat++;
+      else if (id == 51 && jumlahPesan) ucapkan(String("Pesan dari ") + daftarPesan[pesanDilihat].dari + ". " + daftarPesan[pesanDilihat].isi);
+      else if (id == 52 && jumlahPesan) {
+        xSemaphoreTake(kunciPesan, portMAX_DELAY);
+        for (int i = pesanDilihat; i < jumlahPesan - 1; i++) daftarPesan[i] = daftarPesan[i + 1];
+        jumlahPesan--; simpanPesan();
+        xSemaphoreGive(kunciPesan);
+        toast("Pesan dihapus"); bilahUlang = true;
+      }
+      gambarUlang = true;
+      break;
+    case H_SETELAN: {
+      int i = id - 100;
+      if (i != 9) konfirmasiRestart = false;
+      if (i == 0) {
+        if (!strlen(SUARA_GEMINI)) toast("Isi SUARA_GEMINI di kode dulu");
+        else { aturSuara(!pakaiSuaraAI); ucapkan(pakaiSuaraAI ? "Ini suara cowokku." : "Ini suara Google."); }
+      } else if (i == 1) {
+        for (int k = 1; k <= AI_JUMLAH; k++) { int j = (pilihanAI + k) % AI_JUMLAH; if (aiTersedia(j)) { pilihAI(namaAI[j]); break; } }
+      } else if (i == 2) aturFiturKamera(!fiturKamera);
+      else if (i == 3 || i == 4) {
+        if (LAYAR_LED < 0) toast("Pindah kabel LED layar ke IO38 dulu");
+        else {
+          if (i == 3) kecerahan = kecerahan <= 25 ? 100 : kecerahan - 25; else redupMalam = !redupMalam;
+          Preferences q; q.begin("robot", false); q.putUChar("cerah", kecerahan); q.putUChar("redup", redupMalam); q.end();
+        }
+      } else if (i == 5) {
+        Preferences q; q.begin("robot", false); bool p = !q.getUChar("putar", 0); q.putUChar("putar", p); q.end();
+        xSemaphoreTake(kunciSPI, portMAX_DELAY); lcd.setRotation(lcd.getRotation() ^ 2); lcd.fillScreen(TFT_BLACK); xSemaphoreGive(kunciSPI);
+        bilahUlang = true;
+      } else if (i == 6) {
+        xSemaphoreTake(kunciSPI, portMAX_DELAY); kalibrasiSentuh(true); xSemaphoreGive(kunciSPI);
+        bilahUlang = true;
+      } else if (i == 9) {
+        if (konfirmasiRestart) { hentikanSemua(); delay(300); ESP.restart(); }
+        konfirmasiRestart = true;
+      }
+      gambarUlang = true;
+      break;
+    }
+    case H_MODE:
+      if (id == 60) gantiMode(M_BIASA);
+      else if (id == 61) gantiMode(M_JAGA);
+      else if (id == 62 || id == 63) { hitungMode = id == 62 ? M_IKUTI : M_JELAJAH; hitungMulai = millis(); buka(H_HITUNG); }
+      gambarUlang = true;
+      break;
+    case H_HITUNG:
+      if (id == 70) buka(H_MODE);
+      break;
+  }
+}
+
+// Baca sentuhan. Sebuah tombol dianggap ditekan setelah terbaca sama 4 kali berturut-turut
+// (sentuhan palsu dari bising speaker hanya sesaat), dan dijalankan saat jari diangkat.
+int tombolDi(int x, int y) {
+  if (y < BILAH_H) {
+    if (x >= 258) return B_STOP;
+    if (x < 62 && halaman != H_BERANDA && halaman != H_BERGERAK && halaman != H_HITUNG) return B_KEMBALI;
+    return -1;
+  }
+  for (int i = 0; i < jumlahTombolLayar; i++) {
+    const TombolLayar& t = tombolLayar[i];
+    if (x >= t.x - 3 && x < t.x + t.w + 3 && y >= t.y - 3 && y < t.y + t.h + 3) return t.id;
+  }
+  if (halaman == H_BERANDA && y < ISI_Y + MUKA_H) return B_MUKA;
+  return -1;
+}
+
+void tanganiSentuh() {
+  int32_t x, y;
+  xSemaphoreTake(kunciSPI, portMAX_DELAY); bool ada = lcd.getTouch(&x, &y); xSemaphoreGive(kunciSPI);
+  int baca = ada ? tombolDi(x, y) : -2;                    // -2 = tidak disentuh, -1 = di luar tombol
+  static int calon = -3, ulang = 0;
+  static bool menempel = false;
+  if (baca == calon) { if (ulang < 100) ulang++; } else { calon = baca; ulang = 1; }
+  if (ulang < 4) return;
+  if (calon != -2) {
+    tSentuh = millis();
+    if (!menempel) {
+      menempel = true;
+      Serial.printf("[sentuh] x %d, y %d, tombol %d\n", (int)x, (int)y, calon);
+      tAktif = millis();                                     // layar dipakai: jangan pasang wajah mengantuk
+      if (layarRedup) { layarRedup = false; abaikanSentuh = true; aturKecerahan(); return; }   // sentuhan pertama hanya membangunkan
+      if (halaman == H_BERGERAK || calon == B_STOP) { hentikanSemua(); if (halaman == H_BERGERAK || halaman == H_HITUNG) buka(H_BERANDA); abaikanSentuh = true; return; }
+    }
+    if (abaikanSentuh) return;
+    int t = calon >= 0 ? calon : -1;
+    if (t != tombolDitekan) { tombolDitekan = t; gambarUlang = true; if (t == B_KEMBALI || t == B_STOP || t == -1) bilahUlang = true; }
+  } else if (menempel) {
+    menempel = false;
+    int id = tombolDitekan; tombolDitekan = -1;
+    bool abaikan = abaikanSentuh; abaikanSentuh = false;
+    gambarUlang = true; if (id == B_KEMBALI) bilahUlang = true;
+    if (!abaikan && id >= 0) jalankanTombol(id);
+  }
+}
+
+// Kompatibel dengan panel web dan alarm: lagu berikutnya, radio berikutnya, dll.
+enum { T_BICARA, T_LAGU, T_RADIO, T_VOLKURANG, T_VOLTAMBAH, T_STOP };
 void tekanTombol(int t) {
-  static int lagu = -1, radio = -1;
   switch (t) {
-    case T_BICARA: kirimAudio(A_STOP); mintaDengar = true; break;   // dengarkan tanpa perlu menyebut nama
-    case T_LAGU: {                                                   // lagu berikutnya di SD card
-      String daftar = daftarLagu();
-      if (!adaSD || daftar.indexOf('.') < 0 || daftar.startsWith("Belum")) { setStatus("Tidak ada lagu di SD card"); break; }
-      int n = 0; for (char c : daftar) if (c == '\n') n++;
-      lagu = (lagu + 1) % n;
-      int a = 0; for (int i = 0; i < lagu; i++) a = daftar.indexOf('\n', a) + 1;
-      String nama = daftar.substring(a, daftar.indexOf('\n', a));
-      kirimAudio(A_FILE, "/" + nama); setStatus("Lagu " + String(lagu + 1) + "/" + String(n) + ": " + nama);
-      break;
-    }
-    case T_RADIO: {                                                  // stasiun berikutnya
-      const int n = sizeof(DAFTAR_RADIO) / sizeof(DAFTAR_RADIO[0]);
-      if (WiFi.status() != WL_CONNECTED) { setStatus("Radio butuh WiFi"); break; }
-      radio = (radio + 1) % n;
-      kirimAudio(A_URL, DAFTAR_RADIO[radio]); setStatus("Radio " + String(radio + 1) + "/" + String(n));
-      break;
-    }
+    case T_BICARA: kirimAudio(A_STOP); mintaDengar = true; break;
+    case T_LAGU: laguBerikut(1); break;
+    case T_RADIO: putarRadioKe(radioKe + 1); break;
     case T_VOLKURANG: case T_VOLTAMBAH: {
       int v = constrain(volSekarang + (t == T_VOLTAMBAH ? 2 : -2), 0, 21);
       kirimAudio(A_VOL, String(v)); volSekarang = v; setStatus("Volume " + String(v) + " dari 21");
       break;
     }
-    case T_STOP: gantiMode(M_BIASA); kirimBadan("S"); kirimAudio(A_STOP); setStatus("Berhenti"); break;
+    case T_STOP: hentikanSemua(); break;
   }
+  gambarUlang = bilahUlang = true;
+}
+
+void gambarOTA() {
+  kanvas.fillScreen(TFT_BLACK);
+  kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE); kanvas.setTextDatum(middle_center);
+  kanvas.drawString("Memperbarui kode lewat WiFi", 160, 60);
+  kanvas.drawRect(40, 86, 240, 20, TFT_CYAN);
+  kanvas.fillRect(42, 88, 236 * otaPersen / 100, 16, TFT_CYAN);
+  kanvas.setFont(&fonts::Font2);
+  kanvas.drawString((String(otaPersen) + " %  -  jangan matikan robot").c_str(), 160, 126);
+  xSemaphoreTake(kunciSPI, portMAX_DELAY); kanvas.pushSprite(0, ISI_Y); xSemaphoreGive(kunciSPI);
+}
+
+void siapkanLayar() {
+  bilah.setPsram(true); bilah.setColorDepth(16); bilah.createSprite(320, BILAH_H);
+  kanvas.setPsram(true); kanvas.setColorDepth(16); kanvas.createSprite(320, ISI_H);
+  muka.setPsram(true); muka.setColorDepth(16); muka.createSprite(320, MUKA_H);
+  bawah.setPsram(true); bawah.setColorDepth(16); bawah.createSprite(320, ISI_H - MUKA_H);
+  Preferences q; q.begin("robot", true);
+  kecerahan = constrain(q.getUChar("cerah", 100), 25, 100); redupMalam = q.getUChar("redup", 1) != 0;
+  q.end();
+  tSentuh = millis();
+}
+
+// Dipanggil terus dari loop(). Menggambar hanya yang perlu.
+void perbaruiLayar() {
+  static unsigned long tBilah = 0, tMuka = 0;
+  static bool otaLalu = false;
+  if (otaJalan) { otaLalu = true; static unsigned long tOta = 0; if (millis() - tOta > 300) { tOta = millis(); gambarOTA(); } return; }
+  if (otaLalu) { otaLalu = false; gambarUlang = bilahUlang = true; }   // upload WiFi gagal: kembali seperti biasa
+  bool bergerak = mode == M_IKUTI || mode == M_JELAJAH;
+  if (bergerak && halaman != H_BERGERAK) buka(H_BERGERAK);
+  else if (!bergerak && halaman == H_BERGERAK) buka(H_BERANDA);
+  if (halaman == H_HITUNG && millis() - hitungMulai >= 5000) {
+    if (hitungMode == M_JELAJAH) jelajah(5); else gantiMode(M_IKUTI);
+    buka(H_BERGERAK);
+  }
+  bool tetap = halaman == H_BERANDA || halaman == H_BERGERAK || halaman == H_HITUNG || (halaman == H_MUSIK && musikJalan());
+  if (!tetap && millis() - tSentuh > 45000) buka(H_BERANDA);
+  if (pesanMasuk) {
+    pesanMasuk = false;
+    ucapkan(String("Ada pesan dari ") + daftarPesan[0].dari + ".");
+    bilahUlang = gambarUlang = true;
+  }
+  if (laguHabis) { laguHabis = false; if (ulangLagu && laguKe >= 0) putarLaguKe(laguKe); else laguBerikut(1); gambarUlang = true; }
+  if (LAYAR_LED >= 0) aturKecerahan();
+
+  if (bilahUlang || millis() - tBilah > 1000) { bilahUlang = false; tBilah = millis(); gambarBilah(); }
+  if (halaman == H_BERANDA) {
+    if (millis() - tMuka > 110) { tMuka = millis(); gambarMuka(); }
+    static bool dengarLalu = false;
+    bool dengar = ekspresi == DENGAR;
+    if (gambarUlang || dengar != dengarLalu) { gambarUlang = false; dengarLalu = dengar; gambarBawahBeranda(); }
+    return;
+  }
+  unsigned long jeda = halaman == H_HITUNG ? 200 : (halaman == H_MUSIK || halaman == H_BERGERAK) ? 500 :
+                       halaman == H_STATUS ? (tabStatus ? 5000 : 1000) : halaman == H_RADIO ? 2000 : 0;
+  bool toastHabis = toastSampai && millis() >= toastSampai;
+  if (toastHabis) toastSampai = 0;
+  if (gambarUlang || toastHabis || (jeda && millis() - tIsi > jeda)) { gambarUlang = false; tIsi = millis(); gambarIsi(); }
 }
 
 // ======================= PANEL WEB =======================
@@ -2366,52 +3175,52 @@ void tekanTombol(int t) {
 // Halamannya ditulis dengan Svelte (folder _build/panel di repo panduan) lalu ditanam di sini sebagai satu string.
 // <PANEL_WEB> dibuat otomatis oleh _build/panel/bangun.ts, jangan diedit di sini
 const char PANEL_HTML[] = R"PANEL(<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Panel Zond</title><style>html{color:#e6e9ee;background:#10141a;font-family:system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Noto Sans,Ubuntu,Cantarell,Helvetica Neue,sans-serif}body{margin:0}main.svelte-1xjvnya8h1aa3{max-width:480px;margin:0 auto;padding:12px 16px 32px}header.svelte-1xjvnya8h1aa3{display:flex;flex-wrap:wrap;align-items: center;gap:8px}h1.svelte-1xjvnya8h1aa3{margin:0;font-size:1.4rem}h2.svelte-1xjvnya8h1aa3{margin:0 0 8px;font-size:1rem}h2.svelte-1xjvnya8h1aa3 small:where(.svelte-1xjvnya8h1aa3){color:#8a94a3;font-weight:400}.kecil.svelte-1xjvnya8h1aa3{color:#8a94a3;font-size:.85rem}.titik.svelte-1xjvnya8h1aa3{background:#c0392b;border-radius:50%;width:10px;height:10px}.titik.on.svelte-1xjvnya8h1aa3{background:#2ecc71}.peringatan.svelte-1xjvnya8h1aa3{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.peringatan.svelte-1xjvnya8h1aa3 span:where(.svelte-1xjvnya8h1aa3){background:#7a1d1d;border-radius:6px;padding:3px 8px;font-size:.85rem}section.svelte-1xjvnya8h1aa3{background:#18202a;border-radius:12px;margin-top:12px;padding:12px}.kamera.svelte-1xjvnya8h1aa3{text-align:center}.kamera.svelte-1xjvnya8h1aa3 img:where(.svelte-1xjvnya8h1aa3){display:block;aspect-ratio:4/3;object-fit:cover;background:#000;border-radius:8px;width:100%}.kamera.svelte-1xjvnya8h1aa3 img.redup:where(.svelte-1xjvnya8h1aa3){opacity:.15}.ket.svelte-1xjvnya8h1aa3{color:#8a94a3;margin:8px 0}.dpad.svelte-1xjvnya8h1aa3{display:grid;grid-template-columns:repeat(3,1fr);touch-action:none;user-select:none;-webkit-user-select:none;gap:8px;max-width:300px;margin:0 auto 12px}.dpad.svelte-1xjvnya8h1aa3 button:where(.svelte-1xjvnya8h1aa3){aspect-ratio:1;touch-action:none;background:#2a3a4d;border-radius:14px;font-size:1.6rem}.dpad.svelte-1xjvnya8h1aa3 button.aktif:where(.svelte-1xjvnya8h1aa3){background:#3d7bd9}.dpad.svelte-1xjvnya8h1aa3 button.stop:where(.svelte-1xjvnya8h1aa3){background:#a0302a}button.svelte-1xjvnya8h1aa3{color:inherit;cursor:pointer;background:#2a3a4d;border:0;border-radius:10px;padding:10px 12px;font-size:.95rem}button.svelte-1xjvnya8h1aa3:active{filter:brightness(1.3)}.kecil-btn.svelte-1xjvnya8h1aa3{margin-top:8px;padding:6px 10px;font-size:.85rem}.baris.svelte-1xjvnya8h1aa3{display:flex;flex-wrap:wrap;gap:8px}.baris.svelte-1xjvnya8h1aa3 button:where(.svelte-1xjvnya8h1aa3){flex:1}label.svelte-1xjvnya8h1aa3{display:block;margin-top:10px;font-size:.9rem}input[type=range].svelte-1xjvnya8h1aa3{width:100%}form.svelte-1xjvnya8h1aa3{display:flex;gap:8px;margin-top:12px}input[type=text].svelte-1xjvnya8h1aa3{color:inherit;background:#10141a;border:1px solid #2a3a4d;border-radius:10px;flex:1;min-width:0;padding:10px;font-size:1rem}.mik.svelte-1xjvnya8h1aa3{background:#1f6f3a;border-radius:14px;width:100%;padding:16px;font-size:1.1rem;font-weight:600}.mik.dengar.svelte-1xjvnya8h1aa3{animation:1s ease-in-out infinite svelte-1xjvnya8h1aa3-denyut;background:#c2410c}@keyframes svelte-1xjvnya8h1aa3-denyut{50%{filter:brightness(1.3)}}.mik.svelte-1xjvnya8h1aa3:disabled{opacity:.5}.saklar.svelte-1xjvnya8h1aa3{display:flex;color:#8a94a3;align-items: flex-start;gap:8px;font-size:.8rem}.saklar.svelte-1xjvnya8h1aa3 input:where(.svelte-1xjvnya8h1aa3){margin-top:2px}.ai.svelte-1xjvnya8h1aa3{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ai.svelte-1xjvnya8h1aa3 button:where(.svelte-1xjvnya8h1aa3){text-align:left;display:flex;flex-direction:column;gap:2px}.ai.svelte-1xjvnya8h1aa3 button:where(.svelte-1xjvnya8h1aa3):first-child{grid-column:1/-1}.ai.svelte-1xjvnya8h1aa3 button:where(.svelte-1xjvnya8h1aa3) span:where(.svelte-1xjvnya8h1aa3){color:#8a94a3;font-size:.75rem}.ai.svelte-1xjvnya8h1aa3 button.pilih:where(.svelte-1xjvnya8h1aa3){outline:2px solid #5fcf72;background:#2f6a3a}.ai.svelte-1xjvnya8h1aa3 button.pilih:where(.svelte-1xjvnya8h1aa3) span:where(.svelte-1xjvnya8h1aa3){color:#cfe9d4}.ai.svelte-1xjvnya8h1aa3 button:where(.svelte-1xjvnya8h1aa3):disabled{opacity:.45;cursor:default}.kecil-ket.svelte-1xjvnya8h1aa3{margin-bottom:0;font-size:.8rem}.waktu.svelte-1xjvnya8h1aa3{color:#8a94a3;margin:6px 0 0;font-size:.85rem}.belok.svelte-1xjvnya8h1aa3{margin-top:10px}.alarm.svelte-1xjvnya8h1aa3{list-style:none;margin:0 0 8px;padding:0}.alarm.svelte-1xjvnya8h1aa3 li:where(.svelte-1xjvnya8h1aa3){display:flex;border-bottom:1px solid #243041;align-items: center;gap:10px;padding:8px 0}.alarm.svelte-1xjvnya8h1aa3 li:where(.svelte-1xjvnya8h1aa3) b:where(.svelte-1xjvnya8h1aa3){font-size:1.1rem}.alarm.svelte-1xjvnya8h1aa3 li:where(.svelte-1xjvnya8h1aa3) span:where(.svelte-1xjvnya8h1aa3){display:flex;flex-direction:column;flex:1}.alarm.svelte-1xjvnya8h1aa3 li:where(.svelte-1xjvnya8h1aa3) small:where(.svelte-1xjvnya8h1aa3){color:#8a94a3;font-size:.75rem}.hapus.svelte-1xjvnya8h1aa3{background:#3a2430;padding:4px 10px}.form-alarm.svelte-1xjvnya8h1aa3{flex-direction:column;gap:8px}.form-alarm.svelte-1xjvnya8h1aa3 .baris:where(.svelte-1xjvnya8h1aa3)>:where(.svelte-1xjvnya8h1aa3){flex:1}input[type=time].svelte-1xjvnya8h1aa3,select.svelte-1xjvnya8h1aa3{color:inherit;background:#10141a;border:1px solid #2a3a4d;border-radius:10px;min-width:0;padding:9px;font-size:.95rem}.hari.svelte-1xjvnya8h1aa3{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.85rem}.hari.svelte-1xjvnya8h1aa3 label:where(.svelte-1xjvnya8h1aa3){display:flex;align-items: center;gap:4px;margin:0}.jelajah.svelte-1xjvnya8h1aa3{margin-top:12px}.jelajah.svelte-1xjvnya8h1aa3 select:where(.svelte-1xjvnya8h1aa3){flex:none}.aktif-jelajah.svelte-1xjvnya8h1aa3{background:#3d7bd9}.grafik.svelte-1xjvnya8h1aa3{display:block;background:#10141a;border-radius:8px;width:100%;height:auto}.grafik.svelte-1xjvnya8h1aa3 line:where(.svelte-1xjvnya8h1aa3){stroke:#243041;stroke-width:1}.grafik.svelte-1xjvnya8h1aa3 text:where(.svelte-1xjvnya8h1aa3){fill:#8a94a3;font-size:9px}.grafik.svelte-1xjvnya8h1aa3 path:where(.svelte-1xjvnya8h1aa3){fill:none;stroke:#5fcf72;stroke-width:2;stroke-linejoin:round}.sumbu.svelte-1xjvnya8h1aa3{display:flex;color:#8a94a3;justify-content:space-between;margin-top:4px;font-size:.75rem}.suara.svelte-1xjvnya8h1aa3{display:flex;align-items: center;gap:8px}.suara.svelte-1xjvnya8h1aa3 select:where(.svelte-1xjvnya8h1aa3){flex:1}.status.svelte-1xjvnya8h1aa3{text-align:center;color:#8a94a3;margin-top:12px}
-</style></head><body><script type="module">var p=!1;var vt=Array.isArray,Ga=Array.prototype.indexOf,Mt=Array.prototype.includes,Nr=Array.from,{keys:li,defineProperty:me,getOwnPropertyDescriptor:ze,getOwnPropertyDescriptors:fi,prototype:ci}=Object,qa=Array.prototype,{getPrototypeOf:Rr,isExtensible:ui}=Object;var Et=()=>{};function In(e){for(var t=0;t<e.length;t++)e[t]()}function Dn(){var e,t,r=new Promise((n,o)=>{e=n,t=o});return{promise:r,resolve:e,reject:t}}function pi(e,t){if(Array.isArray(e))return e;if(t===void 0||!(Symbol.iterator in e))return Array.from(e);let r=[];for(let n of e)if(r.push(n),r.length===t)break;return r}var te=2,kt=4,zt=8,cr=16777216,Se=16,ge=32,He=64,Cr=128,Mn=256,Fe=512,G=1024,F=2048,oe=4096,fe=8192,W=16384,Pe=32768,Lt=33554432,Ve=65536,Kt=131072,di=262144,Tt=524288,za=1048576,ht=33554432,jr=2097152,Ke=4194304,nt=8388608,We=Symbol("$state"),Ln=Symbol("component"),Fn=Symbol("legacy props"),Ka=Symbol(""),Pn=Symbol("proxy path"),Bn=Symbol("attributes"),sn=Symbol("class"),_i=Symbol("style"),ln=Symbol("text"),Wt=Symbol("form reset"),vi=Symbol("hmr anchor"),Ft=new class extends Error{name="StaleReactionError";message="The reaction that called `getAbortSignal()` was re-run or destroyed"},hi=!!globalThis.document?.contentType&&globalThis.document.contentType.includes("xml");var ur=3,ot=8;var Wa=1,Xa=2,mi=4,Za=8,Ja=16;var gi=1,Qa=2;var Or="[",Xt="[!",xi="[?",pr="]",Xe={};var X=Symbol("uninitialized"),it=Symbol("filename"),bi=Symbol("hmr"),Yn="http://www.w3.org/1999/xhtml";var Pt="font-weight: bold",Bt="font-weight: normal";function es(e){if(p)console.warn(`%c[svelte] await_reactivity_loss
+</style></head><body><script type="module">var p=!1;var mt=Array.isArray,Ka=Array.prototype.indexOf,Lt=Array.prototype.includes,Nr=Array.from,{keys:ci,defineProperty:he,getOwnPropertyDescriptor:ze,getOwnPropertyDescriptors:ui,prototype:pi}=Object,Wa=Array.prototype,{getPrototypeOf:Rr,isExtensible:di}=Object;var Et=()=>{};function Mn(e){for(var t=0;t<e.length;t++)e[t]()}function Ln(){var e,t,r=new Promise((n,o)=>{e=n,t=o});return{promise:r,resolve:e,reject:t}}function _i(e,t){if(Array.isArray(e))return e;if(t===void 0||!(Symbol.iterator in e))return Array.from(e);let r=[];for(let n of e)if(r.push(n),r.length===t)break;return r}var te=2,kt=4,zt=8,cr=16777216,Se=16,ge=32,He=64,jr=128,Fn=256,Fe=512,G=1024,F=2048,oe=4096,fe=8192,W=16384,Pe=32768,Ft=33554432,Ve=65536,Kt=131072,vi=262144,Tt=524288,Za=1048576,ht=33554432,Cr=2097152,Ke=4194304,it=8388608,We=Symbol("$state"),Pn=Symbol("component"),Bn=Symbol("legacy props"),Xa=Symbol(""),Yn=Symbol("proxy path"),Hn=Symbol("attributes"),sn=Symbol("class"),mi=Symbol("style"),ln=Symbol("text"),Wt=Symbol("form reset"),hi=Symbol("hmr anchor"),Pt=new class extends Error{name="StaleReactionError";message="The reaction that called `getAbortSignal()` was re-run or destroyed"},gi=!!globalThis.document?.contentType&&globalThis.document.contentType.includes("xml");var ur=3,at=8;var Ja=1,Qa=2,xi=4,es=8,ts=16;var bi=1,rs=2;var Or="[",Zt="[!",yi="[?",pr="]",Ze={};var Z=Symbol("uninitialized"),st=Symbol("filename"),$i=Symbol("hmr"),Vn="http://www.w3.org/1999/xhtml";var Bt="font-weight: bold",Yt="font-weight: normal";function ns(e){if(p)console.warn(`%c[svelte] await_reactivity_loss
 %cDetected reactivity loss when reading \`${e}\`. This happens when state is read in an async function after an earlier \`await\`
-https://svelte.dev/e/await_reactivity_loss`,Pt,Bt);else console.warn("https://svelte.dev/e/await_reactivity_loss")}function ts(e,t){if(p)console.warn(`%c[svelte] await_waterfall
+https://svelte.dev/e/await_reactivity_loss`,Bt,Yt);else console.warn("https://svelte.dev/e/await_reactivity_loss")}function os(e,t){if(p)console.warn(`%c[svelte] await_waterfall
 %cAn async derived, \`${e}\` (${t}) was not read immediately after it resolved. This often indicates an unnecessary waterfall, which can slow down your app
-https://svelte.dev/e/await_waterfall`,Pt,Bt);else console.warn("https://svelte.dev/e/await_waterfall")}function rs(){if(p)console.warn(`%c[svelte] derived_inert
+https://svelte.dev/e/await_waterfall`,Bt,Yt);else console.warn("https://svelte.dev/e/await_waterfall")}function is(){if(p)console.warn(`%c[svelte] derived_inert
 %cReading a derived belonging to a now-destroyed effect may result in stale values
-https://svelte.dev/e/derived_inert`,Pt,Bt);else console.warn("https://svelte.dev/e/derived_inert")}function ns(e,t,r){if(p)console.warn(`%c[svelte] hydration_attribute_changed
+https://svelte.dev/e/derived_inert`,Bt,Yt);else console.warn("https://svelte.dev/e/derived_inert")}function as(e,t,r){if(p)console.warn(`%c[svelte] hydration_attribute_changed
 %cThe \`${e}\` attribute on \`${t}\` changed its value between server and client renders. The client value, \`${r}\`, will be ignored in favour of the server value
-https://svelte.dev/e/hydration_attribute_changed`,Pt,Bt);else console.warn("https://svelte.dev/e/hydration_attribute_changed")}function dr(e){if(p)console.warn(`%c[svelte] hydration_mismatch
+https://svelte.dev/e/hydration_attribute_changed`,Bt,Yt);else console.warn("https://svelte.dev/e/hydration_attribute_changed")}function dr(e){if(p)console.warn(`%c[svelte] hydration_mismatch
 %c${e?`Hydration failed because the initial UI does not match what was rendered on the server. The error occurred near ${e}`:"Hydration failed because the initial UI does not match what was rendered on the server"}
-https://svelte.dev/e/hydration_mismatch`,Pt,Bt);else console.warn("https://svelte.dev/e/hydration_mismatch")}function os(){if(p)console.warn(`%c[svelte] lifecycle_double_unmount
+https://svelte.dev/e/hydration_mismatch`,Bt,Yt);else console.warn("https://svelte.dev/e/hydration_mismatch")}function ss(){if(p)console.warn(`%c[svelte] lifecycle_double_unmount
 %cTried to unmount a component that was not mounted
-https://svelte.dev/e/lifecycle_double_unmount`,Pt,Bt);else console.warn("https://svelte.dev/e/lifecycle_double_unmount")}function is(){if(p)console.warn("%c[svelte] select_multiple_invalid_value\n%cThe `value` property of a `<select multiple>` element should be an array, but it received a non-array value. The selection will be kept as is.\nhttps://svelte.dev/e/select_multiple_invalid_value",Pt,Bt);else console.warn("https://svelte.dev/e/select_multiple_invalid_value")}function Hn(e){if(p)console.warn(`%c[svelte] state_proxy_equality_mismatch
+https://svelte.dev/e/lifecycle_double_unmount`,Bt,Yt);else console.warn("https://svelte.dev/e/lifecycle_double_unmount")}function ls(){if(p)console.warn("%c[svelte] select_multiple_invalid_value\n%cThe `value` property of a `<select multiple>` element should be an array, but it received a non-array value. The selection will be kept as is.\nhttps://svelte.dev/e/select_multiple_invalid_value",Bt,Yt);else console.warn("https://svelte.dev/e/select_multiple_invalid_value")}function Un(e){if(p)console.warn(`%c[svelte] state_proxy_equality_mismatch
 %cReactive \`$state(...)\` proxies and the values they proxy have different identities. Because of this, comparisons with \`${e}\` will produce unexpected results
-https://svelte.dev/e/state_proxy_equality_mismatch`,Pt,Bt);else console.warn("https://svelte.dev/e/state_proxy_equality_mismatch")}function as(){if(p)console.warn("%c[svelte] svelte_boundary_reset_noop\n%cA `<svelte:boundary>` `reset` function only resets the boundary the first time it is called\nhttps://svelte.dev/e/svelte_boundary_reset_noop",Pt,Bt);else console.warn("https://svelte.dev/e/svelte_boundary_reset_noop")}var w=!1;function pe(e){w=e}var C;function U(e){if(e===null)throw dr(),Xe;return C=e}function Oe(){return U(xe(C))}function A(e){if(!w)return;if(xe(C)!==null)throw dr(),Xe;C=e}function at(e=1){if(w){var t=e,r=C;while(t--)r=xe(r);C=r}}function At(e=!0){var t=0,r=C;while(!0){if(r.nodeType===ot){var n=r.data;if(n===pr){if(t===0)return r;t-=1}else if(n===Or||n===Xt||n[0]==="["&&!isNaN(Number(n.slice(1))))t+=1}var o=xe(r);if(e)r.remove();r=o}}function _r(e){if(!e||e.nodeType!==ot)throw dr(),Xe;return e.data}function Vn(e){return e===this.v}function yi(e,t){return e!=e?t==t:e!==t||e!==null&&typeof e==="object"||typeof e==="function"}function Un(e){return!yi(e,this.v)}function ss(e){if(p){let t=Error(`invariant_violation
+https://svelte.dev/e/state_proxy_equality_mismatch`,Bt,Yt);else console.warn("https://svelte.dev/e/state_proxy_equality_mismatch")}function fs(){if(p)console.warn("%c[svelte] svelte_boundary_reset_noop\n%cA `<svelte:boundary>` `reset` function only resets the boundary the first time it is called\nhttps://svelte.dev/e/svelte_boundary_reset_noop",Bt,Yt);else console.warn("https://svelte.dev/e/svelte_boundary_reset_noop")}var w=!1;function pe(e){w=e}var j;function U(e){if(e===null)throw dr(),Ze;return j=e}function Oe(){return U(xe(j))}function S(e){if(!w)return;if(xe(j)!==null)throw dr(),Ze;j=e}function Xe(e=1){if(w){var t=e,r=j;while(t--)r=xe(r);j=r}}function At(e=!0){var t=0,r=j;while(!0){if(r.nodeType===at){var n=r.data;if(n===pr){if(t===0)return r;t-=1}else if(n===Or||n===Zt||n[0]==="["&&!isNaN(Number(n.slice(1))))t+=1}var o=xe(r);if(e)r.remove();r=o}}function _r(e){if(!e||e.nodeType!==at)throw dr(),Ze;return e.data}function Gn(e){return e===this.v}function wi(e,t){return e!=e?t==t:e!==t||e!==null&&typeof e==="object"||typeof e==="function"}function qn(e){return!wi(e,this.v)}function cs(e){if(p){let t=Error(`invariant_violation
 An invariant violation occurred, meaning Svelte's internal assumptions were flawed. This is a bug in Svelte, not your app — please open an issue at https://github.com/sveltejs/svelte, citing the following message: "${e}"
-https://svelte.dev/e/invariant_violation`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/invariant_violation")}function Gn(e){if(p){let t=Error(`lifecycle_outside_component
+https://svelte.dev/e/invariant_violation`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/invariant_violation")}function zn(e){if(p){let t=Error(`lifecycle_outside_component
 \`${e}(...)\` can only be used during component initialisation
-https://svelte.dev/e/lifecycle_outside_component`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/lifecycle_outside_component")}function fs(){if(p){let e=Error("async_derived_orphan\nCannot create a `$derived(...)` with an `await` expression outside of an effect tree\nhttps://svelte.dev/e/async_derived_orphan");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/async_derived_orphan")}function $i(){if(p){let e=Error("bind_invalid_checkbox_value\nUsing `bind:value` together with a checkbox input is not allowed. Use `bind:checked` instead\nhttps://svelte.dev/e/bind_invalid_checkbox_value");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/bind_invalid_checkbox_value")}function cs(){if(p){let e=Error(`derived_references_self
+https://svelte.dev/e/lifecycle_outside_component`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/lifecycle_outside_component")}function ps(){if(p){let e=Error("async_derived_orphan\nCannot create a `$derived(...)` with an `await` expression outside of an effect tree\nhttps://svelte.dev/e/async_derived_orphan");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/async_derived_orphan")}function Ei(){if(p){let e=Error("bind_invalid_checkbox_value\nUsing `bind:value` together with a checkbox input is not allowed. Use `bind:checked` instead\nhttps://svelte.dev/e/bind_invalid_checkbox_value");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/bind_invalid_checkbox_value")}function ds(){if(p){let e=Error(`derived_references_self
 A derived value cannot reference itself recursively
-https://svelte.dev/e/derived_references_self`);throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/derived_references_self")}function wi(e,t,r){if(p){let n=Error(`each_key_duplicate
+https://svelte.dev/e/derived_references_self`);throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/derived_references_self")}function ki(e,t,r){if(p){let n=Error(`each_key_duplicate
 ${r?`Keyed each block has duplicate key \`${r}\` at indexes ${e} and ${t}`:`Keyed each block has duplicate key at indexes ${e} and ${t}`}
-https://svelte.dev/e/each_key_duplicate`);throw n.name="Svelte error",n}else throw Error("https://svelte.dev/e/each_key_duplicate")}function us(e,t,r){if(p){let n=Error(`each_key_volatile
+https://svelte.dev/e/each_key_duplicate`);throw n.name="Svelte error",n}else throw Error("https://svelte.dev/e/each_key_duplicate")}function _s(e,t,r){if(p){let n=Error(`each_key_volatile
 Keyed each block has key that is not idempotent — the key for item at index ${e} was \`${t}\` but is now \`${r}\`. Keys must be the same each time for a given item
-https://svelte.dev/e/each_key_volatile`);throw n.name="Svelte error",n}else throw Error("https://svelte.dev/e/each_key_volatile")}function ps(e){if(p){let t=Error(`effect_in_teardown
+https://svelte.dev/e/each_key_volatile`);throw n.name="Svelte error",n}else throw Error("https://svelte.dev/e/each_key_volatile")}function vs(e){if(p){let t=Error(`effect_in_teardown
 \`${e}\` cannot be used inside an effect cleanup function
-https://svelte.dev/e/effect_in_teardown`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/effect_in_teardown")}function ds(){if(p){let e=Error("effect_in_unowned_derived\nEffect cannot be created inside a `$derived` value that was not itself created inside an effect\nhttps://svelte.dev/e/effect_in_unowned_derived");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/effect_in_unowned_derived")}function _s(e){if(p){let t=Error(`effect_orphan
+https://svelte.dev/e/effect_in_teardown`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/effect_in_teardown")}function ms(){if(p){let e=Error("effect_in_unowned_derived\nEffect cannot be created inside a `$derived` value that was not itself created inside an effect\nhttps://svelte.dev/e/effect_in_unowned_derived");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/effect_in_unowned_derived")}function hs(e){if(p){let t=Error(`effect_orphan
 \`${e}\` can only be used inside an effect (e.g. during component initialisation)
-https://svelte.dev/e/effect_orphan`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/effect_orphan")}function vs(){if(p){let e=Error(`effect_update_depth_exceeded
+https://svelte.dev/e/effect_orphan`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/effect_orphan")}function gs(){if(p){let e=Error(`effect_update_depth_exceeded
 Maximum update depth exceeded. This typically indicates that an effect reads and writes the same piece of state
-https://svelte.dev/e/effect_update_depth_exceeded`);throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/effect_update_depth_exceeded")}function hs(){if(p){let e=Error(`hydration_failed
+https://svelte.dev/e/effect_update_depth_exceeded`);throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/effect_update_depth_exceeded")}function xs(){if(p){let e=Error(`hydration_failed
 Failed to hydrate the application
-https://svelte.dev/e/hydration_failed`);throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/hydration_failed")}function ms(e){if(p){let t=Error(`rune_outside_svelte
+https://svelte.dev/e/hydration_failed`);throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/hydration_failed")}function bs(e){if(p){let t=Error(`rune_outside_svelte
 The \`${e}\` rune is only available inside \`.svelte\` and \`.svelte.js/ts\` files
-https://svelte.dev/e/rune_outside_svelte`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/rune_outside_svelte")}function gs(){if(p){let e=Error("state_descriptors_fixed\nProperty descriptors defined on `$state` objects must contain `value` and always be `enumerable`, `configurable` and `writable`.\nhttps://svelte.dev/e/state_descriptors_fixed");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/state_descriptors_fixed")}function xs(){if(p){let e=Error("state_prototype_fixed\nCannot set prototype of `$state` object\nhttps://svelte.dev/e/state_prototype_fixed");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/state_prototype_fixed")}function bs(){if(p){let e=Error("state_unsafe_mutation\nUpdating state inside `$derived(...)`, `$inspect(...)` or a template expression is forbidden. If the value should not be reactive, declare it without `$state`\nhttps://svelte.dev/e/state_unsafe_mutation");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/state_unsafe_mutation")}function ys(){if(p){let e=Error("svelte_boundary_reset_onerror\nA `<svelte:boundary>` `reset` function cannot be called while an error is still being handled\nhttps://svelte.dev/e/svelte_boundary_reset_onerror");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/svelte_boundary_reset_onerror")}var ce=!1,Zt=!1,mt=!1;var fn=null;function Ie(e,t){return e.label=t,zn(e.v,t),e}function zn(e,t){return e?.[Pn]?.(t),e}function gt(e){let t=Error(),r=Of();if(r.length===0)return null;return r.unshift(`
-`),me(t,"stack",{value:r.join(`
-`)}),me(t,"name",{value:e}),t}function Of(){let e=Error.stackTraceLimit;Error.stackTraceLimit=1/0;let t=Error().stack;if(Error.stackTraceLimit=e,!t)return[];let r=t.split(`
-`),n=[];for(let o=0;o<r.length;o++){let i=r[o],a=i.replaceAll("\\","/");if(i.trim()==="Error")continue;if(i.includes("validate_each_keys"))return[];if(a.includes("svelte/src/internal")||a.includes("node_modules/.vite"))continue;n.push(i)}return n}function ws(e,t){if(!p)throw Error("invariant(...) was not guarded by if (DEV)");if(!e)ss(t)}var L=null;function Yt(e){L=e}var St=null;function Ir(e){St=e}var xt=null;function Kn(e){xt=e}function cn(e,t=!1,r){if(L={p:L,i:!1,c:null,e:null,s:e,x:null,r:k,l:Zt&&!t?{s:null,u:null,$:[]}:null},p)L.function=r,xt=r}function un(e){var t=L,r=t.e;if(r!==null){t.e=null;for(var n of r)Ei(n)}if(e!==void 0)t.x=e;if(t.i=!0,L=t.p,p)xt=L?.function??null;return Wn(e)}function Wn(e={}){return me(e,Ln,{value:!0}),e}function Nt(){return!Zt||L!==null&&L.l===null}var vr=[];function Es(){var e=vr;vr=[],In(e)}function ue(e){if(vr.length===0&&!hr){var t=vr;queueMicrotask(()=>{if(t===vr)Es()})}vr.push(e)}function ks(){while(vr.length>0)Es()}var If=~(F|oe|G);function q(e,t){e.f=e.f&If|t}function Dr(e){if((e.f&Fe)!==0||e.deps===null)q(e,G);else q(e,oe)}function Xn(e,t){if((e.f&F)!==0)t.set(e,F);else if((e.f&oe)!==0&&t.get(e)!==F)t.set(e,oe);q(e,G)}function Ts(e){return`{${e.toString().replace(/^async \(\) => /,"").replace(/^\(/,"").replace(/\$\.get\((.+?)\)/g,(t,r)=>r).replace(/\$\.track_reactivity_loss\((.+?)\)\(\)/g,(t,r)=>r).replace(/\)$/,"")}}`}var As=!1;function Zn(){if(!As)As=!0,document.addEventListener("reset",(e)=>{Promise.resolve().then(()=>{if(!e.defaultPrevented)for(let t of e.target.elements)t[Wt]?.()})},{capture:!0})}function Ze(e){var t=S,r=k;de(null),_e(null);try{return e()}finally{de(t),_e(r)}}function dn(e,t,r,n=r){e.addEventListener(t,()=>Ze(r));let o=e[Wt];if(o)e[Wt]=()=>{o(),n(!0)};else e[Wt]=()=>n(!0);Zn()}function Jn(e,t,r,n){let o=Nt()?Lr:Fr;var i=e.filter((d)=>!d.settled),a=t.map(o);if(p)a.forEach((d,y)=>{d.label=t[y].toString().replace("() => ","").replaceAll("$.eager(() => ","$state.eager(").replace(/\$\.get\((.+?)\)/g,(R,b)=>b)});if(r.length===0&&i.length===0){n(a);return}var f=k,c=Ss(),m=i.length===1?i[0].promise:i.length>1?Promise.all(i.map((d)=>d.promise)):null;function h(d){if((f.f&W)!==0)return;c();try{n([...a,...d])}catch(y){Ue(y,f)}Mr()}var v=ki();if(r.length===0){m.then(()=>h([])).finally(v);return}function _(){Promise.all(r.map((d)=>Ai(d))).then(h).catch((d)=>Ue(d,f)).finally(v)}if(m)m.then(()=>{if((f.f&W)!==0){v();return}c(),_(),Mr()});else _()}function Ss(){var e=k,t=S,r=L,n=T;if(p)var o=St;return function(a=!0){if(_e(e),de(t),Yt(r),a&&(e.f&W)===0)n?.activate(),n?.apply();if(p)Ti(null),Ir(o)}}var Df=!1;function Mr(e=!0){if(Df=!1,_e(null),de(null),Yt(null),e)T?.deactivate();if(p)Ti(null),Ir(null)}function ki(){var e=k,t=e.b,r=T,n=!!t?.is_rendered();return t?.update_pending_count(1,r),r.increment(n,e),()=>{t?.update_pending_count(-1,r),r.decrement(n,e)}}var Ge=null;function Ti(e){Ge=e}var _n=new Set;function Lr(e){var t=te|F;if(k!==null)k.f|=Tt;let r={ctx:L,deps:null,effects:null,equals:Vn,f:t,fn:e,reactions:null,rv:0,v:X,wv:0,parent:k,ac:null};if(p&&mt)r.created=gt("created at");return r}var Pr=Symbol("obsolete");function Ai(e,t,r){let n=k;if(n===null)fs();var o=void 0,i=De(X);if(p)i.label=t??Ts(e);var a=!S,f=new Set;if(Cs(()=>{var c=k;if(p)Ge={effect:c,effect_deps:new Set,warned:!1};var m=Dn();o=m.promise;try{Promise.resolve(e()).then(m.resolve,(d)=>{if(d!==Ft)m.reject(d)}).finally(Mr)}catch(d){m.reject(d),Mr()}if(p){if(Ge){if(c.deps!==null)for(let d=0;d<Be;d+=1)Ge.effect_deps.add(c.deps[d]);if(ye!==null)for(let d=0;d<ye.length;d+=1)Ge.effect_deps.add(ye[d])}Ge=null}var h=T;if(a){if((c.f&Pe)!==0)var v=ki();if(n.b?.is_rendered())h.async_deriveds.get(c)?.reject(Pr);else for(let d of f.values())d.reject(Pr);f.add(m),h.async_deriveds.set(c,m)}let _=(d,y=void 0)=>{if(p)Ge=null;if(v?.(),f.delete(m),y===Pr)return;if(h.activate(),y)i.f|=nt,bt(i,y);else{if((i.f&nt)!==0)i.f^=nt;if(p&&r!==void 0&&!i.equals(d))_n.add(i),setTimeout(()=>{if(_n.has(i)&&(c.f&W)===0)ts(i.label,r),_n.delete(i)});bt(i,d)}h.deactivate()};m.promise.then(_,(d)=>_(null,d||"unknown"))}),be(()=>{for(let c of f)c.reject(Pr)}),p)i.f|=Ke;return new Promise((c)=>{function m(h){function v(){if(h===o)c(i);else m(o)}h.then(v,v)}m(o)})}function to(e){let t=Lr(e);if(!ce)ro(t);return t}function Fr(e){let t=Lr(e);return t.equals=Un,t}function Ns(e){var t=e.effects;if(t!==null){e.effects=null;for(var r=0;r<t.length;r+=1)ae(t[r])}}var Si=[];function vn(e){var t,r=k,n=e.parent;if(!st&&n!==null&&e.v!==X&&(n.f&(W|fe))!==0)return rs(),e.v;if(_e(n),p){let o=mr;Qn(new Set);try{if(Mt.call(Si,e))cs();Si.push(e),Ns(e),t=eo(e)}finally{_e(r),Qn(o),Si.pop()}}else try{Ns(e),t=eo(e)}finally{_e(r)}return t}function Ni(e){var t=vn(e);if(!e.equals(t)){if(e.wv=Br(),!T?.is_fork||e.deps===null){if(T!==null)T.capture(e,t,!0),Je?.capture(e,t,!0);else e.v=t;if(e.deps===null){q(e,G);return}}}if(st)return;if($e!==null){if(Jt()||T?.is_fork)$e.set(e,t)}else Dr(e)}function Rs(e){if(e.effects===null)return;for(let t of e.effects)if(t.teardown||t.ac){if(t.teardown?.(),t.ac!==null)Ze(()=>{t.ac.abort(Ft),t.ac=null});if(t.fn!==null)t.teardown=Et;gr(t,0),hn(t)}}function Ri(e){if(e.effects===null)return;for(let t of e.effects)if(t.teardown&&t.fn!==null)Rt(t)}var no=null,Yr=null,T=null,Je=null,$e=null,Oi=null,hr=!1,Ci=!1,Hr=null,mn=null,js=0,ji=new Set,Ff=1;class Ce{id=Ff++;started=!1;linked=!0;prev=null;next=null;async_deriveds=new Map;current=new Map;previous=new Map;#e=new Set;#t=new Set;#r=0;#s=new Map;#o=null;#n=[];#a=[];#i=new Map;#l=new Map;#d=new Set;is_fork=!1;#f=!1;constructor(){if(Yr===null)no=Yr=this;else Yr.next=this,this.prev=Yr;Yr=this}#v(){if(this.is_fork)return!0;for(let e of this.#s.keys())if(!this.#g(e))return!0;return!1}#g(e){for(var t=e;t!==null;t=t.parent)if(this.#l.has(t))return!0;return!1}skip_effect(e){if(!this.#l.has(e))this.#l.set(e,{d:[],m:[]});this.#d.delete(e)}unskip_effect(e,t=(r)=>this.schedule(r)){var r=this.#l.get(e);if(r){this.#l.delete(e);for(var n of r.d)q(n,F),t(n);for(n of r.m)q(n,oe),t(n)}this.#d.add(e)}#c(){var e=[];for(let o of this.#n){if((o.f&W)!==0||(o.f&(F|oe))===0)continue;var t=o,r=!1;while(t.parent!==null){t=t.parent;var n=t.f;if((n&(He|ge))!==0){if((n&G)===0){r=!0;break}t.f^=G}}if(!r)e.push(t)}return this.#n=[],e}#h(){if(this.started=!0,p)for(let a of this.current.keys())ji.add(a);for(let[a,f]of this.#i)q(a,f),this.schedule(a);this.apply();var e=Hr=[],t=[],r=mn=[];while(this.#n.length>0){if(js++>1000)this.#p(),Pf();for(let a of this.#c())try{this.#x(a,e,t)}catch(f){if(Ms(a),!this.#v())this.discard();throw f}}if(T=null,r.length>0){var n=Ce.ensure();for(let a of r)n.schedule(a)}if(Hr=null,mn=null,this.#v()){this.#_(t),this.#_(e);for(let[a,f]of this.#l)Ds(a,f);if(r.length>0)T.#h();return}let o=this.#y();if(o){this.#_(t),this.#_(e),o.#u(this);return}this.#i.clear();for(let a of this.#e)a(this);this.#e.clear(),Je=this,Os(t),Os(e),Je=null,this.#o?.resolve();var i=T;if(this.#r===0&&(this.#n.length===0||i!==null)){if(this.#p(),ce)this.#b(),T=i}if(i!==null)ft.clear(),i.#h()}#x(e,t,r){e.f^=G;var n=e.first;while(n!==null){var o=n.f,i=(o&(ge|He))!==0,a=i&&(o&G)!==0,f=a||(o&fe)!==0||this.#l.has(n);if(!f&&n.fn!==null){if(i)n.f^=G;else if((o&kt)!==0)t.push(n);else if(ce&&(o&(zt|cr))!==0)r.push(n);else if(er(n)){if((o&Se)!==0)this.add_dirty_reaction(n,oe);Rt(n)}var c=n.first;if(c!==null){n=c;continue}}while(n!==null){var m=n.next;if(m!==null){n=m;break}n=n.parent}}}#y(){for(var e=this.prev;e!==null;e=e.prev)if(!e.is_fork&&this.#m(e))return e;return null}#m(e){for(let[t,[,r]]of this.current){if(r)continue;if(e.current.has(t))return!0}return!1}#u(e){for(let[r,n]of e.current){if(!this.previous.has(r)&&e.previous.has(r))this.previous.set(r,e.previous.get(r));this.current.set(r,n)}for(let[r,n]of e.async_deriveds){let o=this.async_deriveds.get(r);if(o)n.promise.then(o.resolve).catch(o.reject)}e.async_deriveds.clear(),this.transfer_reactions(e.#i);let t=(r)=>{var n=r.reactions;if(n===null)return;if((r.f&te)!==0&&(r.f&(F|oe))===0)return;for(let a of n){var o=a.f;if((o&te)!==0)t(a);else{var i=a;if(o&(Ke|Se)&&!this.async_deriveds.has(i))this.#i.delete(i),q(i,F),this.schedule(i)}}};for(let r of this.current.keys())t(r);this.oncommit(()=>e.discard()),e.#p(),T=this,this.#h()}#_(e){for(var t=0;t<e.length;t+=1)Xn(e[t],this.#i)}capture(e,t,r=!1){if(e.v!==X&&!this.previous.has(e))this.previous.set(e,e.v);if((e.f&nt)===0)this.current.set(e,[t,r]),$e?.set(e,t);if(!this.is_fork)e.v=t}activate(){T=this}deactivate(){T=null,$e=null}flush(){try{if(p)ji.clear();Ci=!0,T=this,this.#h()}finally{if(js=0,Oi=null,Hr=null,mn=null,Ci=!1,T=null,$e=null,ft.clear(),p)for(let e of ji)e.updated=null}}discard(){for(let e of this.#t)e(this);this.#t.clear();for(let e of this.async_deriveds.values())e.reject(Pr);this.#p(),this.#o?.resolve()}register_created_effect(e){this.#a.push(e)}#b(){for(let h=no;h!==null;h=h.next){var e=h.id<this.id,t=[];for(let[v,[_,d]]of this.current){if(h.current.has(v)){var r=h.current.get(v)[0];if(e&&_!==r)h.current.set(v,[_,d]);else continue}t.push(v)}if(e)for(let[v,_]of this.async_deriveds){let d=h.async_deriveds.get(v);if(d)_.promise.then(d.resolve).catch(d.reject)}var n=[...h.current.keys()].filter((v)=>!h.current.get(v)[1]);if(!h.started||n.length===0)continue;var o=n.filter((v)=>!this.current.has(v));if(o.length===0){if(e)h.discard()}else if(t.length>0){if(p&&!h.#f)ws(h.#n.length===0,"Batch has scheduled effects");if(e)for(let v of this.#d)h.unskip_effect(v,(_)=>{if((_.f&(Se|Ke))!==0)h.schedule(_);else h.#_([_])});h.activate();var i=new Set,a=new Map;for(var f of t)Is(f,o,i,a);a=new Map;var c=[...h.current].filter(([v,_])=>{let d=this.current.get(v);if(!d)return!0;return d[0]!==_[0]||d[1]!==_[1]}).map(([v])=>v);if(c.length>0){for(let v of this.#a)if((v.f&(W|fe|Kt))===0&&Ii(v,c,a))if((v.f&(Ke|Se))!==0)q(v,F),h.schedule(v);else h.add_dirty_reaction(v,F)}if(h.#n.length>0&&!h.#f){h.apply();for(var m of h.#c())h.#x(m,[],[])}h.deactivate()}}}increment(e,t){if(this.#r+=1,e){let r=this.#s.get(t)??0;this.#s.set(t,r+1)}}decrement(e,t){if(this.#r-=1,e){let r=this.#s.get(t)??0;if(r===1)this.#s.delete(t);else this.#s.set(t,r-1)}if(this.#f)return;this.#f=!0,ue(()=>{if(this.#f=!1,this.linked)this.flush()})}transfer_reactions(e){for(let[t,r]of e)this.add_dirty_reaction(t,r);e.clear()}add_dirty_reaction(e,t){if(t===F||this.#i.get(e)!==F)this.#i.set(e,t)}oncommit(e){this.#e.add(e)}ondiscard(e){this.#t.add(e)}settled(){return(this.#o??=Dn()).promise}static ensure(){if(T===null){let e=T=new Ce;if(!Ci&&!hr)ue(()=>{if(!e.started)e.flush()})}return T}apply(){if(!ce||!this.is_fork&&this.prev===null&&this.next===null){$e=null;return}$e=new Map;for(let[e,[t]]of this.current)$e.set(e,t);for(let e=no;e!==null;e=e.next){if(e===this||e.is_fork)continue;if(e.id>=this.id||!e.#m(this)){for(let[t,r]of e.previous)if(!$e.has(t))$e.set(t,r)}}}schedule(e){if(Oi=e,e.b?.is_pending&&(e.f&(kt|zt|cr))!==0&&(e.f&Pe)===0){e.b.defer_effect(e);return}this.#n.push(e)}#p(){if(!this.linked)return;var e=this.prev,t=this.next;if(e===null)no=t;else e.next=t;if(t===null)Yr=e;else t.prev=e;this.linked=!1}}function Qt(e){var t=hr,r=Je;Je=null,hr=!0;try{var n;if(e)Qt(),n=e();while(!0){if(ks(),T===null)return n;T.flush()}}finally{hr=t,Je=r}}function Pf(){if(p){var e=new Map;for(let r of T.current.keys())for(let[n,o]of r.updated??[]){var t=e.get(n);if(!t)t={error:o.error,count:0},e.set(n,t);t.count+=o.count}for(let r of e.values())if(r.error)console.error(r.error)}try{vs()}catch(r){if(p)me(r,"stack",{value:""});Ue(r,Oi)}}var lt=null;function Os(e){var t=e.length;if(t===0)return;var r=0;while(r<t){var n=e[r++];if((n.f&(W|fe))===0&&er(n)){if(lt=new Set,Rt(n),n.deps===null&&n.first===null&&n.nodes===null&&n.teardown===null&&n.ac===null)Di(n);if(lt?.size>0){ft.clear();for(let o of lt){if((o.f&(W|fe))!==0)continue;let i=[o],a=o.parent;while(a!==null){if(lt.has(a))lt.delete(a),i.push(a);a=a.parent}for(let f=i.length-1;f>=0;f--){let c=i[f];if((c.f&(W|fe))!==0)continue;Rt(c)}}lt.clear()}}}lt=null}function Is(e,t,r,n){if(r.has(e))return;if(r.add(e),e.reactions!==null)for(let o of e.reactions){let i=o.f;if((i&te)!==0)Is(o,t,r,n);else if((i&(Ke|Se))!==0&&(i&F)===0&&Ii(o,t,n))q(o,F),gn(o)}}function Ii(e,t,r){let n=r.get(e);if(n!==void 0)return n;if(e.deps!==null)for(let o of e.deps){if(Mt.call(t,o))return!0;if((o.f&te)!==0&&Ii(o,t,r))return r.set(o,!0),!0}return r.set(e,!1),!1}function gn(e){T.schedule(e)}function Ds(e,t){if((e.f&ge)!==0&&(e.f&G)!==0)return;if((e.f&F)!==0)t.d.push(e);else if((e.f&oe)!==0)t.m.push(e);q(e,G);var r=e.first;while(r!==null)Ds(r,t),r=r.next}function Ms(e){q(e,G);var t=e.first;while(t!==null)Ms(t),t=t.next}var mr=new Set,ft=new Map;function Qn(e){mr=e}var Li=!1;function Fs(){Li=!0}function De(e,t){var r={f:0,v:e,reactions:null,equals:Vn,rv:0,wv:0};if(p&&mt)r.created=t??gt("created at"),r.updated=null,r.set_during_effect=!1,r.trace=null;return r}function P(e,t){let r=De(e,t);return ro(r),r}function br(e,t=!1,r=!0){let n=De(e);if(!t)n.equals=Un;if(Zt&&r&&L!==null&&L.l!==null)(L.l.s??=[]).push(n);return n}function N(e,t,r=!1){if(S!==null&&(!Ye||(S.f&Kt)!==0)&&Nt()&&(S.f&(te|Se|Ke|Kt))!==0&&(yt===null||!yt.has(e)))bs();let n=r?ct(t):t;if(p)zn(n,e.label);return bt(e,n,mn)}var xr=null,Mi=0;function bt(e,t,r=null){if(!e.equals(t)){if(st)ft.set(e,t);else if(!ft.has(e))ft.set(e,e.v);var n=Ce.ensure();if(n.capture(e,t),p){if(mt||k!==null){e.updated??=new Map;let o=(e.updated.get("")?.count??0)+1;if(e.updated.set("",{error:null,count:o}),mt||o>5){let i=gt("updated at");if(i!==null){let a=e.updated.get(i.stack);if(!a)a={error:i,count:0},e.updated.set(i.stack,a);a.count++}}}if(k!==null)e.set_during_effect=!0}if((e.f&te)!==0){let o=e;if((e.f&F)!==0)vn(o);if($e===null)Dr(o)}if(e.wv=Br(),xr=null,Mi=0,Ps(e,F,r),xr=null,Nt()&&k!==null&&(k.f&G)!==0&&(k.f&(ge|He))===0)if(Qe===null)Bs([e]);else Qe.push(e);if(!n.is_fork&&mr.size>0&&!Li)oo()}return t}function oo(){Li=!1;for(let e of mr){if((e.f&G)!==0)q(e,oe);let t;try{t=er(e)}catch{t=!0}if(t)Rt(e)}mr.clear()}function yr(e){N(e,e.v+1)}function Ps(e,t,r){var n=e.reactions;if(n===null)return;var o=Nt(),i=n.length;if(Mi+=i,Mi>1e5&&xr===null)xr=new Set;if(xr!==null){if(xr.has(e))return;xr.add(e)}for(var a=0;a<i;a++){var f=n[a],c=f.f;if(!o&&f===k)continue;var m=(c&F)===0;if(m)q(f,t);if((c&Kt)!==0)mr.add(f);else if((c&te)!==0){var h=f;$e?.delete(h),Ps(h,oe,r)}else if(m){var v=f;if((c&Se)!==0&&lt!==null)lt.add(v);if(r!==null)r.push(v);else gn(v)}}}var Yf=/^[a-zA-Z_$][a-zA-Z_$0-9]*$/;function ct(e){if(typeof e!=="object"||e===null||We in e||Ln in e)return e;let t=Rr(e);if(t!==ci&&t!==qa)return e;var r=new Map,n=vt(e),o=P(0),i=p&&mt?gt("created at"):null,a=tr,f=(v)=>{if(tr===a)return v();var _=S,d=tr;de(null),Fi(a);var y=v();return de(_),Fi(d),y};if(n){if(r.set("length",P(e.length,i)),p)e=Vf(e)}var c="";let m=!1;function h(v){if(m)return;m=!0,c=v,Ie(o,`${c} version`);for(let[_,d]of r)Ie(d,$r(c,_));m=!1}return new Proxy(e,{defineProperty(v,_,d){if(!("value"in d)||d.configurable===!1||d.enumerable===!1||d.writable===!1)gs();var y=r.get(_);if(y===void 0)f(()=>{var R=P(d.value,i);if(r.set(_,R),p&&typeof _==="string")Ie(R,$r(c,_));return R});else N(y,d.value,!0);return!0},deleteProperty(v,_){var d=r.get(_);if(d===void 0){if(_ in v){let y=f(()=>P(X,i));if(r.set(_,y),yr(o),p)Ie(y,$r(c,_))}}else N(d,X),yr(o);return!0},get(v,_,d){if(_===We)return e;if(p&&_===Pn)return h;var y=r.get(_),R=_ in v;if(y===void 0&&(!R||ze(v,_)?.writable))y=f(()=>{var j=ct(R?v[_]:X),Y=P(j,i);if(p)Ie(Y,$r(c,_));return Y}),r.set(_,y);if(y!==void 0){var b=l(y);return b===X?void 0:b}return Reflect.get(v,_,d)},getOwnPropertyDescriptor(v,_){this.has?.(v,_);var d=Reflect.getOwnPropertyDescriptor(v,_),y=r.get(_);if(y!==void 0){var R=l(y);if(R===X)return;if(d&&"value"in d)d.value=R;else return{enumerable:!0,configurable:!0,value:R,writable:!0}}return d},has(v,_){if(_===We)return!0;var d=r.get(_),y=d!==void 0&&d.v!==X||Reflect.has(v,_);if(d!==void 0||(k!==null||S!==null)&&(!y||ze(v,_)?.writable)){if(d===void 0)d=f(()=>{var b=y?ct(v[_]):X,j=P(b,i);if(p)Ie(j,$r(c,_));return j}),r.set(_,d);var R=l(d);if(R===X)return!1}return y},set(v,_,d,y){var R=r.get(_),b=_ in v;if(n&&_==="length")for(var j=d;j<R.v;j+=1){var Y=r.get(j+"");if(Y!==void 0)N(Y,X);else if(j in v){if(Y=f(()=>P(X,i)),r.set(j+"",Y),p)Ie(Y,$r(c,j))}}if(R===void 0){if(!b||ze(v,_)?.writable){if(R=f(()=>P(void 0,i)),p)Ie(R,$r(c,_));N(R,ct(d)),r.set(_,R)}}else{b=R.v!==X;var Q=f(()=>ct(d));N(R,Q)}var le=Reflect.getOwnPropertyDescriptor(v,_);if(le?.set)le.set.call(y,d);if(!b){if(n&&typeof _==="string"){var pt=r.get("length"),Ee=Number(_);if(Number.isInteger(Ee)&&Ee>=pt.v)N(pt,Ee+1)}yr(o)}return!0},ownKeys(v){l(o);var _=Reflect.ownKeys(v).filter((R)=>{var b=r.get(R);return b===void 0||b.v!==X});for(var[d,y]of r)if(y.v!==X&&!(d in v))_.push(d);return _},setPrototypeOf(){xs()}})}function $r(e,t){if(typeof t==="symbol")return`${e}[Symbol(${t.description??""})]`;if(Yf.test(t))return`${e}.${t}`;return/^\d+$/.test(t)?`${e}[${t}]`:`${e}['${t}']`}function Vr(e){try{if(e!==null&&typeof e==="object"&&We in e)return e[We]}catch{}return e}function io(e,t){return Object.is(Vr(e),Vr(t))}var Hf=new Set(["copyWithin","fill","pop","push","reverse","shift","sort","splice","unshift"]);function Vf(e){return new Proxy(e,{get(t,r,n){var o=Reflect.get(t,r,n);if(!Hf.has(r))return o;return function(...i){Fs();var a=o.apply(this,i);return oo(),a}}})}function Ys(){let{prototype:e,__svelte_cleanup:t}=Array;if(t)t();let{indexOf:r,lastIndexOf:n,includes:o}=e;e.indexOf=function(i,a){let f=r.call(this,i,a);if(f===-1){for(let c=a??0;c<this.length;c+=1)if(Vr(this[c])===i){Hn("array.indexOf(...)");break}}return f},e.lastIndexOf=function(i,a){let f=n.call(this,i,a??this.length-1);if(f===-1){for(let c=0;c<=(a??this.length-1);c+=1)if(Vr(this[c])===i){Hn("array.lastIndexOf(...)");break}}return f},e.includes=function(i,a){let f=o.call(this,i,a);if(!f){for(let c=0;c<this.length;c+=1)if(Vr(this[c])===i){Hn("array.includes(...)");break}}return f},Array.__svelte_cleanup=()=>{e.indexOf=r,e.lastIndexOf=n,e.includes=o}}var Ur,Hs,xn,Vs,Us;function ao(){if(Ur!==void 0)return;Ur=window,Hs=document,xn=/Firefox/.test(navigator.userAgent);var e=Element.prototype,t=Node.prototype,r=Text.prototype;if(Vs=ze(t,"firstChild").get,Us=ze(t,"nextSibling").get,ui(e))e[sn]=void 0,e[Bn]=null,e[_i]=void 0,e.__e=void 0;if(ui(r))r[ln]=void 0;if(p)e.__svelte_meta=null,Ys()}function se(e=""){return document.createTextNode(e)}function ie(e){return Vs.call(e)}function xe(e){return Us.call(e)}function O(e,t){if(!w)return ie(e);var r=ie(C);if(r===null)r=C.appendChild(se());else if(t&&r.nodeType!==ur){var n=se();return r?.before(n),U(n),n}if(t)bn(r);return U(r),r}function Ht(e,t=!1){if(!w){var r=ie(e);if(r instanceof Comment&&r.data==="")return xe(r);return r}if(t){if(C?.nodeType!==ur){var n=se();return C?.before(n),U(n),n}bn(C)}return C}function Z(e,t=!1){if(!w)return ie(e);var r=O(e,t);return A(e),r}function x(e,t=1,r=!1){let n=w?C:e;var o;while(t--)o=n,n=xe(n);if(!w)return n;if(r){if(n?.nodeType!==ur){var i=se();if(n===null)o?.after(i);else n.before(i);return U(i),i}bn(n)}return U(n),n}function pn(e){e.textContent=""}function so(){if(!ce)return!1;if(lt!==null)return!1;var e=k.f;return(e&Pe)!==0}function Ct(e,t,r){if(t==null||t===Yn)return r?document.createElement(e,{is:r}):document.createElement(e);return r?document.createElementNS(t,e,{is:r}):document.createElementNS(t,e)}function bn(e){if(e.nodeValue.length<65536)return;let t=e.nextSibling;while(t!==null&&t.nodeType===ur)t.remove(),e.nodeValue+=t.nodeValue,t=e.nextSibling}var Pi=new WeakMap;function Gs(e){var t=k;if(t===null)return S.f|=nt,e;if(p&&e instanceof Error&&!Pi.has(e))Pi.set(e,Uf(e,t));if((t.f&Pe)===0&&(t.f&kt)===0){if(p&&!t.parent&&e instanceof Error)qs(e);throw e}Ue(e,t)}function Ue(e,t){if(e===Xe)throw e;if(t!==null&&(t.f&W)!==0)return;while(t!==null){if((t.f&Cr)!==0&&(t.f&(W|Lt))===0){if((t.f&Pe)===0)throw e;try{t.b.error(e);return}catch(r){e=r}}t=t.parent}if(p&&e instanceof Error)qs(e);throw e}function Uf(e,t){let r=ze(e,"message");if(r&&!r.configurable)return;var n=xn?"  ":"\t",o=`
+https://svelte.dev/e/rune_outside_svelte`);throw t.name="Svelte error",t}else throw Error("https://svelte.dev/e/rune_outside_svelte")}function ys(){if(p){let e=Error("state_descriptors_fixed\nProperty descriptors defined on `$state` objects must contain `value` and always be `enumerable`, `configurable` and `writable`.\nhttps://svelte.dev/e/state_descriptors_fixed");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/state_descriptors_fixed")}function $s(){if(p){let e=Error("state_prototype_fixed\nCannot set prototype of `$state` object\nhttps://svelte.dev/e/state_prototype_fixed");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/state_prototype_fixed")}function ws(){if(p){let e=Error("state_unsafe_mutation\nUpdating state inside `$derived(...)`, `$inspect(...)` or a template expression is forbidden. If the value should not be reactive, declare it without `$state`\nhttps://svelte.dev/e/state_unsafe_mutation");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/state_unsafe_mutation")}function Es(){if(p){let e=Error("svelte_boundary_reset_onerror\nA `<svelte:boundary>` `reset` function cannot be called while an error is still being handled\nhttps://svelte.dev/e/svelte_boundary_reset_onerror");throw e.name="Svelte error",e}else throw Error("https://svelte.dev/e/svelte_boundary_reset_onerror")}var ce=!1,Xt=!1,gt=!1;var fn=null;function Ie(e,t){return e.label=t,Wn(e.v,t),e}function Wn(e,t){return e?.[Yn]?.(t),e}function xt(e){let t=Error(),r=Lf();if(r.length===0)return null;return r.unshift(`
+`),he(t,"stack",{value:r.join(`
+`)}),he(t,"name",{value:e}),t}function Lf(){let e=Error.stackTraceLimit;Error.stackTraceLimit=1/0;let t=Error().stack;if(Error.stackTraceLimit=e,!t)return[];let r=t.split(`
+`),n=[];for(let o=0;o<r.length;o++){let i=r[o],a=i.replaceAll("\\","/");if(i.trim()==="Error")continue;if(i.includes("validate_each_keys"))return[];if(a.includes("svelte/src/internal")||a.includes("node_modules/.vite"))continue;n.push(i)}return n}function Ts(e,t){if(!p)throw Error("invariant(...) was not guarded by if (DEV)");if(!e)cs(t)}var L=null;function Ht(e){L=e}var St=null;function Ir(e){St=e}var bt=null;function Zn(e){bt=e}function cn(e,t=!1,r){if(L={p:L,i:!1,c:null,e:null,s:e,x:null,r:k,l:Xt&&!t?{s:null,u:null,$:[]}:null},p)L.function=r,bt=r}function un(e){var t=L,r=t.e;if(r!==null){t.e=null;for(var n of r)Ti(n)}if(e!==void 0)t.x=e;if(t.i=!0,L=t.p,p)bt=L?.function??null;return Xn(e)}function Xn(e={}){return he(e,Pn,{value:!0}),e}function Nt(){return!Xt||L!==null&&L.l===null}var vr=[];function As(){var e=vr;vr=[],Mn(e)}function ue(e){if(vr.length===0&&!mr){var t=vr;queueMicrotask(()=>{if(t===vr)As()})}vr.push(e)}function Ss(){while(vr.length>0)As()}var Ff=~(F|oe|G);function q(e,t){e.f=e.f&Ff|t}function Dr(e){if((e.f&Fe)!==0||e.deps===null)q(e,G);else q(e,oe)}function Jn(e,t){if((e.f&F)!==0)t.set(e,F);else if((e.f&oe)!==0&&t.get(e)!==F)t.set(e,oe);q(e,G)}function Ns(e){return`{${e.toString().replace(/^async \(\) => /,"").replace(/^\(/,"").replace(/\$\.get\((.+?)\)/g,(t,r)=>r).replace(/\$\.track_reactivity_loss\((.+?)\)\(\)/g,(t,r)=>r).replace(/\)$/,"")}}`}var Rs=!1;function Qn(){if(!Rs)Rs=!0,document.addEventListener("reset",(e)=>{Promise.resolve().then(()=>{if(!e.defaultPrevented)for(let t of e.target.elements)t[Wt]?.()})},{capture:!0})}function Je(e){var t=N,r=k;de(null),_e(null);try{return e()}finally{de(t),_e(r)}}function dn(e,t,r,n=r){e.addEventListener(t,()=>Je(r));let o=e[Wt];if(o)e[Wt]=()=>{o(),n(!0)};else e[Wt]=()=>n(!0);Qn()}function eo(e,t,r,n){let o=Nt()?Lr:Fr;var i=e.filter((d)=>!d.settled),a=t.map(o);if(p)a.forEach((d,y)=>{d.label=t[y].toString().replace("() => ","").replaceAll("$.eager(() => ","$state.eager(").replace(/\$\.get\((.+?)\)/g,(R,b)=>b)});if(r.length===0&&i.length===0){n(a);return}var f=k,c=js(),h=i.length===1?i[0].promise:i.length>1?Promise.all(i.map((d)=>d.promise)):null;function m(d){if((f.f&W)!==0)return;c();try{n([...a,...d])}catch(y){Ue(y,f)}Mr()}var v=Ai();if(r.length===0){h.then(()=>m([])).finally(v);return}function _(){Promise.all(r.map((d)=>Ni(d))).then(m).catch((d)=>Ue(d,f)).finally(v)}if(h)h.then(()=>{if((f.f&W)!==0){v();return}c(),_(),Mr()});else _()}function js(){var e=k,t=N,r=L,n=T;if(p)var o=St;return function(a=!0){if(_e(e),de(t),Ht(r),a&&(e.f&W)===0)n?.activate(),n?.apply();if(p)Si(null),Ir(o)}}var Pf=!1;function Mr(e=!0){if(Pf=!1,_e(null),de(null),Ht(null),e)T?.deactivate();if(p)Si(null),Ir(null)}function Ai(){var e=k,t=e.b,r=T,n=!!t?.is_rendered();return t?.update_pending_count(1,r),r.increment(n,e),()=>{t?.update_pending_count(-1,r),r.decrement(n,e)}}var Ge=null;function Si(e){Ge=e}var _n=new Set;function Lr(e){var t=te|F;if(k!==null)k.f|=Tt;let r={ctx:L,deps:null,effects:null,equals:Gn,f:t,fn:e,reactions:null,rv:0,v:Z,wv:0,parent:k,ac:null};if(p&&gt)r.created=xt("created at");return r}var Pr=Symbol("obsolete");function Ni(e,t,r){let n=k;if(n===null)ps();var o=void 0,i=De(Z);if(p)i.label=t??Ns(e);var a=!N,f=new Set;if(Is(()=>{var c=k;if(p)Ge={effect:c,effect_deps:new Set,warned:!1};var h=Ln();o=h.promise;try{Promise.resolve(e()).then(h.resolve,(d)=>{if(d!==Pt)h.reject(d)}).finally(Mr)}catch(d){h.reject(d),Mr()}if(p){if(Ge){if(c.deps!==null)for(let d=0;d<Be;d+=1)Ge.effect_deps.add(c.deps[d]);if(ye!==null)for(let d=0;d<ye.length;d+=1)Ge.effect_deps.add(ye[d])}Ge=null}var m=T;if(a){if((c.f&Pe)!==0)var v=Ai();if(n.b?.is_rendered())m.async_deriveds.get(c)?.reject(Pr);else for(let d of f.values())d.reject(Pr);f.add(h),m.async_deriveds.set(c,h)}let _=(d,y=void 0)=>{if(p)Ge=null;if(v?.(),f.delete(h),y===Pr)return;if(m.activate(),y)i.f|=it,yt(i,y);else{if((i.f&it)!==0)i.f^=it;if(p&&r!==void 0&&!i.equals(d))_n.add(i),setTimeout(()=>{if(_n.has(i)&&(c.f&W)===0)os(i.label,r),_n.delete(i)});yt(i,d)}m.deactivate()};h.promise.then(_,(d)=>_(null,d||"unknown"))}),be(()=>{for(let c of f)c.reject(Pr)}),p)i.f|=Ke;return new Promise((c)=>{function h(m){function v(){if(m===o)c(i);else h(o)}m.then(v,v)}h(o)})}function no(e){let t=Lr(e);if(!ce)oo(t);return t}function Fr(e){let t=Lr(e);return t.equals=qn,t}function Cs(e){var t=e.effects;if(t!==null){e.effects=null;for(var r=0;r<t.length;r+=1)ae(t[r])}}var Ri=[];function vn(e){var t,r=k,n=e.parent;if(!lt&&n!==null&&e.v!==Z&&(n.f&(W|fe))!==0)return is(),e.v;if(_e(n),p){let o=hr;to(new Set);try{if(Lt.call(Ri,e))ds();Ri.push(e),Cs(e),t=ro(e)}finally{_e(r),to(o),Ri.pop()}}else try{Cs(e),t=ro(e)}finally{_e(r)}return t}function ji(e){var t=vn(e);if(!e.equals(t)){if(e.wv=Br(),!T?.is_fork||e.deps===null){if(T!==null)T.capture(e,t,!0),Qe?.capture(e,t,!0);else e.v=t;if(e.deps===null){q(e,G);return}}}if(lt)return;if($e!==null){if(Jt()||T?.is_fork)$e.set(e,t)}else Dr(e)}function Os(e){if(e.effects===null)return;for(let t of e.effects)if(t.teardown||t.ac){if(t.teardown?.(),t.ac!==null)Je(()=>{t.ac.abort(Pt),t.ac=null});if(t.fn!==null)t.teardown=Et;gr(t,0),mn(t)}}function Ci(e){if(e.effects===null)return;for(let t of e.effects)if(t.teardown&&t.fn!==null)Rt(t)}var io=null,Yr=null,T=null,Qe=null,$e=null,Di=null,mr=!1,Oi=!1,Hr=null,hn=null,Ds=0,Ii=new Set,Hf=1;class je{id=Hf++;started=!1;linked=!0;prev=null;next=null;async_deriveds=new Map;current=new Map;previous=new Map;#e=new Set;#t=new Set;#r=0;#s=new Map;#o=null;#n=[];#a=[];#i=new Map;#l=new Map;#d=new Set;is_fork=!1;#f=!1;constructor(){if(Yr===null)io=Yr=this;else Yr.next=this,this.prev=Yr;Yr=this}#v(){if(this.is_fork)return!0;for(let e of this.#s.keys())if(!this.#g(e))return!0;return!1}#g(e){for(var t=e;t!==null;t=t.parent)if(this.#l.has(t))return!0;return!1}skip_effect(e){if(!this.#l.has(e))this.#l.set(e,{d:[],m:[]});this.#d.delete(e)}unskip_effect(e,t=(r)=>this.schedule(r)){var r=this.#l.get(e);if(r){this.#l.delete(e);for(var n of r.d)q(n,F),t(n);for(n of r.m)q(n,oe),t(n)}this.#d.add(e)}#c(){var e=[];for(let o of this.#n){if((o.f&W)!==0||(o.f&(F|oe))===0)continue;var t=o,r=!1;while(t.parent!==null){t=t.parent;var n=t.f;if((n&(He|ge))!==0){if((n&G)===0){r=!0;break}t.f^=G}}if(!r)e.push(t)}return this.#n=[],e}#m(){if(this.started=!0,p)for(let a of this.current.keys())Ii.add(a);for(let[a,f]of this.#i)q(a,f),this.schedule(a);this.apply();var e=Hr=[],t=[],r=hn=[];while(this.#n.length>0){if(Ds++>1000)this.#p(),Vf();for(let a of this.#c())try{this.#x(a,e,t)}catch(f){if(Ps(a),!this.#v())this.discard();throw f}}if(T=null,r.length>0){var n=je.ensure();for(let a of r)n.schedule(a)}if(Hr=null,hn=null,this.#v()){this.#_(t),this.#_(e);for(let[a,f]of this.#l)Fs(a,f);if(r.length>0)T.#m();return}let o=this.#y();if(o){this.#_(t),this.#_(e),o.#u(this);return}this.#i.clear();for(let a of this.#e)a(this);this.#e.clear(),Qe=this,Ms(t),Ms(e),Qe=null,this.#o?.resolve();var i=T;if(this.#r===0&&(this.#n.length===0||i!==null)){if(this.#p(),ce)this.#b(),T=i}if(i!==null)ct.clear(),i.#m()}#x(e,t,r){e.f^=G;var n=e.first;while(n!==null){var o=n.f,i=(o&(ge|He))!==0,a=i&&(o&G)!==0,f=a||(o&fe)!==0||this.#l.has(n);if(!f&&n.fn!==null){if(i)n.f^=G;else if((o&kt)!==0)t.push(n);else if(ce&&(o&(zt|cr))!==0)r.push(n);else if(er(n)){if((o&Se)!==0)this.add_dirty_reaction(n,oe);Rt(n)}var c=n.first;if(c!==null){n=c;continue}}while(n!==null){var h=n.next;if(h!==null){n=h;break}n=n.parent}}}#y(){for(var e=this.prev;e!==null;e=e.prev)if(!e.is_fork&&this.#h(e))return e;return null}#h(e){for(let[t,[,r]]of this.current){if(r)continue;if(e.current.has(t))return!0}return!1}#u(e){for(let[r,n]of e.current){if(!this.previous.has(r)&&e.previous.has(r))this.previous.set(r,e.previous.get(r));this.current.set(r,n)}for(let[r,n]of e.async_deriveds){let o=this.async_deriveds.get(r);if(o)n.promise.then(o.resolve).catch(o.reject)}e.async_deriveds.clear(),this.transfer_reactions(e.#i);let t=(r)=>{var n=r.reactions;if(n===null)return;if((r.f&te)!==0&&(r.f&(F|oe))===0)return;for(let a of n){var o=a.f;if((o&te)!==0)t(a);else{var i=a;if(o&(Ke|Se)&&!this.async_deriveds.has(i))this.#i.delete(i),q(i,F),this.schedule(i)}}};for(let r of this.current.keys())t(r);this.oncommit(()=>e.discard()),e.#p(),T=this,this.#m()}#_(e){for(var t=0;t<e.length;t+=1)Jn(e[t],this.#i)}capture(e,t,r=!1){if(e.v!==Z&&!this.previous.has(e))this.previous.set(e,e.v);if((e.f&it)===0)this.current.set(e,[t,r]),$e?.set(e,t);if(!this.is_fork)e.v=t}activate(){T=this}deactivate(){T=null,$e=null}flush(){try{if(p)Ii.clear();Oi=!0,T=this,this.#m()}finally{if(Ds=0,Di=null,Hr=null,hn=null,Oi=!1,T=null,$e=null,ct.clear(),p)for(let e of Ii)e.updated=null}}discard(){for(let e of this.#t)e(this);this.#t.clear();for(let e of this.async_deriveds.values())e.reject(Pr);this.#p(),this.#o?.resolve()}register_created_effect(e){this.#a.push(e)}#b(){for(let m=io;m!==null;m=m.next){var e=m.id<this.id,t=[];for(let[v,[_,d]]of this.current){if(m.current.has(v)){var r=m.current.get(v)[0];if(e&&_!==r)m.current.set(v,[_,d]);else continue}t.push(v)}if(e)for(let[v,_]of this.async_deriveds){let d=m.async_deriveds.get(v);if(d)_.promise.then(d.resolve).catch(d.reject)}var n=[...m.current.keys()].filter((v)=>!m.current.get(v)[1]);if(!m.started||n.length===0)continue;var o=n.filter((v)=>!this.current.has(v));if(o.length===0){if(e)m.discard()}else if(t.length>0){if(p&&!m.#f)Ts(m.#n.length===0,"Batch has scheduled effects");if(e)for(let v of this.#d)m.unskip_effect(v,(_)=>{if((_.f&(Se|Ke))!==0)m.schedule(_);else m.#_([_])});m.activate();var i=new Set,a=new Map;for(var f of t)Ls(f,o,i,a);a=new Map;var c=[...m.current].filter(([v,_])=>{let d=this.current.get(v);if(!d)return!0;return d[0]!==_[0]||d[1]!==_[1]}).map(([v])=>v);if(c.length>0){for(let v of this.#a)if((v.f&(W|fe|Kt))===0&&Mi(v,c,a))if((v.f&(Ke|Se))!==0)q(v,F),m.schedule(v);else m.add_dirty_reaction(v,F)}if(m.#n.length>0&&!m.#f){m.apply();for(var h of m.#c())m.#x(h,[],[])}m.deactivate()}}}increment(e,t){if(this.#r+=1,e){let r=this.#s.get(t)??0;this.#s.set(t,r+1)}}decrement(e,t){if(this.#r-=1,e){let r=this.#s.get(t)??0;if(r===1)this.#s.delete(t);else this.#s.set(t,r-1)}if(this.#f)return;this.#f=!0,ue(()=>{if(this.#f=!1,this.linked)this.flush()})}transfer_reactions(e){for(let[t,r]of e)this.add_dirty_reaction(t,r);e.clear()}add_dirty_reaction(e,t){if(t===F||this.#i.get(e)!==F)this.#i.set(e,t)}oncommit(e){this.#e.add(e)}ondiscard(e){this.#t.add(e)}settled(){return(this.#o??=Ln()).promise}static ensure(){if(T===null){let e=T=new je;if(!Oi&&!mr)ue(()=>{if(!e.started)e.flush()})}return T}apply(){if(!ce||!this.is_fork&&this.prev===null&&this.next===null){$e=null;return}$e=new Map;for(let[e,[t]]of this.current)$e.set(e,t);for(let e=io;e!==null;e=e.next){if(e===this||e.is_fork)continue;if(e.id>=this.id||!e.#h(this)){for(let[t,r]of e.previous)if(!$e.has(t))$e.set(t,r)}}}schedule(e){if(Di=e,e.b?.is_pending&&(e.f&(kt|zt|cr))!==0&&(e.f&Pe)===0){e.b.defer_effect(e);return}this.#n.push(e)}#p(){if(!this.linked)return;var e=this.prev,t=this.next;if(e===null)io=t;else e.next=t;if(t===null)Yr=e;else t.prev=e;this.linked=!1}}function Qt(e){var t=mr,r=Qe;Qe=null,mr=!0;try{var n;if(e)Qt(),n=e();while(!0){if(Ss(),T===null)return n;T.flush()}}finally{mr=t,Qe=r}}function Vf(){if(p){var e=new Map;for(let r of T.current.keys())for(let[n,o]of r.updated??[]){var t=e.get(n);if(!t)t={error:o.error,count:0},e.set(n,t);t.count+=o.count}for(let r of e.values())if(r.error)console.error(r.error)}try{gs()}catch(r){if(p)he(r,"stack",{value:""});Ue(r,Di)}}var ft=null;function Ms(e){var t=e.length;if(t===0)return;var r=0;while(r<t){var n=e[r++];if((n.f&(W|fe))===0&&er(n)){if(ft=new Set,Rt(n),n.deps===null&&n.first===null&&n.nodes===null&&n.teardown===null&&n.ac===null)Li(n);if(ft?.size>0){ct.clear();for(let o of ft){if((o.f&(W|fe))!==0)continue;let i=[o],a=o.parent;while(a!==null){if(ft.has(a))ft.delete(a),i.push(a);a=a.parent}for(let f=i.length-1;f>=0;f--){let c=i[f];if((c.f&(W|fe))!==0)continue;Rt(c)}}ft.clear()}}}ft=null}function Ls(e,t,r,n){if(r.has(e))return;if(r.add(e),e.reactions!==null)for(let o of e.reactions){let i=o.f;if((i&te)!==0)Ls(o,t,r,n);else if((i&(Ke|Se))!==0&&(i&F)===0&&Mi(o,t,n))q(o,F),gn(o)}}function Mi(e,t,r){let n=r.get(e);if(n!==void 0)return n;if(e.deps!==null)for(let o of e.deps){if(Lt.call(t,o))return!0;if((o.f&te)!==0&&Mi(o,t,r))return r.set(o,!0),!0}return r.set(e,!1),!1}function gn(e){T.schedule(e)}function Fs(e,t){if((e.f&ge)!==0&&(e.f&G)!==0)return;if((e.f&F)!==0)t.d.push(e);else if((e.f&oe)!==0)t.m.push(e);q(e,G);var r=e.first;while(r!==null)Fs(r,t),r=r.next}function Ps(e){q(e,G);var t=e.first;while(t!==null)Ps(t),t=t.next}var hr=new Set,ct=new Map;function to(e){hr=e}var Pi=!1;function Ys(){Pi=!0}function De(e,t){var r={f:0,v:e,reactions:null,equals:Gn,rv:0,wv:0};if(p&&gt)r.created=t??xt("created at"),r.updated=null,r.set_during_effect=!1,r.trace=null;return r}function P(e,t){let r=De(e,t);return oo(r),r}function br(e,t=!1,r=!0){let n=De(e);if(!t)n.equals=qn;if(Xt&&r&&L!==null&&L.l!==null)(L.l.s??=[]).push(n);return n}function A(e,t,r=!1){if(N!==null&&(!Ye||(N.f&Kt)!==0)&&Nt()&&(N.f&(te|Se|Ke|Kt))!==0&&($t===null||!$t.has(e)))ws();let n=r?ut(t):t;if(p)Wn(n,e.label);return yt(e,n,hn)}var xr=null,Fi=0;function yt(e,t,r=null){if(!e.equals(t)){if(lt)ct.set(e,t);else if(!ct.has(e))ct.set(e,e.v);var n=je.ensure();if(n.capture(e,t),p){if(gt||k!==null){e.updated??=new Map;let o=(e.updated.get("")?.count??0)+1;if(e.updated.set("",{error:null,count:o}),gt||o>5){let i=xt("updated at");if(i!==null){let a=e.updated.get(i.stack);if(!a)a={error:i,count:0},e.updated.set(i.stack,a);a.count++}}}if(k!==null)e.set_during_effect=!0}if((e.f&te)!==0){let o=e;if((e.f&F)!==0)vn(o);if($e===null)Dr(o)}if(e.wv=Br(),xr=null,Fi=0,Hs(e,F,r),xr=null,Nt()&&k!==null&&(k.f&G)!==0&&(k.f&(ge|He))===0)if(et===null)Vs([e]);else et.push(e);if(!n.is_fork&&hr.size>0&&!Pi)ao()}return t}function ao(){Pi=!1;for(let e of hr){if((e.f&G)!==0)q(e,oe);let t;try{t=er(e)}catch{t=!0}if(t)Rt(e)}hr.clear()}function yr(e){A(e,e.v+1)}function Hs(e,t,r){var n=e.reactions;if(n===null)return;var o=Nt(),i=n.length;if(Fi+=i,Fi>1e5&&xr===null)xr=new Set;if(xr!==null){if(xr.has(e))return;xr.add(e)}for(var a=0;a<i;a++){var f=n[a],c=f.f;if(!o&&f===k)continue;var h=(c&F)===0;if(h)q(f,t);if((c&Kt)!==0)hr.add(f);else if((c&te)!==0){var m=f;$e?.delete(m),Hs(m,oe,r)}else if(h){var v=f;if((c&Se)!==0&&ft!==null)ft.add(v);if(r!==null)r.push(v);else gn(v)}}}var Gf=/^[a-zA-Z_$][a-zA-Z_$0-9]*$/;function ut(e){if(typeof e!=="object"||e===null||We in e||Pn in e)return e;let t=Rr(e);if(t!==pi&&t!==Wa)return e;var r=new Map,n=mt(e),o=P(0),i=p&&gt?xt("created at"):null,a=tr,f=(v)=>{if(tr===a)return v();var _=N,d=tr;de(null),Bi(a);var y=v();return de(_),Bi(d),y};if(n){if(r.set("length",P(e.length,i)),p)e=zf(e)}var c="";let h=!1;function m(v){if(h)return;h=!0,c=v,Ie(o,`${c} version`);for(let[_,d]of r)Ie(d,$r(c,_));h=!1}return new Proxy(e,{defineProperty(v,_,d){if(!("value"in d)||d.configurable===!1||d.enumerable===!1||d.writable===!1)ys();var y=r.get(_);if(y===void 0)f(()=>{var R=P(d.value,i);if(r.set(_,R),p&&typeof _==="string")Ie(R,$r(c,_));return R});else A(y,d.value,!0);return!0},deleteProperty(v,_){var d=r.get(_);if(d===void 0){if(_ in v){let y=f(()=>P(Z,i));if(r.set(_,y),yr(o),p)Ie(y,$r(c,_))}}else A(d,Z),yr(o);return!0},get(v,_,d){if(_===We)return e;if(p&&_===Yn)return m;var y=r.get(_),R=_ in v;if(y===void 0&&(!R||ze(v,_)?.writable))y=f(()=>{var C=ut(R?v[_]:Z),Y=P(C,i);if(p)Ie(Y,$r(c,_));return Y}),r.set(_,y);if(y!==void 0){var b=l(y);return b===Z?void 0:b}return Reflect.get(v,_,d)},getOwnPropertyDescriptor(v,_){this.has?.(v,_);var d=Reflect.getOwnPropertyDescriptor(v,_),y=r.get(_);if(y!==void 0){var R=l(y);if(R===Z)return;if(d&&"value"in d)d.value=R;else return{enumerable:!0,configurable:!0,value:R,writable:!0}}return d},has(v,_){if(_===We)return!0;var d=r.get(_),y=d!==void 0&&d.v!==Z||Reflect.has(v,_);if(d!==void 0||(k!==null||N!==null)&&(!y||ze(v,_)?.writable)){if(d===void 0)d=f(()=>{var b=y?ut(v[_]):Z,C=P(b,i);if(p)Ie(C,$r(c,_));return C}),r.set(_,d);var R=l(d);if(R===Z)return!1}return y},set(v,_,d,y){var R=r.get(_),b=_ in v;if(n&&_==="length")for(var C=d;C<R.v;C+=1){var Y=r.get(C+"");if(Y!==void 0)A(Y,Z);else if(C in v){if(Y=f(()=>P(Z,i)),r.set(C+"",Y),p)Ie(Y,$r(c,C))}}if(R===void 0){if(!b||ze(v,_)?.writable){if(R=f(()=>P(void 0,i)),p)Ie(R,$r(c,_));A(R,ut(d)),r.set(_,R)}}else{b=R.v!==Z;var ee=f(()=>ut(d));A(R,ee)}var le=Reflect.getOwnPropertyDescriptor(v,_);if(le?.set)le.set.call(y,d);if(!b){if(n&&typeof _==="string"){var dt=r.get("length"),Ee=Number(_);if(Number.isInteger(Ee)&&Ee>=dt.v)A(dt,Ee+1)}yr(o)}return!0},ownKeys(v){l(o);var _=Reflect.ownKeys(v).filter((R)=>{var b=r.get(R);return b===void 0||b.v!==Z});for(var[d,y]of r)if(y.v!==Z&&!(d in v))_.push(d);return _},setPrototypeOf(){$s()}})}function $r(e,t){if(typeof t==="symbol")return`${e}[Symbol(${t.description??""})]`;if(Gf.test(t))return`${e}.${t}`;return/^\d+$/.test(t)?`${e}[${t}]`:`${e}['${t}']`}function Vr(e){try{if(e!==null&&typeof e==="object"&&We in e)return e[We]}catch{}return e}function so(e,t){return Object.is(Vr(e),Vr(t))}var qf=new Set(["copyWithin","fill","pop","push","reverse","shift","sort","splice","unshift"]);function zf(e){return new Proxy(e,{get(t,r,n){var o=Reflect.get(t,r,n);if(!qf.has(r))return o;return function(...i){Ys();var a=o.apply(this,i);return ao(),a}}})}function Us(){let{prototype:e,__svelte_cleanup:t}=Array;if(t)t();let{indexOf:r,lastIndexOf:n,includes:o}=e;e.indexOf=function(i,a){let f=r.call(this,i,a);if(f===-1){for(let c=a??0;c<this.length;c+=1)if(Vr(this[c])===i){Un("array.indexOf(...)");break}}return f},e.lastIndexOf=function(i,a){let f=n.call(this,i,a??this.length-1);if(f===-1){for(let c=0;c<=(a??this.length-1);c+=1)if(Vr(this[c])===i){Un("array.lastIndexOf(...)");break}}return f},e.includes=function(i,a){let f=o.call(this,i,a);if(!f){for(let c=0;c<this.length;c+=1)if(Vr(this[c])===i){Un("array.includes(...)");break}}return f},Array.__svelte_cleanup=()=>{e.indexOf=r,e.lastIndexOf=n,e.includes=o}}var Ur,Gs,xn,qs,zs;function lo(){if(Ur!==void 0)return;Ur=window,Gs=document,xn=/Firefox/.test(navigator.userAgent);var e=Element.prototype,t=Node.prototype,r=Text.prototype;if(qs=ze(t,"firstChild").get,zs=ze(t,"nextSibling").get,di(e))e[sn]=void 0,e[Hn]=null,e[mi]=void 0,e.__e=void 0;if(di(r))r[ln]=void 0;if(p)e.__svelte_meta=null,Us()}function se(e=""){return document.createTextNode(e)}function ie(e){return qs.call(e)}function xe(e){return zs.call(e)}function O(e,t){if(!w)return ie(e);var r=ie(j);if(r===null)r=j.appendChild(se());else if(t&&r.nodeType!==ur){var n=se();return r?.before(n),U(n),n}if(t)bn(r);return U(r),r}function Vt(e,t=!1){if(!w){var r=ie(e);if(r instanceof Comment&&r.data==="")return xe(r);return r}if(t){if(j?.nodeType!==ur){var n=se();return j?.before(n),U(n),n}bn(j)}return j}function X(e,t=!1){if(!w)return ie(e);var r=O(e,t);return S(e),r}function x(e,t=1,r=!1){let n=w?j:e;var o;while(t--)o=n,n=xe(n);if(!w)return n;if(r){if(n?.nodeType!==ur){var i=se();if(n===null)o?.after(i);else n.before(i);return U(i),i}bn(n)}return U(n),n}function pn(e){e.textContent=""}function fo(){if(!ce)return!1;if(ft!==null)return!1;var e=k.f;return(e&Pe)!==0}function jt(e,t,r){if(t==null||t===Vn)return r?document.createElement(e,{is:r}):document.createElement(e);return r?document.createElementNS(t,e,{is:r}):document.createElementNS(t,e)}function bn(e){if(e.nodeValue.length<65536)return;let t=e.nextSibling;while(t!==null&&t.nodeType===ur)t.remove(),e.nodeValue+=t.nodeValue,t=e.nextSibling}var Yi=new WeakMap;function Ks(e){var t=k;if(t===null)return N.f|=it,e;if(p&&e instanceof Error&&!Yi.has(e))Yi.set(e,Kf(e,t));if((t.f&Pe)===0&&(t.f&kt)===0){if(p&&!t.parent&&e instanceof Error)Ws(e);throw e}Ue(e,t)}function Ue(e,t){if(e===Ze)throw e;if(t!==null&&(t.f&W)!==0)return;while(t!==null){if((t.f&jr)!==0&&(t.f&(W|Ft))===0){if((t.f&Pe)===0)throw e;try{t.b.error(e);return}catch(r){e=r}}t=t.parent}if(p&&e instanceof Error)Ws(e);throw e}function Kf(e,t){let r=ze(e,"message");if(r&&!r.configurable)return;var n=xn?"  ":"\t",o=`
 ${n}in ${t.fn?.name||"<unknown>"}`,i=t.ctx;while(i!==null)o+=`
-${n}in ${i.function?.[it].split("/").pop()}`,i=i.p;return{message:e.message+`
+${n}in ${i.function?.[st].split("/").pop()}`,i=i.p;return{message:e.message+`
 ${o}
 `,stack:e.stack?.split(`
 `).filter((a)=>!a.includes("svelte/src/internal")).join(`
-`)}}function qs(e){let t=Pi.get(e);if(t)me(e,"message",{value:t.message}),me(e,"stack",{value:t.stack})}function zs(e){if(k===null){if(S===null)_s(e);ds()}if(st)ps(e)}function Gf(e,t){var r=t.last;if(r===null)t.last=t.first=e;else r.next=e,e.prev=r,t.last=e}function jt(e,t){var r=k;if(p)while(r!==null&&(r.f&Kt)!==0)r=r.parent;if(r!==null&&(r.f&fe)!==0)e|=fe;var n={ctx:L,deps:null,nodes:null,f:e|F|Fe,first:null,fn:t,last:null,next:null,parent:r,b:r&&r.b,prev:null,teardown:null,wv:0,ac:null};if(p)n.component_function=xt;T?.register_created_effect(n);var o=n;if((e&kt)!==0)if(Hr!==null)Hr.push(n);else Ce.ensure().schedule(n);else if(t!==null){try{Rt(n)}catch(a){throw ae(n),a}if(o.deps===null&&o.teardown===null&&o.nodes===null&&o.first===o.last&&(o.f&Tt)===0){if(o=o.first,(e&Se)!==0&&(e&Ve)!==0&&o!==null)o.f|=Ve}}if(o!==null){if(o.parent=r,r!==null)Gf(o,r);if(S!==null&&(S.f&te)!==0&&(e&He)===0){var i=S;(i.effects??=[]).push(o)}}return n}function Jt(){return S!==null&&!Ye}function be(e){let t=jt(zt,null);return q(t,G),t.teardown=e,t}function Gr(e){if(zs("$effect"),p)me(e,"name",{value:"$effect"});var t=k.f,r=!S&&(t&ge)!==0&&L!==null&&!L.i;if(r){var n=L;(n.e??=[]).push(e)}else return Ei(e)}function Ei(e){return jt(kt|za,e)}function Yi(e){Ce.ensure();let t=jt(He|Tt,e);return()=>{ae(t)}}function Ks(e){Ce.ensure();let t=jt(He|Tt,e);return(r={})=>new Promise((n)=>{if(r.outro)Ot(t,()=>{ae(t),n(void 0)});else ae(t),n(void 0)})}function et(e){return jt(kt,e)}function Cs(e){return jt(Ke|Tt,e)}function we(e,t=0){return jt(zt|t,e)}function V(e,t=[],r=[],n=[]){Jn(n,t,r,(o)=>{jt(zt,()=>{e(...o.map(l))})})}function tt(e,t=0){var r=jt(Se|t,e);if(p)r.dev_stack=St;return r}function ve(e){return jt(ge|Tt,e)}function Hi(e){var t=e.teardown;if(t!==null){let r=st,n=S;Bi(!0),de(null);try{t.call(null)}catch(o){Ue(o,e.parent)}finally{Bi(r),de(n)}}}function hn(e,t=!1){var r=e.first;e.first=e.last=null;while(r!==null){let o=r.ac;if(o!==null)Ze(()=>{o.abort(Ft)});var n=r.next;if((r.f&He)!==0)r.parent=null;else ae(r,t);r=n}}function Ws(e){var t=e.first;while(t!==null){var r=t.next;if((t.f&ge)===0)ae(t);t=r}}function ae(e,t=!0){var r=!1;if((t||(e.f&di)!==0)&&e.nodes!==null&&e.nodes.end!==null)Xs(e.nodes.start,e.nodes.end),r=!0;e.f|=Lt,hn(e,t&&!r),gr(e,0);var n=e.nodes&&e.nodes.t;if(n!==null)for(let i of n)i.stop();Hi(e),e.f^=Lt,e.f|=W;var o=e.parent;if(o!==null&&o.first!==null)Di(e);if(p)e.component_function=null;e.next=e.prev=e.teardown=e.ctx=e.deps=e.fn=e.nodes=e.ac=e.b=null}function Xs(e,t){while(e!==null){var r=e===t?null:xe(e);e.remove(),e=r}}function Di(e){var{parent:t,prev:r,next:n}=e;if(r!==null)r.next=n;if(n!==null)n.prev=r;if(t!==null){if(t.first===e)t.first=n;if(t.last===e)t.last=r}}function Ot(e,t,r=!0){var n=[];e.f|=Mn,Zs(e,n,!0);var o=()=>{if(r)ae(e);if(t)t()},i=n.length;if(i>0){var a=()=>--i||o();for(var f of n)f.out(a)}else o()}function Zs(e,t,r){if((e.f&fe)!==0)return;e.f^=fe;var n=e.nodes&&e.nodes.t;if(n!==null){for(let f of n)if(f.is_global||r)t.push(f)}var o=e.first;while(o!==null){var i=o.next;if((o.f&He)===0){var a=(o.f&Ve)!==0||(o.f&ge)!==0&&(e.f&Se)!==0;Zs(o,t,a?r:!1)}o=i}}function qr(e){e.f&=~Mn,Js(e,!0)}function Js(e,t){if((e.f&Mn)!==0)return;if((e.f&fe)===0)return;if(e.f^=fe,(e.f&G)===0)q(e,F),Ce.ensure().schedule(e);var r=e.first;while(r!==null){var n=r.next,o=(r.f&Ve)!==0||(r.f&ge)!==0;Js(r,o?t:!1),r=n}var i=e.nodes&&e.nodes.t;if(i!==null){for(let a of i)if(a.is_global||t)a.in()}}function zr(e,t){if(!e.nodes)return;var r=e.nodes.start,n=e.nodes.end;while(r!==null){var o=r===n?null:xe(r);t.append(r),r=o}}var Qs=null;var st=!1;function Bi(e){st=e}var S=null,Ye=!1;function de(e){S=e}var k=null;function _e(e){k=e}var yt=null;function ro(e){if(S!==null&&(!ce&&(S.f&jr)!==0||(S.f&te)!==0))(yt??=new Set).add(e)}var ye=null,Be=0,Qe=null;function Bs(e){Qe=e}var tl=1,wr=0,tr=wr;function Fi(e){tr=e}function Br(){return++tl}function er(e){var t=e.f;if((t&F)!==0)return!0;if((t&oe)!==0){var r=e.deps,n=r.length;for(var o=0;o<n;o++){var i=r[o];if(er(i))Ni(i);if(i.wv>e.wv)return!0}if((t&Fe)!==0&&$e===null)q(e,G)}return!1}function rl(e,t,r=!0){var n=e.reactions;if(n===null)return;if(!ce&&yt!==null&&yt.has(e))return;for(var o=0;o<n.length;o++){var i=n[o];if((i.f&te)!==0)rl(i,t,!1);else if(t===i){if(r)q(i,F);else if((i.f&G)!==0)q(i,oe);gn(i)}}}function eo(e){var t=ye,r=Be,n=Qe,o=S,i=yt,a=L,f=Ye,c=tr,m=e.f;if(ye=null,Be=0,Qe=null,S=(m&(ge|He))===0?e:null,yt=null,Yt(e.ctx),Ye=!1,tr=++wr,e.ac!==null)Ze(()=>{e.ac.abort(Ft)}),e.ac=null;try{e.f|=jr;var h=e.fn,v=h();e.f|=Pe;var _=el(e);if(Nt()&&Qe!==null&&!Ye&&_!==null&&(e.f&(te|oe|F))===0)for(var d=0;d<Qe.length;d++)rl(Qe[d],e);if(o!==null&&o!==e){if(wr++,o.deps!==null)for(let y=0;y<r;y+=1)o.deps[y].rv=wr;if(t!==null)for(let y of t)y.rv=wr;if(Qe!==null)if(n===null)n=Qe;else n.push(...Qe)}if((e.f&nt)!==0)e.f^=nt;return v}catch(y){return el(e),Gs(y)}finally{e.f^=jr,ye=t,Be=r,Qe=n,S=o,yt=i,Yt(a),Ye=f,tr=c}}function el(e){var t=e.deps,r=T?.is_fork;if(ye!==null){var n;if(!r)gr(e,Be);if(t!==null&&Be>0){t.length=Be+ye.length;for(n=0;n<ye.length;n++)t[Be+n]=ye[n]}else e.deps=t=ye;if(Jt()&&(e.f&Fe)!==0)for(n=Be;n<t.length;n++)(t[n].reactions??=[]).push(e)}else if(!r&&t!==null&&Be<t.length)gr(e,Be),t.length=Be;return t}function qf(e,t){let r=t.reactions;if(r!==null){var n=Ga.call(r,e);if(n!==-1){var o=r.length-1;if(o===0)r=t.reactions=null;else r[n]=r[o],r.pop()}}if(r===null&&(t.f&te)!==0&&(ye===null||!Mt.call(ye,t))){var i=t;if((i.f&Fe)!==0)i.f^=Fe;if(i.v!==X)Dr(i);if(i.ac!==null)Ze(()=>{i.ac.abort(Ft),i.ac=null,q(i,F)});Rs(i),gr(i,0)}}function gr(e,t){var r=e.deps;if(r===null)return;for(var n=t;n<r.length;n++)qf(e,r[n])}function Rt(e){var t=e.f;if((t&W)!==0)return;q(e,G);var r=k;if(k=e,p){var n=xt;Kn(e.component_function);var o=St;Ir(e.dev_stack??St)}try{if((t&(Se|cr))!==0)Ws(e);else hn(e);Hi(e);var i=eo(e);if(e.teardown=typeof i==="function"?i:null,e.wv=tl,p&&mt&&(e.f&F)!==0&&e.deps!==null){for(var a of e.deps)if(a.set_during_effect)a.wv=Br(),a.set_during_effect=!1}}finally{if(k=r,p)Kn(n),Ir(o)}}async function yn(){if(ce)return new Promise((e)=>{requestAnimationFrame(()=>e()),setTimeout(()=>e())});await Promise.resolve(),Qt()}function l(e){var t=e.f,r=(t&te)!==0;if(Qs?.add(e),S!==null&&!Ye){var n=k!==null&&(k.f&W)!==0;if(!n&&(yt===null||!yt.has(e))){var o=S.deps;if((S.f&jr)!==0){if(e.rv<wr)if(e.rv=wr,ye===null&&o!==null&&o[Be]===e)Be++;else if(ye===null)ye=[e];else ye.push(e)}else{if(S.deps??=[],!Mt.call(S.deps,e))S.deps.push(e);var i=e.reactions;if(i===null)e.reactions=[S];else if(!Mt.call(i,S))i.push(S)}}}if(p){if(!Ye&&Ge&&T===null&&Je===null&&!Ge.warned&&(Ge.effect.f&jr)===0&&!Ge.effect_deps.has(e)){Ge.warned=!0,es(e.label);var a=gt("traced at");if(a)console.warn(a)}if(_n.delete(e),mt&&!Ye&&fn!==null&&S!==null&&fn.reaction===S){if(e.trace)e.trace();else if(a=gt("traced at"),a){var f=fn.entries.get(e);if(f===void 0)f={traces:[]},fn.entries.set(e,f);var c=f.traces[f.traces.length-1];if(a.stack!==c?.stack)f.traces.push(a)}}}if(st&&ft.has(e))return ft.get(e);if(r){var m=e;if(st){var h=m.v;if((m.f&G)===0&&m.reactions!==null||ol(m))h=vn(m);return ft.set(m,h),h}var v=(m.f&Fe)===0&&!Ye&&S!==null&&(S.f&Fe)!==0,_=(m.f&Pe)===0;if(er(m)){if(v)m.f|=Fe;Ni(m)}if(v&&!_)Ri(m),nl(m)}if($e?.has(e))return $e.get(e);if((e.f&nt)!==0)throw e.v;return e.v}function nl(e){if(e.f|=Fe,e.deps===null)return;for(let r of e.deps){var t=r.reactions;if(t===null)r.reactions=[e];else if(!Mt.call(t,e))t.push(e);if((r.f&te)!==0&&(r.f&Fe)===0)Ri(r),nl(r)}}function ol(e){if(e.v===X)return!0;if(e.deps===null)return!1;for(let t of e.deps){if(ft.has(t))return!0;if((t.f&te)!==0&&ol(t))return!0}return!1}function J(e){var t=Ye;try{return Ye=!0,e()}finally{Ye=t}}var Kf=["allowfullscreen","async","autofocus","autoplay","checked","controls","default","disabled","formnovalidate","indeterminate","inert","ismap","loop","multiple","muted","nomodule","novalidate","open","playsinline","readonly","required","reversed","seamless","selected","webkitdirectory","defer","disablepictureinpicture","disableremoteplayback"];var M_=[...Kf,"formNoValidate","isMap","noModule","playsInline","readOnly","value","volume","defaultValue","defaultChecked","srcObject","noValidate","allowFullscreen","disablePictureInPicture","disableRemotePlayback"];var Wf=["touchstart","touchmove"];function il(e){return Wf.includes(e)}var Xf=["$state","$state.raw","$derived","$derived.by"],L_=[...Xf,"$state.eager","$state.snapshot","$props","$props.id","$bindable","$effect","$effect.pre","$effect.tracking","$effect.root","$effect.pending","$inspect","$inspect().with","$inspect.trace","$host"];var Kr=Symbol("events"),Gi=new Set,lo=new Set;function qi(e){if(!w)return;e.removeAttribute("onload"),e.removeAttribute("onerror");let t=e.__e;if(t!==void 0)e.__e=void 0,queueMicrotask(()=>{if(e.isConnected)e.dispatchEvent(t)})}function ll(e,t,r,n={}){function o(i){if(!n.capture)co.call(t,i);if(!i.cancelBubble)return Ze(()=>r?.call(this,i))}if(e.startsWith("pointer")||e.startsWith("touch")||e==="wheel")o.__removed=!1,ue(()=>{if(!o.__removed)t.addEventListener(e,o,n)});else t.addEventListener(e,o,n);return o}function $t(e,t,r,n,o){var i={capture:n,passive:o},a=ll(e,t,r,i);if(t===document.body||t===window||t===document||t instanceof HTMLMediaElement)be(()=>{a.__removed=!0,t.removeEventListener(e,a,i)})}function z(e,t,r){(t[Kr]??={})[e]=r}function fo(e){for(var t=0;t<e.length;t++)Gi.add(e[t]);for(var r of lo)r(e)}var Vi=null,Ui=!1;function co(e){var t=this,r=t.ownerDocument,n=e.type,o=e.composedPath?.()||[],i=o[0]||e.target;if(Vi=e,!Ui)Ui=!0,setTimeout(()=>{Ui=!1,Vi=null});var a=0,f=Vi===e&&e[Kr];if(f){var c=o.indexOf(f);if(c!==-1&&(t===document||t===window)){e[Kr]=t;return}var m=o.indexOf(t);if(m===-1)return;if(c<=m)a=c}if(i=o[a]||e.target,i===t)return;me(e,"currentTarget",{configurable:!0,get(){return i||r}});var h=S,v=k;de(null),_e(null);try{var _,d=[];while(i!==null){if(i===t)break;try{var y=i[Kr]?.[n];if(y!=null&&(!i.disabled||e.target===i))y.call(i,e)}catch(R){if(_)d.push(R);else _=R}if(e.cancelBubble)break;a++,i=a<o.length?o[a]:null}if(_){for(let R of d)queueMicrotask(()=>{throw R});throw _}}finally{e[Kr]=t,delete e.currentTarget,de(h),_e(v)}}var Jf=globalThis?.window?.trustedTypes&&globalThis.window.trustedTypes.createPolicy("svelte-trusted-html",{createHTML:(e)=>e});function fl(e){return Jf?.createHTML(e)??e}function uo(e){var t=Ct("template");return t.innerHTML=fl(e.replaceAll("<!>","<!---->")),t.content}function Me(e,t){var r=k;if(r.nodes===null)r.nodes={start:e,end:t,a:null,t:null}}function re(e,t){var r=(t&gi)!==0,n=(t&Qa)!==0,o,i=!e.startsWith("<!>");return()=>{if(w)return Me(C,null),C;if(o===void 0){if(o=uo(i?e:"<!>"+e),!r)o=ie(o)}var a=n||xn?document.importNode(o,!0):o.cloneNode(!0);if(r){var f=ie(a),c=a.lastChild;Me(f,c)}else Me(a,a);return a}}function tc(e,t,r="svg"){var n=!e.startsWith("<!>"),o=(t&gi)!==0,i=`<${r}>${n?e:"<!>"+e}</${r}>`,a;return()=>{if(w)return Me(C,null),C;if(!a){var f=uo(i),c=ie(f);if(o){a=document.createDocumentFragment();while(ie(c))a.appendChild(ie(c))}else a=ie(c)}var m=a.cloneNode(!0);if(o){var h=ie(m),v=m.lastChild;Me(h,v)}else Me(m,m);return m}}function Ki(e,t){return tc(e,t,"svg")}function Vt(e=""){if(!w){var t=se(e+"");return Me(t,t),t}var r=C;if(r.nodeType!==ur)r.before(r=se()),U(r);else bn(r);return Me(r,r),r}function Wi(){if(w)return Me(C,null),C;var e=document.createDocumentFragment(),t=document.createComment(""),r=se();return e.append(t,r),Me(t,r),e}function D(e,t){if(w){var r=k;if((r.f&Pe)===0||r.nodes.end===null)r.nodes.end=C;Oe();return}if(e===null)return;e.before(t)}function cl(e){let t=0,r=De(0),n;if(p)Ie(r,"createSubscriber version");return()=>{if(Jt())l(r),we(()=>{if(t===0)n=J(()=>e(()=>yr(r)));return t+=1,()=>{ue(()=>{if(t-=1,t===0)n?.(),n=void 0,yr(r)})}})}}var rc=Ve|Tt;function Xi(e,t,r,n){new ul(e,t,r,n)}class ul{parent;is_pending=!1;transform_error;#e;#t=w?C:null;#r;#s;#o;#n=null;#a=null;#i=null;#l=null;#d=0;#f=0;#v=!1;#g=new Map;#c=null;#h=cl(()=>{if(this.#c=De(this.#d),p)Ie(this.#c,"$effect.pending()");return()=>{this.#c=null}});constructor(e,t,r,n){if(this.#e=e,this.#r=t,this.#s=(o)=>{var i=k;i.b=this,i.f|=Cr,r(o)},this.parent=k.b,this.transform_error=n??this.parent?.transform_error??((o)=>o),this.#o=tt(()=>{if(w){let o=_r(this.#t);Oe();let i=o===Xt;if(o.startsWith(xi)){let f=JSON.parse(o.slice(xi.length));this.#y(f)}else if(i)this.#_();else this.#x()}else this.#b()},rc),w)this.#e=C}#x(){try{this.#n=ve(()=>this.#s(this.#e))}catch(e){this.error(e)}}#y(e){let t=this.#r.failed,{reset:r,invoke_onerror:n}=this.#m(e);if(ue(n),!t)return;this.#i=ve(()=>{t(this.#e,()=>e,()=>r)})}#m(e){var t=!1,r=!1;let n=()=>{if(this.#u())return;if(t){as();return}if(t=!0,r)ys();if(this.#i!==null)Ot(this.#i,()=>{this.#i=null});this.#$(()=>{this.#b()})};return{reset:n,invoke_onerror:()=>{if(this.#u())return;try{r=!0,this.#r.onerror?.(e,n),r=!1}catch(i){Ue(i,this.#o&&this.#o.parent)}}}}#u(){return(this.#o.f&(W|Lt))!==0}#_(){let e=this.#r.pending;if(!e)return;this.is_pending=!0,this.#a=ve(()=>e(this.#e)),ue(()=>{if(this.#u())return;var t=this.#l=document.createDocumentFragment(),r=se(),n=!1;if(t.append(r),this.#n=this.#$(()=>{try{return ve(()=>this.#s(r))}catch(o){try{this.error(o),n=!0}catch(i){Ue(i,this.#o.parent)}return null}}),this.#n===null){if(this.#l=null,n)this.#p(T);return}if(this.#f===0)this.#e.before(t),this.#l=null,Ot(this.#a,()=>{this.#a=null}),this.#p(T)})}#b(){try{if(this.is_pending=this.has_pending_snippet(),this.#f=0,this.#d=0,this.#n=ve(()=>{this.#s(this.#e)}),this.#f>0){var e=this.#l=document.createDocumentFragment();zr(this.#n,e);let t=this.#r.pending;this.#a=ve(()=>t(this.#e))}else this.#p(T)}catch(t){this.error(t)}}#p(e){this.is_pending=!1,e.transfer_reactions(this.#g)}defer_effect(e){Xn(e,this.#g)}is_rendered(){return!this.is_pending&&(!this.parent||this.parent.is_rendered())}has_pending_snippet(){return!!this.#r.pending}#$(e){var t=k,r=S,n=L;_e(this.#o),de(this.#o),Yt(this.#o.ctx);try{return Ce.ensure(),e()}finally{_e(t),de(r),Yt(n)}}#w(e,t){if(!this.has_pending_snippet()){if(this.parent)this.parent.#w(e,t);return}if(this.#f+=e,this.#f===0){if(this.#p(t),this.#a)Ot(this.#a,()=>{this.#a=null});if(this.#l)this.#e.before(this.#l),this.#l=null}}update_pending_count(e,t){if(this.#w(e,t),this.#d+=e,!this.#c||this.#v)return;this.#v=!0,ue(()=>{if(this.#v=!1,this.#c)bt(this.#c,this.#d)})}get_effect_pending(){return this.#h(),l(this.#c)}error(e){if(e===Xe)throw e;if(!this.#r.onerror&&!this.#r.failed)throw e;if(T?.is_fork){if(this.#n)T.skip_effect(this.#n);if(this.#a)T.skip_effect(this.#a);if(this.#i)T.skip_effect(this.#i);T.oncommit(()=>{if(!this.#u())this.#E(e)})}else this.#E(e)}#E(e){if(this.#n)ae(this.#n),this.#n=null;if(this.#a)ae(this.#a),this.#a=null;if(this.#i)ae(this.#i),this.#i=null;if(w)U(this.#t),at(),U(At());let t=this.#r.failed,r=(n)=>{if(this.#u())return;let{reset:o,invoke_onerror:i}=this.#m(n);if(i(),t&&!this.#u())this.#i=this.#$(()=>{try{return ve(()=>{var a=k;a.b=this,a.f|=Cr,t(this.#e,()=>n,()=>o)})}catch(a){return Ue(a,this.#o.parent),null}})};ue(()=>{if(this.#u())return;var n;try{n=this.transform_error(e)}catch(o){Ue(o,this.#o&&this.#o.parent);return}if(n!==null&&typeof n==="object"&&typeof n.then==="function")n.then(r,(o)=>Ue(o,this.#o&&this.#o.parent));else r(n)})}}var Zi=!0;function M(e,t){var r=t==null?"":typeof t==="object"?`${t}`:t;if(r!==(e[ln]??=e.nodeValue))e[ln]=r,e.nodeValue=`${r}`}function Wr(e,t){return pl(e,t)}function Qi(e,t){ao(),t.intro=t.intro??!1;let r=t.target,n=w,o=C;try{var i=ie(r);while(i&&(i.nodeType!==ot||i.data!==Or))i=xe(i);if(!i)throw Xe;pe(!0),U(i);let a=pl(e,{...t,anchor:i});return pe(!1),a}catch(a){if(a instanceof Error&&a.message.split(`
-`).some((f)=>f.startsWith("https://svelte.dev/e/")))throw a;if(a!==Xe)console.warn("Failed to hydrate: ",a);if(t.recover===!1)hs();return ao(),pn(r),pe(!1),Wr(e,t)}finally{pe(n),U(o)}}var po=new Map;function pl(e,{target:t,anchor:r,props:n={},events:o,context:i,intro:a=!0,transformError:f}){ao();var c=void 0,m=Ks(()=>{var h=r??t.appendChild(se());Xi(h,{pending:()=>{}},(d)=>{cn({});var y=L;if(i)y.c=i;if(o)n.$$events=o;if(w)Me(d,null);if(Zi=a,c=e(d,n)||Wn(),Zi=!0,w){if(k.nodes.end=C,C===null||C.nodeType!==ot||C.data!==pr)throw dr(),Xe}un()},f);var v=new Set,_=(d)=>{for(var y=0;y<d.length;y++){var R=d[y];if(v.has(R))continue;v.add(R);var b=il(R);for(let Q of[t,document]){var j=po.get(Q);if(j===void 0)j=new Map,po.set(Q,j);var Y=j.get(R);if(Y===void 0)Q.addEventListener(R,co,{passive:b}),j.set(R,1);else j.set(R,Y+1)}}};return _(Nr(Gi)),lo.add(_),()=>{for(var d of v)for(let b of[t,document]){var y=po.get(b),R=y.get(d);if(--R==0){if(b.removeEventListener(d,co),y.delete(d),y.size===0)po.delete(b)}else y.set(d,R)}if(lo.delete(_),h!==r)h.parentNode?.removeChild(h)}});return Ji.set(c,m),c}var Ji=new WeakMap;function ea(e,t){let r=Ji.get(e);if(r)return Ji.delete(e),r(t);if(p)os();return Promise.resolve()}class rr{anchor;#e=new Map;#t=new Map;#r=new Map;#s=new Set;#o=!0;constructor(e,t=!0){this.anchor=e,this.#o=t}#n=(e)=>{if(!this.#e.has(e))return;var t=this.#e.get(e),r=this.#t.get(t);if(r)qr(r),this.#s.delete(t);else{var n=this.#r.get(t);if(n){if(qr(n.effect),this.#t.set(t,n.effect),this.#r.delete(t),p)n.fragment.lastChild[vi]=this.anchor;n.fragment.lastChild.remove(),this.anchor.before(n.fragment),r=n.effect}}for(let[o,i]of this.#e){if(this.#e.delete(o),o===e)break;let a=this.#r.get(i);if(a)ae(a.effect),this.#r.delete(i)}for(let[o,i]of this.#t){if(o===t||this.#s.has(o))continue;let a=()=>{if(Array.from(this.#e.values()).includes(o)){var c=document.createDocumentFragment();zr(i,c),c.append(se()),this.#r.set(o,{effect:i,fragment:c})}else ae(i);this.#s.delete(o),this.#t.delete(o)};if(this.#o||!r)this.#s.add(o),Ot(i,a,!1);else a()}};#a=(e)=>{this.#e.delete(e);let t=Array.from(this.#e.values());for(let[r,n]of this.#r)if(!t.includes(r))ae(n.effect),this.#r.delete(r)};ensure(e,t){var r=T,n=so();if(t&&!this.#t.has(e)&&!this.#r.has(e))if(n){var o=document.createDocumentFragment(),i=se();o.append(i),this.#r.set(e,{effect:ve(()=>t(i)),fragment:o})}else this.#t.set(e,ve(()=>t(this.anchor)));if(this.#e.set(r,e),n){for(let[a,f]of this.#t)if(a===e)r.unskip_effect(f);else r.skip_effect(f);for(let[a,f]of this.#r)if(a===e)r.unskip_effect(f.effect);else r.skip_effect(f.effect);r.oncommit(this.#n),r.ondiscard(this.#a)}else{if(w)this.anchor=C;this.#n(r)}}}function ne(e,t,r=!1){var n;if(w)n=C,Oe();var o=new rr(e),i=r?Ve:0;function a(f,c){if(w){var m=_r(n);if(f!==parseInt(m.substring(1))){var h=At();U(h),o.anchor=h,pe(!1),o.ensure(f,c),pe(!0);return}}o.ensure(f,c)}tt(()=>{var f=!1;if(t((c,m=0)=>{f=!0,a(m,c)}),!f)a(-1,null)},i)}var um=Symbol("NaN");function ra(e,t){return t}function oc(e,t,r){var n=[],o=t.length,i,a=t.length;for(var f=0;f<o;f++){let v=t[f];Ot(v,()=>{if(i){if(i.pending.delete(v),i.done.add(v),i.pending.size===0){var _=e.outrogroups;if(ta(e,Nr(i.done)),_.delete(i),_.size===0)e.outrogroups=null}}else a-=1},!1)}if(a===0){var c=n.length===0&&r!==null&&e.pending.size===0;if(c){var m=r,h=m.parentNode;pn(h),h.append(m),e.items.clear()}ta(e,t,!c)}else i={pending:new Set(t),done:new Set},(e.outrogroups??=new Set).add(i)}function ta(e,t,r=!0){var n;if(e.pending.size>0){n=new Set;for(let a of e.pending.values())for(let f of a)n.add(e.items.get(f).e)}for(var o=0;o<t.length;o++){var i=t[o];if(n?.has(i)){i.f|=ht;let a=document.createDocumentFragment();zr(i,a)}else ae(t[o],r)}}var dl;function or(e,t,r,n,o,i=null){var a=e,f=new Map,c=(t&mi)!==0;if(c){var m=e;a=w?U(ie(m)):m.appendChild(se())}if(w)Oe();var h=null,v=Fr(()=>{var Y=r();return vt(Y)?Y:Y==null?[]:Nr(Y)});if(p)Ie(v,"{#each ...}");var _=new Map,d=!0;function y(Y){if((j.effect.f&W)!==0)return;j.pending.delete(Y);var Q=l(v);if(j.fallback=h,ic(j,Q,a,t,n),h!==null)if(Q.length===0)if((h.f&ht)===0)qr(h);else h.f^=ht,wn(h,null,a);else Ot(h,()=>{h=null})}function R(Y){j.pending.delete(Y)}var b=tt(()=>{var Y=l(v),Q=Y.length;let le=!1;if(w){var pt=_r(a)===Xt;if(pt!==(Q===0))a=At(),U(a),pe(!1),le=!0}var Ee=new Set,ke=T,wt=so();for(var Le=0;Le<Q;Le+=1){if(w&&C.nodeType===ot&&C.data===pr)a=C,le=!0,pe(!1);var qe=Y[Le],Gt=n(qe,Le);if(p){var ar=n(qe,Le);if(Gt!==ar)us(String(Le),String(Gt),String(ar))}var dt=d?null:f.get(Gt);if(dt){if(dt.v)bt(dt.v,qe);if(dt.i)bt(dt.i,Le);if(wt)ke.unskip_effect(dt.e)}else{if(dt=ac(f,d?a:dl??=se(),qe,Gt,Le,o,t,r),!d)dt.e.f|=ht;f.set(Gt,dt)}Ee.add(Gt)}if(Q===0&&i&&!h)if(d)h=ve(()=>i(a));else h=ve(()=>i(dl??=se())),h.f|=ht;if(Q>Ee.size)if(p)sc(Y,n);else wi("","","");if(w&&Q>0)U(At());if(!d)if(_.set(ke,Ee),wt){for(let[kn,Jr]of f)if(!Ee.has(kn))ke.skip_effect(Jr.e);ke.oncommit(y),ke.ondiscard(R)}else y(ke);if(le)pe(!0);l(v)}),j={effect:b,flags:t,items:f,pending:_,outrogroups:null,fallback:h};if(d=!1,w)a=C}function $n(e){while(e!==null&&(e.f&ge)===0)e=e.next;return e}function ic(e,t,r,n,o){var i=(n&Za)!==0,a=t.length,f=e.items,c=$n(e.effect.first),m,h=null,v,_=[],d=[],y,R,b,j;if(i){for(j=0;j<a;j+=1)if(y=t[j],R=o(y,j),b=f.get(R).e,(b.f&ht)===0)b.nodes?.a?.measure(),(v??=new Set).add(b)}for(j=0;j<a;j+=1){if(y=t[j],R=o(y,j),b=f.get(R).e,e.outrogroups!==null)for(let qe of e.outrogroups)qe.pending.delete(b),qe.done.delete(b);if((b.f&fe)!==0){if(qr(b),i)b.nodes?.a?.unfix(),(v??=new Set).delete(b)}if((b.f&ht)!==0)if(b.f^=ht,b===c)wn(b,null,r);else{var Y=h?h.next:c;if(b===e.effect.last)e.effect.last=b.prev;if(b.prev)b.prev.next=b.next;if(b.next)b.next.prev=b.prev;nr(e,h,b),nr(e,b,Y),wn(b,Y,r),h=b,_=[],d=[],c=$n(h.next);continue}if(b!==c){if(m!==void 0&&m.has(b)){if(_.length<d.length){var Q=d[0],le;h=Q.prev;var pt=_[0],Ee=_[_.length-1];for(le=0;le<_.length;le+=1)wn(_[le],Q,r);for(le=0;le<d.length;le+=1)m.delete(d[le]);nr(e,pt.prev,Ee.next),nr(e,h,pt),nr(e,Ee,Q),c=Q,h=Ee,j-=1,_=[],d=[]}else m.delete(b),wn(b,c,r),nr(e,b.prev,b.next),nr(e,b,h===null?e.effect.first:h.next),nr(e,h,b),h=b;continue}_=[],d=[];while(c!==null&&c!==b)(m??=new Set).add(c),d.push(c),c=$n(c.next);if(c===null)continue}if((b.f&ht)===0)_.push(b);h=b,c=$n(b.next)}if(e.outrogroups!==null){for(let qe of e.outrogroups)if(qe.pending.size===0)ta(e,Nr(qe.done)),e.outrogroups?.delete(qe);if(e.outrogroups.size===0)e.outrogroups=null}if(c!==null||m!==void 0){var ke=[];if(m!==void 0){for(b of m)if((b.f&fe)===0)ke.push(b)}while(c!==null){if((c.f&fe)===0&&c!==e.fallback)ke.push(c);c=$n(c.next)}var wt=ke.length;if(wt>0){var Le=(n&mi)!==0&&a===0?r:null;if(i){for(j=0;j<wt;j+=1)ke[j].nodes?.a?.measure();for(j=0;j<wt;j+=1)ke[j].nodes?.a?.fix()}oc(e,ke,Le)}}if(i)ue(()=>{if(v===void 0)return;for(b of v)b.nodes?.a?.apply()})}function ac(e,t,r,n,o,i,a,f){var c=(a&Wa)!==0?(a&Ja)===0?br(r,!1,!1):De(r):null,m=(a&Xa)!==0?De(o):null;if(p&&c)c.trace=()=>{f()[m?.v??o]};return{v:c,i:m,e:ve(()=>(i(t,c??r,m??o,f),()=>{e.delete(n)}))}}function wn(e,t,r){if(!e.nodes)return;var n=e.nodes.start,o=e.nodes.end,i=t&&(t.f&ht)===0?t.nodes.start:r;while(n!==null){var a=xe(n);if(i.before(n),n===o)return;n=a}}function nr(e,t,r){if(t===null)e.effect.first=r;else t.next=r;if(r===null)e.effect.last=t;else r.prev=t}function sc(e,t){let r=new Map,n=e.length;for(let o=0;o<n;o++){let i=t(e[o],o);if(r.has(i)){let a=String(r.get(i)),f=String(o),c=String(i);if(c.startsWith("[object "))c=null;wi(a,f,c)}r.set(i,o)}}var vl=[...` 	
-\r\f \v\uFEFF`];function hl(e,t,r){var n=e==null?"":""+e;if(t)n=n?n+" "+t:t;if(r){for(var o of Object.keys(r))if(r[o])n=n?n+" "+o:o;else if(n.length){var i=o.length,a=0;while((a=n.indexOf(o,a))>=0){var f=a+i;if((a===0||vl.includes(n[a-1]))&&(f===n.length||vl.includes(n[f])))n=(a===0?"":n.substring(0,a))+n.substring(f+1);else a=f}}}return n===""?null:n}function ir(e,t,r,n,o,i){var a=e[sn];if(w||a!==r||a===void 0){var f=hl(r,n,i);if(!w||f!==e.getAttribute("class"))if(f==null)e.removeAttribute("class");else if(t)e.className=f;else e.setAttribute("class",f);e[sn]=r}else if(i&&o!==i)for(var c in i){var m=!!i[c];if(o==null||m!==!!o[c])e.classList.toggle(c,m)}return i}function na(e,t){if(t){if(!e.hasAttribute("selected"))e.setAttribute("selected","")}else e.removeAttribute("selected")}function dc(e,t){var{__defaultValue:r,multiple:n}=e,o=n?r??[]:null;if(n&&!vt(o))return;var i=e.selectedIndex,a=t&&n?new Set(e.selectedOptions):null;for(var f of e.options){var c=Xr(f);na(f,n?o.includes(c):io(c,r))}if(!t)return;if(a!==null)for(f of e.options){var m=a.has(f);if(f.selected!==m)f.selected=m}else if(e.selectedIndex!==i)e.selectedIndex=i}function Zr(e,t,r=!1){if(e.multiple){if(t==null)return;if(!vt(t))return is();for(var n of e.options)n.selected=t.includes(Xr(n));return}for(n of e.options){var o=Xr(n);if(io(o,t)){n.selected=!0;return}}if(!r||t!==void 0)e.selectedIndex=-1}function Er(e){var t=new MutationObserver((r)=>{if(r.every(_c))return;if("__defaultValue"in e)dc(e,!1);if("__value"in e)Zr(e,e.__value)});t.observe(e,{childList:!0,subtree:!0,attributes:!0,attributeFilter:["value"]}),be(()=>{t.disconnect()})}function En(e,t,r=t){var n=new WeakSet,o=!0;dn(e,"change",(i)=>{var a=i?"[selected]":":checked",f;if(e.multiple)f=[].map.call(e.querySelectorAll(a),Xr);else{var c=e.querySelector(a)??e.querySelector("option:not([disabled])");f=c&&Xr(c)}if(r(f),e.__value=f,T!==null)n.add(T)}),et(()=>{var i=t();if(e===document.activeElement){var a=ce?Je:T;if(n.has(a))return}if(Zr(e,i,o),o&&i===void 0){var f=e.querySelector(":checked");if(f!==null)i=Xr(f),r(i)}e.__value=i,o=!1})}function Xr(e){if("__value"in e)return e.__value;else return e.value}function _c(e){if(e.target.closest("selectedcontent")!==null)return!0;if(e.type==="childList"){var t=[...e.addedNodes,...e.removedNodes];return t.length>0&&t.every((r)=>r.nodeName==="SELECTEDCONTENT")}return!1}var xc=Symbol("class"),bc=Symbol("style"),yc=Symbol("is custom element"),$c=Symbol("is html"),wc=hi?"link":"LINK";function ut(e){if(!w)return;var t=!1,r=()=>{if(t)return;if(t=!0,e.hasAttribute("value")){var n=e.value;rt(e,"value",null),e.value=n}if(e.hasAttribute("checked")){var o=e.checked;rt(e,"checked",null),e.checked=o}};e[Wt]=r,ue(r),Zn()}function _o(e,t){var r=bl(e);if(r.checked===(r.checked=t??void 0))return;e.checked=t}function rt(e,t,r,n){var o=bl(e);if(w){if(o[t]=e.getAttribute(t),t==="src"||t==="srcset"||t==="href"&&e.nodeName===wc){if(!n)kc(e,t,r??"");return}}var i=o[t];if(i===(o[t]=r))return;if(t==="loading")e[Ka]=r;if(r==null)e.removeAttribute(t);else if(typeof r!=="string"&&Ec(e).has(t))e[t]=r;else if(!(w&&(typeof r==="number"||typeof r==="boolean")&&i===String(r)))e.setAttribute(t,r)}function bl(e){return e[Bn]??={[yc]:e.nodeName.includes("-"),[$c]:e.namespaceURI===Yn}}var ml=new Map;function Ec(e){var t=e.getAttribute("is")||e.nodeName,r=ml.get(t);if(r)return r;ml.set(t,r=new Set);var n,o=e,i=Element.prototype;while(i!==o){n=fi(o);for(var a in n)if(n[a].set&&a!=="innerHTML"&&a!=="textContent"&&a!=="innerText")r.add(a);o=Rr(o)}return r}function kc(e,t,r){if(!p)return;if(t==="srcset"&&Tc(e,r))return;if(oa(e.getAttribute(t)??"",r))return;ns(t,e.outerHTML.replace(e.innerHTML,e.innerHTML&&"..."),String(r))}function oa(e,t){if(e===t)return!0;return new URL(e,document.baseURI).href===new URL(t,document.baseURI).href}function gl(e){return e.split(",").map((t)=>t.trim().split(" ").filter(Boolean))}function Tc(e,t){var r=gl(e.srcset),n=gl(t);return n.length===r.length&&n.every(([o,i],a)=>i===r[a][1]&&(oa(r[a][0],o)||oa(o,r[a][0])))}function Ut(e,t,r=t){var n=new WeakSet;if(dn(e,"input",async(o)=>{if(p&&e.type==="checkbox")$i();var i=o?e.defaultValue:e.value;if(i=ia(e)?aa(i):i,r(i),T!==null)n.add(T);if(await yn(),i!==(i=t())){var{selectionStart:a,selectionEnd:f}=e,c=e.value.length;if(e.value=i??"",f!==null){var m=e.value.length;if(a===f&&f===c&&m>c)e.selectionStart=m,e.selectionEnd=m;else e.selectionStart=a,e.selectionEnd=Math.min(f,m)}}}),w&&e.defaultValue!==e.value||J(t)==null&&e.value){if(r(ia(e)?aa(e.value):e.value),T!==null)n.add(T)}we(()=>{if(p&&e.type==="checkbox")$i();var o=t();if(e===document.activeElement){var i=ce?Je:T;if(n.has(i))return}if(ia(e)&&o===aa(e.value))return;if(e.type==="date"&&!o&&!e.value)return;if(o!==e.value)e.value=o??""})}function sa(e,t,r=t){if(dn(e,"change",(n)=>{var o=n?e.defaultChecked:e.checked;r(o)}),w&&e.defaultChecked!==e.checked||J(t)==null)r(e.checked);we(()=>{var n=t();e.checked=Boolean(n)})}function ia(e){var t=e.type;return t==="number"||t==="range"}function aa(e){return e===""?null:+e}var Ny=Symbol("unmounted");function yl(e){return new $l(e)}class $l{#e;#t;constructor(e){var t=new Map,r=(o,i)=>{var a=br(i,!1,!1);return t.set(o,a),a};let n=new Proxy({...e.props||{},$$events:{}},{get(o,i){return l(t.get(i)??r(i,Reflect.get(o,i)))},has(o,i){if(i===Fn)return!0;return l(t.get(i)??r(i,Reflect.get(o,i))),Reflect.has(o,i)},set(o,i,a){return N(t.get(i)??r(i,a),a),Reflect.set(o,i,a)}});if(this.#t=(e.hydrate?Qi:Wr)(e.component,{target:e.target,anchor:e.anchor,props:n,context:e.context,intro:e.intro??!1,recover:e.recover,transformError:e.transformError}),!ce&&(!e?.props?.$$host||e.sync===!1))Qt();this.#e=n.$$events;for(let o of Object.keys(this.#t)){if(o==="$set"||o==="$destroy"||o==="$on")continue;me(this,o,{get(){return this.#t[o]},set(i){this.#t[o]=i},enumerable:!0})}this.#t.$set=(o)=>{Object.assign(n,o)},this.#t.$destroy=()=>{ea(this.#t)}}$set(e){this.#t.$set(e)}$on(e,t){this.#e[e]=this.#e[e]||[];let r=(...n)=>t.call(this,...n);return this.#e[e].push(r),()=>{this.#e[e]=this.#e[e].filter((n)=>n!==r)}}$destroy(){this.#t.$destroy()}}var Mc;if(typeof HTMLElement==="function")Mc=class extends HTMLElement{$$ctor;$$s;$$c;$$cn=!1;$$d={};$$r=!1;$$p_d={};$$l={};$$l_u=new Map;$$me;$$shadowRoot=null;constructor(e,t,r){super();if(this.$$ctor=e,this.$$s=t,r)this.$$shadowRoot=this.attachShadow(r)}addEventListener(e,t,r){if(this.$$l[e]=this.$$l[e]||[],this.$$l[e].push(t),this.$$c){let n=this.$$c.$on(e,t);this.$$l_u.set(t,n)}super.addEventListener(e,t,r)}removeEventListener(e,t,r){if(super.removeEventListener(e,t,r),this.$$c){let n=this.$$l_u.get(t);if(n)n(),this.$$l_u.delete(t)}}async connectedCallback(){if(this.$$cn=!0,!this.$$c){let e=function(n){return(o)=>{let i=Ct("slot");if(n!=="default")i.name=n;D(o,i)}};if(await Promise.resolve(),!this.$$cn||this.$$c)return;let t={},r=Lc(this);for(let n of this.$$s)if(n in r)if(n==="default"&&!this.$$d.children)this.$$d.children=e(n),t.default=!0;else t[n]=e(n);for(let n of this.attributes){let o=this.$$g_p(n.name);if(!(o in this.$$d))this.$$d[o]=fa(o,n.value,this.$$p_d,"toProp")}for(let n in this.$$p_d)if(!(n in this.$$d)&&this[n]!==void 0)this.$$d[n]=this[n],delete this[n];this.$$c=yl({component:this.$$ctor,target:this.$$shadowRoot||this,props:{...this.$$d,$$slots:t,$$host:this}}),this.$$me=Yi(()=>{we(()=>{this.$$r=!0;for(let n of li(this.$$c)){if(!this.$$p_d[n]?.reflect)continue;this.$$d[n]=this.$$c[n];let o=fa(n,this.$$d[n],this.$$p_d,"toAttribute");if(o==null)this.removeAttribute(this.$$p_d[n].attribute||n);else this.setAttribute(this.$$p_d[n].attribute||n,o)}this.$$r=!1})});for(let n in this.$$l)for(let o of this.$$l[n]){let i=this.$$c.$on(n,o);this.$$l_u.set(o,i)}this.$$l={}}}attributeChangedCallback(e,t,r){if(this.$$r)return;e=this.$$g_p(e),this.$$d[e]=fa(e,r,this.$$p_d,"toProp"),this.$$c?.$set({[e]:this.$$d[e]})}disconnectedCallback(){this.$$cn=!1,Promise.resolve().then(()=>{if(!this.$$cn&&this.$$c)this.$$c.$destroy(),this.$$me(),this.$$c=void 0})}$$g_p(e){return li(this.$$p_d).find((t)=>this.$$p_d[t].attribute===e||!this.$$p_d[t].attribute&&t.toLowerCase()===e)||e}};function fa(e,t,r,n){let o=r[e]?.type;if(t=o==="Boolean"&&typeof t!=="boolean"?t!=null:t,!n||!r[e])return t;else if(n==="toAttribute")switch(o){case"Object":case"Array":return t==null?null:JSON.stringify(t);case"Boolean":return t?"":null;case"Number":return t==null?null:t;default:return t}else switch(o){case"Object":case"Array":return t&&JSON.parse(t);case"Boolean":return t;case"Number":return t!=null?+t:t;default:return t}}function Lc(e){let t={};return e.childNodes.forEach((r)=>{t[r.slot||"default"]=!0}),t}if(p){let e=function(t){if(!(t in globalThis)){let r;Object.defineProperty(globalThis,t,{configurable:!0,get:()=>{if(r!==void 0)return r;ms(t)},set:(n)=>{r=n}})}};e("$state"),e("$effect"),e("$derived"),e("$inspect"),e("$props"),e("$bindable")}function wl(e){if(L===null)Gn("onMount");if(Zt&&L.l!==null)Yc(L).m.push(e);else Gr(()=>{let t=J(e);if(typeof t==="function")return t})}function Yc(e){var t=e.l;return t.u??={a:[],b:[],m:[]}}var El="5";if(typeof window<"u")((window.__svelte??={}).v??=new Set).add(El);var Hc=re('<br class="svelte-1xjvnya8h1aa3"/> ',1),Vc=re('<p class="waktu svelte-1xjvnya8h1aa3"> <!></p>'),Uc=re('<span class="svelte-1xjvnya8h1aa3"> </span>'),Gc=re('<div class="peringatan svelte-1xjvnya8h1aa3"></div>'),kr=re('<p class="ket svelte-1xjvnya8h1aa3"> </p>'),qc=re('<img alt=""/> <!>',1),zc=re('<button class="stop svelte-1xjvnya8h1aa3"> </button>'),Kc=re("<button> </button>"),Wc=re('<button class="aktif-jelajah svelte-1xjvnya8h1aa3"> </button>'),Xc=re('<select aria-label="Lama jelajah" class="svelte-1xjvnya8h1aa3"><option class="svelte-1xjvnya8h1aa3">5 menit</option><option class="svelte-1xjvnya8h1aa3">10 menit</option><option class="svelte-1xjvnya8h1aa3">15 menit</option><option class="svelte-1xjvnya8h1aa3">30 menit</option></select> <button class="svelte-1xjvnya8h1aa3">Jelajah sendiri</button>',1),kl=re('<small class="svelte-1xjvnya8h1aa3"> </small>'),Zc=Ki('<line x1="0" class="svelte-1xjvnya8h1aa3"></line><text x="2" class="svelte-1xjvnya8h1aa3"> </text>',1),Jc=re('<svg class="grafik svelte-1xjvnya8h1aa3" role="img"><!><path class="svelte-1xjvnya8h1aa3"></path></svg> <div class="sumbu svelte-1xjvnya8h1aa3"><span class="svelte-1xjvnya8h1aa3"> </span><span class="svelte-1xjvnya8h1aa3">sekarang</span></div>',1),Qc=re('<p class="ket svelte-1xjvnya8h1aa3">Grafik muncul setelah robot menyala 2 menit (satu titik per menit, paling lama 6 jam).</p>'),eu=re(" <!>",1),tu=re('<li class="svelte-1xjvnya8h1aa3"><b class="svelte-1xjvnya8h1aa3"> </b> <span class="svelte-1xjvnya8h1aa3"> <small class="svelte-1xjvnya8h1aa3"> </small></span> <button class="hapus svelte-1xjvnya8h1aa3">✕</button></li>'),ru=re('<ul class="alarm svelte-1xjvnya8h1aa3"></ul>'),nu=re('<label class="svelte-1xjvnya8h1aa3"><input type="checkbox" class="svelte-1xjvnya8h1aa3"/> </label>'),ou=re('<div class="hari svelte-1xjvnya8h1aa3"></div>'),iu=re('<button><b class="svelte-1xjvnya8h1aa3"> </b> <span class="svelte-1xjvnya8h1aa3"> </span></button>'),au=re('<p class="status svelte-1xjvnya8h1aa3"> </p>'),su=re('<main class="svelte-1xjvnya8h1aa3"><header class="svelte-1xjvnya8h1aa3"><h1 class="svelte-1xjvnya8h1aa3"> </h1> <span></span> <span class="kecil svelte-1xjvnya8h1aa3"><!></span></header> <!> <!> <section class="bicara svelte-1xjvnya8h1aa3"><button> </button> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Ketuk, lalu bicara ke mikrofon robot. Robot berhenti merekam saat kamu diam (paling lama 6 detik).</p> <label class="saklar svelte-1xjvnya8h1aa3"><input type="checkbox" class="svelte-1xjvnya8h1aa3"/> </label></section> <section class="kamera svelte-1xjvnya8h1aa3"><!> <button class="kecil-btn svelte-1xjvnya8h1aa3"> </button></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Gerak <small class="svelte-1xjvnya8h1aa3">tahan untuk jalan, lepas untuk berhenti</small></h2> <div class="dpad svelte-1xjvnya8h1aa3"></div> <label class="svelte-1xjvnya8h1aa3"> <input type="range" min="100" max="255" class="svelte-1xjvnya8h1aa3"/></label> <div class="baris belok svelte-1xjvnya8h1aa3"><button class="svelte-1xjvnya8h1aa3">⟲ 90° kiri</button> <button class="svelte-1xjvnya8h1aa3">↻ balik</button> <button class="svelte-1xjvnya8h1aa3">90° kanan ⟳</button></div> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Belok tepat memakai giroskop di badan; sudutnya tidak berubah walau baterai melemah.</p> <div class="baris jelajah svelte-1xjvnya8h1aa3"><!></div> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Maju sampai ada halangan, lalu belok ke arah acak. Berhenti sendiri kalau waktunya habis, baterai tinggal 10%, atau tombol STOP ditekan. Tombol arah juga menghentikannya.</p></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Baterai <!></h2> <!> <p class="ket kecil-ket svelte-1xjvnya8h1aa3"><!> Peringatan dikirim ke Telegram saat tinggal 20% dan 10%.</p></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Kepala</h2> <label class="svelte-1xjvnya8h1aa3"> <input type="range" min="-60" max="60" class="svelte-1xjvnya8h1aa3"/></label> <label class="svelte-1xjvnya8h1aa3"> <input type="range" min="40" max="150" class="svelte-1xjvnya8h1aa3"/></label> <button class="kecil-btn svelte-1xjvnya8h1aa3">Lurus ke depan</button></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Musik dan suara</h2> <div class="baris svelte-1xjvnya8h1aa3"><button class="svelte-1xjvnya8h1aa3">Lagu berikutnya</button> <button class="svelte-1xjvnya8h1aa3">Radio berikutnya</button> <button class="svelte-1xjvnya8h1aa3">Diam</button></div> <label class="svelte-1xjvnya8h1aa3"> <input type="range" min="0" max="21" class="svelte-1xjvnya8h1aa3"/></label> <label class="suara svelte-1xjvnya8h1aa3">Suara bicara <select class="svelte-1xjvnya8h1aa3"><option class="svelte-1xjvnya8h1aa3"> </option><option class="svelte-1xjvnya8h1aa3">Google</option></select></label> <p class="ket kecil-ket svelte-1xjvnya8h1aa3"><!></p> <form class="svelte-1xjvnya8h1aa3"><input type="text" placeholder="Suruh Zond bilang..." maxlength="140" class="svelte-1xjvnya8h1aa3"/> <button type="submit" class="svelte-1xjvnya8h1aa3">Bilang</button></form></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Alarm dan pengingat</h2> <!> <form class="form-alarm svelte-1xjvnya8h1aa3"><div class="baris svelte-1xjvnya8h1aa3"><input type="time" required="" class="svelte-1xjvnya8h1aa3"/> <select class="svelte-1xjvnya8h1aa3"><option class="svelte-1xjvnya8h1aa3">Sekali</option><option class="svelte-1xjvnya8h1aa3">Setiap hari</option><option class="svelte-1xjvnya8h1aa3">Senin-Jumat</option><option class="svelte-1xjvnya8h1aa3">Sabtu-Minggu</option><option class="svelte-1xjvnya8h1aa3">Pilih hari</option></select></div> <!> <input type="text" placeholder="Pesan, misalnya: bangun, minum obat" maxlength="79" class="svelte-1xjvnya8h1aa3"/> <div class="baris svelte-1xjvnya8h1aa3"><select class="svelte-1xjvnya8h1aa3"><option class="svelte-1xjvnya8h1aa3">Suara saja</option><option class="svelte-1xjvnya8h1aa3">Suara + radio</option><option class="svelte-1xjvnya8h1aa3">Suara + lagu SD</option></select> <button type="submit" class="svelte-1xjvnya8h1aa3">Pasang</button></div> <!></form> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Alarm sebelum jam 11 siang sekalian menyebut cuaca hari ini. Pengingat juga dikirim ke Telegram.</p></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Fitur kamera AI</h2> <label class="saklar svelte-1xjvnya8h1aa3"><input type="checkbox" class="svelte-1xjvnya8h1aa3"/> Aktifkan "lihat sekeliling" dan "suit". Tiap kali dipakai, foto dikirim ke AI dan memakai jatah AI lebih cepat.</label> <div class="baris svelte-1xjvnya8h1aa3"><button class="svelte-1xjvnya8h1aa3">Lihat sekeliling</button> <button class="svelte-1xjvnya8h1aa3">Main suit</button></div> <!> <!></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Otak AI <!></h2> <div class="ai svelte-1xjvnya8h1aa3"></div> <!> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Kalau pilihanmu gagal (jatah habis atau saldo kosong), robot otomatis memakai yang gratis.</p></section> <!></main>');function lu(e,t){cn(t,!0);let r=P(5);async function n(s){await ee(`/api/jelajah?menit=${s}`),await lr()}function o(s){let u=Math.max(0,s);return`${Math.floor(u/60)}:${String(u%60).padStart(2,"0")}`}let i=P(ct([]));async function a(){let s=await ee("/api/baterai");if(s&&s.ok)N(i,(await s.json()).v,!0)}let f=6.4,c=8.4,m=320,h=120;function v(s){let u=(Math.min(c,Math.max(f,s))-f)/(c-f);return h-4-u*(h-8)}let _=to(()=>{let s=l(i).length;if(s<2)return"";return l(i).map((u,g)=>`${g?"L":"M"}${(g/(s-1)*m).toFixed(1)},${v(u/100).toFixed(1)}`).join("")});function d(s){if(s<60)return`${s} menit`;return`${Math.floor(s/60)} jam${s%60?` ${s%60} menit`:""}`}async function y(s){await ee(`/api/suara?pakai=${s.currentTarget.value}`),await lr()}function R(s){ee(`/api/belok?d=${s}`)}let b=["Min","Sen","Sel","Rab","Kam","Jum","Sab"],j=["suara","radio","lagu SD"],Y=P(ct([])),Q=P("06:00"),le=P("0"),pt=ct([!1,!0,!0,!0,!0,!0,!1]),Ee=P(""),ke=P(0),wt=P("");async function Le(){let s=await ee("/api/alarm");if(s&&s.ok)N(Y,(await s.json()).alarm,!0)}async function qe(s){s.preventDefault();let u=l(le)==="pilih"?pt.reduce((H,B,K)=>B?H|1<<K:H,0):Number(l(le)),g=new URLSearchParams({jam:l(Q),hari:String(u),pesan:l(Ee).trim(),bunyi:String(l(ke))}),I=await ee(`/api/alarm/tambah?${g}`);if(N(wt,!I?"Robot tidak menjawab":I.ok?"":await I.text(),!0),I?.ok)N(Ee,"");await Le()}async function Gt(s){await ee(`/api/alarm/hapus?i=${s}`),await Le()}let ar=P("");async function dt(s){let u=s.currentTarget.checked;await ee(`/api/fiturkamera?on=${u?1:0}`),await lr()}async function kn(s,u){let g=await ee(s);N(ar,!g?"Robot tidak menjawab":g.ok?u:await g.text(),!0),setTimeout(()=>N(ar,""),6000)}let Jr=P(!1);async function Al(){N(Jr,!0),await ee("/api/bicara"),setTimeout(()=>N(Jr,!1),1500)}async function Sl(s){let u=s.currentTarget.checked;await ee(`/api/dengar?on=${u?1:0}`),await lr()}let Nl=[{id:"otomatis",nama:"Otomatis",ket:"gratis: Gemini, lalu Gemma, lalu Groq"},{id:"gemini",nama:"Gemini",ket:"gratis, jatah harian kecil"},{id:"gemma",nama:"Gemma",ket:"gratis, jatah besar"},{id:"groq",nama:"Groq",ket:"gratis, cepat"},{id:"haiku",nama:"Claude Haiku",ket:"berbayar per pemakaian"}],ho=P(""),Qr=P("");async function Rl(s){N(ho,s,!0),N(Qr,"");let u=await ee(`/api/ai?m=${s}`);if(!u)N(Qr,"Robot tidak menjawab");else if(!u.ok)N(Qr,await u.text(),!0);await lr(),N(ho,"")}let E=P(null),It=P(!1),en=P(160),Tr=P(null),Ar=P(0),tn=P(90),rn=P(12),mo=!1,Tn=P(""),sr=P(!0),An=P(!1),ca=P("");async function ee(s,u=1500){let g=new AbortController,I=setTimeout(()=>g.abort(),u);try{return await fetch(s,{signal:g.signal,cache:"no-store"})}catch{return null}finally{clearTimeout(I)}}async function lr(){let s=await ee("/api/status");if(!s||!s.ok){N(It,!1);return}if(N(It,!0),N(E,await s.json(),!0),!mo)N(rn,l(E).vol,!0)}let Cl={maju:[1,1],mundur:[-1,-1],kiri:[-1,1],kanan:[1,-1],majukiri:[0.35,1],majukanan:[1,0.35],mundurkiri:[-0.35,-1],mundurkanan:[-1,-0.35]},Sr=null,go=!1;function ua(){if(!l(Tr)||go)return;let[s,u]=Cl[l(Tr)];go=!0,ee(`/api/gerak?l=${Math.round(s*l(en))}&r=${Math.round(u*l(en))}`,600).finally(()=>go=!1)}function pa(s){if(N(Tr,s,!0),ua(),Sr)clearInterval(Sr);Sr=setInterval(ua,150)}function Dt(){if(Sr)clearInterval(Sr);if(Sr=null,l(Tr))ee("/api/stop");N(Tr,null)}function jl(s,u){s.currentTarget.setPointerCapture(s.pointerId),pa(u)}let da={ArrowUp:"maju",w:"maju",ArrowDown:"mundur",s:"mundur",ArrowLeft:"kiri",a:"kiri",ArrowRight:"kanan",d:"kanan"};function Ol(s){if(s.target.tagName==="INPUT")return;if(s.key===" "){s.preventDefault(),Dt(),ee("/api/stop");return}let u=da[s.key];if(u&&!s.repeat)s.preventDefault(),pa(u)}function Il(s){if(da[s.key])Dt()}let _a=0,xo=null;function bo(){let s=Date.now();if(xo)clearTimeout(xo);let u=()=>{_a=Date.now(),ee(`/api/kepala?p=${90-l(Ar)}&t=${l(tn)}`)};if(s-_a>150)u();else xo=setTimeout(u,150)}function Dl(){N(Ar,0),N(tn,90),bo()}async function Ml(){mo=!0,await ee(`/api/volume?v=${l(rn)}`),setTimeout(()=>mo=!1,1500)}async function Ll(s){s.preventDefault();let u=l(Tn).trim();if(!u)return;N(Tn,""),await ee(`/api/bilang?t=${encodeURIComponent(u)}`,3000)}function Sn(s){setTimeout(()=>{if(!l(sr)||!l(E)?.kamera){if(l(sr))Sn(1000);return}N(ca,`http://${l(E).kamera}/capture?res=vga&t=${Date.now()}`)},s)}function Fl(s){let u=[];if(s&1)u.push("Tombol STOP terkunci");if(s&2)u.push("Baterai lemah");if(s&4)u.push("Halangan depan");if(s&8)u.push("Halangan belakang");if(s&16)u.push("Robot miring");return u}wl(()=>{lr(),Le(),a();let s=setInterval(lr,1000),u=setInterval(Le,30000),g=setInterval(a,60000),I=()=>Dt(),H=()=>document.hidden&&Dt();return window.addEventListener("blur",I),document.addEventListener("visibilitychange",H),()=>{clearInterval(s),clearInterval(u),clearInterval(g),window.removeEventListener("blur",I),document.removeEventListener("visibilitychange",H),Dt()}}),Gr(()=>{if(l(sr))Sn(0)});var yo=su();$t("keydown",Ur,Ol),$t("keyup",Ur,Il);var $o=O(yo),va=O($o),Pl=Z(va,!0),ha=x(va,2);let ma;var ga=x(ha,2),Bl=O(ga);{var Yl=(s)=>{var u=Vt("otak tidak terhubung");D(s,u)},Hl=(s)=>{var u=Vt("badan tidak menjawab");D(s,u)},Vl=(s)=>{var u=Vt();V((g)=>M(u,`${l(E).bateraiPersen>=0?`${l(E).bateraiPersen}% · `:""}${g??""} V · depan ${l(E).depan??""} cm · belakang ${l(E).belakang??""} cm`),[()=>l(E).baterai.toFixed(1)]),D(s,u)};ne(Bl,(s)=>{if(!l(It))s(Yl);else if(!l(E)?.hidup)s(Hl,1);else s(Vl,-1)})}A(ga),A($o);var xa=x($o,2);{var Ul=(s)=>{var u=Vc(),g=O(u),I=x(g);{var H=(B)=>{var K=Hc(),Te=x(Ht(K),1,!0);V(()=>M(Te,l(E).cuaca)),D(B,K)};ne(I,(B)=>{if(l(E).cuaca)B(H)})}A(u),V(()=>M(g,`${l(E).jam??""} · ${l(E).tanggal??""}`)),D(s,u)};ne(xa,(s)=>{if(l(E)?.jam)s(Ul)})}var ba=x(xa,2);{var Gl=(s)=>{var u=Gc();or(u,20,()=>Fl(l(E).flag),(g)=>g,(g,I)=>{var H=Uc(),B=Z(H,!0);V(()=>M(B,I)),D(g,H)}),A(u),D(s,u)};ne(ba,(s)=>{if(l(E)&&l(E).flag)s(Gl)})}var wo=x(ba,2),nn=O(wo);let ya;var ql=Z(nn,!0),$a=x(nn,4),on=O($a);ut(on);var zl=x(on);A($a),A(wo);var Eo=x(wo,2),wa=O(Eo);{var Kl=(s)=>{var u=qc(),g=Ht(u);let I;var H=x(g,2);{var B=(K)=>{var Te=kr(),Ae=Z(Te);V(()=>M(Ae,`Kamera tidak terhubung (${l(E).kamera??""})`)),D(K,Te)};ne(H,(K)=>{if(l(An))K(B)})}V(()=>{rt(g,"src",l(ca)),I=ir(g,1,"svelte-1xjvnya8h1aa3",null,I,{redup:l(An)})}),$t("load",g,()=>{N(An,!1),Sn(100)}),$t("error",g,()=>{N(An,!0),Sn(1500)}),qi(g),D(s,u)},Wl=(s)=>{var u=kr(),g=Z(u,!0);V(()=>M(g,l(E)?.kamera?"Kamera dimatikan":"Alamat kamera belum diketahui")),D(s,u)};ne(wa,(s)=>{if(l(sr)&&l(E)?.kamera)s(Kl);else s(Wl,-1)})}var Ea=x(wa,2),Xl=Z(Ea,!0);A(Eo);var ko=x(Eo,2),Nn=x(O(ko),2);or(Nn,20,()=>[["majukiri","↖"],["maju","▲"],["majukanan","↗"],["kiri","◀"],["stop","■"],["kanan","▶"],["mundurkiri","↙"],["mundur","▼"],["mundurkanan","↘"]],([s,u])=>s,(s,u)=>{var g=to(()=>pi(u,2));let I=()=>l(g)[0],H=()=>l(g)[1];var B=Wi(),K=Ht(B);{var Te=(he)=>{var je=zc(),_t=Z(je,!0);V(()=>M(_t,H())),z("pointerdown",je,()=>{Dt(),ee("/api/stop")}),D(he,je)},Ae=(he)=>{var je=Kc();let _t;var fr=Z(je,!0);V(()=>{_t=ir(je,1,"svelte-1xjvnya8h1aa3",null,_t,{aktif:l(Tr)===I()}),M(fr,H())}),z("pointerdown",je,(si)=>jl(si,I())),z("pointerup",je,Dt),$t("pointercancel",je,Dt),$t("lostpointercapture",je,Dt),D(he,je)};ne(K,(he)=>{if(I()==="stop")he(Te);else he(Ae,-1)})}D(s,B)}),A(Nn);var To=x(Nn,2),ka=O(To),Ta=x(ka);ut(Ta),A(To);var Ao=x(To,2),Aa=O(Ao),Sa=x(Aa,2),Zl=x(Sa,2);A(Ao);var Na=x(Ao,4),Jl=O(Na);{var Ql=(s)=>{var u=Wc(),g=Z(u);V((I)=>M(g,`Berhenti menjelajah (sisa ${I??""})`),[()=>o(l(E).jelajahSisa)]),z("click",u,()=>n(0)),D(s,u)},ef=(s)=>{var u=Xc(),g=Ht(u),I=O(g);I.value=I.__value=5;var H=x(I);H.value=H.__value=10;var B=x(H);B.value=B.__value=15;var K=x(B);K.value=K.__value=30,A(g),Er(g);var Te=x(g,2);V(()=>Te.disabled=!l(It)||!l(E)?.hidup),En(g,()=>l(r),(Ae)=>N(r,Ae)),z("click",Te,()=>n(l(r))),D(s,u)};ne(Jl,(s)=>{if(l(E)?.mode==="jelajah")s(Ql);else s(ef,-1)})}A(Na),at(2),A(ko);var So=x(ko,2),No=O(So),tf=x(O(No));{var rf=(s)=>{var u=kl(),g=Z(u);V((I)=>M(g,`${l(E).bateraiPersen??""}% · ${I??""} V`),[()=>l(E).baterai.toFixed(2)]),D(s,u)};ne(tf,(s)=>{if(l(E)&&l(E).bateraiPersen>=0)s(rf)})}A(No);var Ra=x(No,2);{var nf=(s)=>{var u=Jc(),g=Ht(u);rt(g,"viewBox","0 0 320 120");var I=O(g);or(I,16,()=>[8.4,7.8,7.2,6.6],(Ae)=>Ae,(Ae,he)=>{var je=Zc(),_t=Ht(je);rt(_t,"x2",m);var fr=x(_t),si=Z(fr);V((Nf,Rf,Cf,jf)=>{rt(_t,"y1",Nf),rt(_t,"y2",Rf),rt(fr,"y",Cf),M(si,`${jf??""} V`)},[()=>v(he),()=>v(he),()=>he===c?v(he)+11:v(he)-3,()=>he.toFixed(1)]),D(Ae,je)});var H=x(I);A(g);var B=x(g,2),K=O(B),Te=Z(K);at(),A(B),V((Ae,he)=>{rt(g,"aria-label",`Tegangan baterai ${Ae??""} terakhir`),rt(H,"d",l(_)),M(Te,`${he??""} lalu`)},[()=>d(l(i).length),()=>d(l(i).length)]),D(s,u)},of=(s)=>{var u=Qc();D(s,u)};ne(Ra,(s)=>{if(l(i).length>=2)s(nf);else s(of,-1)})}var Ca=x(Ra,2),af=O(Ca);{var sf=(s)=>{var u=Vt();V((g)=>M(u,`Perkiraan sisa ${g??""}, kalau pemakaiannya seperti setengah jam terakhir.`),[()=>d(l(E).sisaMenit)]),D(s,u)},lf=(s)=>{var u=Vt("Perkiraan sisa waktu muncul setelah sekitar 10 menit menyala.");D(s,u)};ne(af,(s)=>{if(l(E)&&l(E).sisaMenit>=0)s(sf);else s(lf,-1)})}at(),A(Ca),A(So);var Ro=x(So,2),Co=x(O(Ro),2),ja=O(Co),jo=x(ja);ut(jo),A(Co);var Oo=x(Co,2),Oa=O(Oo),Io=x(Oa);ut(Io),A(Oo);var ff=x(Oo,2);A(Ro);var Do=x(Ro,2),Mo=x(O(Do),2),Ia=O(Mo),Da=x(Ia,2),cf=x(Da,2);A(Mo);var Lo=x(Mo,2),Ma=O(Lo),Fo=x(Ma);ut(Fo),A(Lo);var Po=x(Lo,2),qt=x(O(Po)),an=O(qt),uf=Z(an);an.value=an.__value="gemini";var La=x(an);La.value=La.__value="google",A(qt);var Rn;Er(qt),A(Po);var Bo=x(Po,2),pf=O(Bo);{var df=(s)=>{var u=Vt("Suara cowok belum aktif: isi SUARA_GEMINI dan GEMINI_API_KEY di kode.");D(s,u)},_f=(s)=>{var u=eu(),g=Ht(u),I=x(g);{var H=(B)=>{var K=Vt();V(()=>M(K,`Galat terakhir: kode ${l(E).suaraGalat??""}, sementara memakai suara Google.`)),D(B,K)};ne(I,(B)=>{if(l(E).suaraGalat)B(H)})}V(()=>M(g,`Suara Gemini hari ini ${l(E).suaraHariIni??""} kalimat (jatah gratis harian).`)),D(s,u)};ne(pf,(s)=>{if(!l(E)?.suaraSiap)s(df);else s(_f,-1)})}A(Bo);var Yo=x(Bo,2),Fa=O(Yo);ut(Fa),at(2),A(Yo),A(Do);var Ho=x(Do,2),Pa=x(O(Ho),2);{var vf=(s)=>{var u=ru();or(u,21,()=>l(Y),ra,(g,I,H)=>{var B=tu(),K=O(B),Te=Z(K,!0),Ae=x(K,2),he=O(Ae,!0),je=x(he),_t=Z(je);A(Ae);var fr=x(Ae,2);A(B),V(()=>{M(Te,l(I).jam),M(he,l(I).pesan),M(_t,`${l(I).kapan??""} · ${j[l(I).bunyi]??"suara"??""}`),rt(fr,"aria-label",`Hapus alarm ${l(I).jam??""}`)}),z("click",fr,()=>Gt(H)),D(g,B)}),A(u),D(s,u)},hf=(s)=>{var u=kr(),g=Z(u);V(()=>M(g,`Belum ada alarm. Bisa juga lewat suara: "${l(E)?.nama??"Zond"??""}, ingatkan aku jam 5 sore minum obat".`)),D(s,u)};ne(Pa,(s)=>{if(l(Y).length)s(vf);else s(hf,-1)})}var Vo=x(Pa,2),Uo=O(Vo),Go=O(Uo);ut(Go);var Cn=x(Go,2),qo=O(Cn);qo.value=qo.__value="0";var zo=x(qo);zo.value=zo.__value="127";var Ko=x(zo);Ko.value=Ko.__value="62";var Wo=x(Ko);Wo.value=Wo.__value="65";var Ba=x(Wo);Ba.value=Ba.__value="pilih",A(Cn),Er(Cn),A(Uo);var Ya=x(Uo,2);{var mf=(s)=>{var u=ou();or(u,22,()=>b,(g)=>g,(g,I,H)=>{var B=nu(),K=O(B);ut(K);var Te=x(K,1,!0);A(B),V(()=>M(Te,I)),sa(K,()=>pt[l(H)],(Ae)=>pt[l(H)]=Ae),D(g,B)}),A(u),D(s,u)};ne(Ya,(s)=>{if(l(le)==="pilih")s(mf)})}var Xo=x(Ya,2);ut(Xo);var Zo=x(Xo,2),jn=O(Zo),Jo=O(jn);Jo.value=Jo.__value=0;var Qo=x(Jo);Qo.value=Qo.__value=1;var Ha=x(Qo);Ha.value=Ha.__value=2,A(jn),Er(jn),at(2),A(Zo);var gf=x(Zo,2);{var xf=(s)=>{var u=kr(),g=Z(u,!0);V(()=>M(g,l(wt))),D(s,u)};ne(gf,(s)=>{if(l(wt))s(xf)})}A(Vo),at(2),A(Ho);var ei=x(Ho,2),ti=x(O(ei),2),On=O(ti);ut(On),at(),A(ti);var ri=x(ti,2),ni=O(ri),Va=x(ni,2);A(ri);var Ua=x(ri,2);{var bf=(s)=>{var u=kr(),g=Z(u);V(()=>M(g,`Skor suit: kamu ${l(E).skorKamu??""}, ${l(E).nama??""} ${l(E).skorZond??""}`)),D(s,u)};ne(Ua,(s)=>{if(l(E)?.fiturKamera&&(l(E).skorKamu||l(E).skorZond))s(bf)})}var yf=x(Ua,2);{var $f=(s)=>{var u=kr(),g=Z(u,!0);V(()=>M(g,l(ar))),D(s,u)};ne(yf,(s)=>{if(l(ar))s($f)})}A(ei);var oi=x(ei,2),ii=O(oi),wf=x(O(ii));{var Ef=(s)=>{var u=kl(),g=Z(u);V(()=>M(g,`terakhir menjawab: ${l(E).aiTerakhir??""}`)),D(s,u)};ne(wf,(s)=>{if(l(E)?.aiTerakhir)s(Ef)})}A(ii);var ai=x(ii,2);or(ai,21,()=>Nl,(s)=>s.id,(s,u)=>{var g=iu();let I;var H=O(g),B=Z(H,!0),K=x(H,2),Te=Z(K,!0);A(g),V(()=>{g.disabled=!l(E)?.aiTersedia?.[l(u).id]||l(ho)!=="",I=ir(g,1,"svelte-1xjvnya8h1aa3",null,I,{pilih:l(E)?.ai===l(u).id}),M(B,l(u).nama),M(Te,l(E)?.aiTersedia?.[l(u).id]===!1?"API key belum diisi":l(u).ket)}),z("click",g,()=>Rl(l(u).id)),D(s,g)}),A(ai);var kf=x(ai,2);{var Tf=(s)=>{var u=kr(),g=Z(u,!0);V(()=>M(g,l(Qr))),D(s,u)};ne(kf,(s)=>{if(l(Qr))s(Tf)})}at(2),A(oi);var Af=x(oi,2);{var Sf=(s)=>{var u=au(),g=Z(u,!0);V(()=>M(g,l(E).status)),D(s,u)};ne(Af,(s)=>{if(l(E)?.status)s(Sf)})}A(yo),V(()=>{if(M(Pl,l(E)?.nama??"Robot"),ma=ir(ha,1,"titik svelte-1xjvnya8h1aa3",null,ma,{on:l(It)&&l(E)?.hidup}),ya=ir(nn,1,"mik svelte-1xjvnya8h1aa3",null,ya,{dengar:l(E)?.mendengar||l(Jr)}),nn.disabled=!l(It),M(ql,l(E)?.mendengar?"Mendengarkan... bicara sekarang":"Bicara ke "+(l(E)?.nama??"robot")),_o(on,l(E)?.dengarTerus??!1),on.disabled=!l(It),M(zl,` Dengar terus (cukup sebut "${l(E)?.nama??"nama robot"??""}"). Boros: setiap suara di ruangan memakai jatah suara-ke-teks.`),M(Xl,l(sr)?"Matikan kamera":"Nyalakan kamera"),M(ka,`Kecepatan ${l(en)??""}`),M(ja,`Toleh ${l(Ar)<0?"kiri":l(Ar)>0?"kanan":"lurus"}`),M(Oa,`Angguk ${l(tn)??""}°`),M(Ma,`Volume ${l(rn)??""}`),qt.disabled=!l(It),an.disabled=!l(E)?.suaraSiap,M(uf,`Cowok (${(l(E)?.suaraNama||"Gemini")??""})`),Rn!==(Rn=l(E)?.suara??"gemini"))qt.value=(qt.__value=Rn)??"",Zr(qt,Rn);_o(On,l(E)?.fiturKamera??!1),On.disabled=!l(It),ni.disabled=!l(E)?.fiturKamera,Va.disabled=!l(E)?.fiturKamera}),z("click",nn,Al),z("change",on,Sl),z("click",Ea,()=>N(sr,!l(sr))),z("contextmenu",Nn,(s)=>s.preventDefault()),Ut(Ta,()=>l(en),(s)=>N(en,s)),z("click",Aa,()=>R(-90)),z("click",Sa,()=>R(180)),z("click",Zl,()=>R(90)),z("input",jo,bo),Ut(jo,()=>l(Ar),(s)=>N(Ar,s)),z("input",Io,bo),Ut(Io,()=>l(tn),(s)=>N(tn,s)),z("click",ff,Dl),z("click",Ia,()=>ee("/api/lagu",4000)),z("click",Da,()=>ee("/api/radio",4000)),z("click",cf,()=>ee("/api/diam")),z("change",Fo,Ml),Ut(Fo,()=>l(rn),(s)=>N(rn,s)),z("change",qt,y),$t("submit",Yo,Ll),Ut(Fa,()=>l(Tn),(s)=>N(Tn,s)),$t("submit",Vo,qe),Ut(Go,()=>l(Q),(s)=>N(Q,s)),En(Cn,()=>l(le),(s)=>N(le,s)),Ut(Xo,()=>l(Ee),(s)=>N(Ee,s)),En(jn,()=>l(ke),(s)=>N(ke,s)),z("change",On,dt),z("click",ni,()=>kn("/api/sekeliling","Zond menoleh dan memotret. Ceritanya dikirim ke Telegram.")),z("click",Va,()=>kn("/api/suit","Siapkan tanganmu di depan kamera!")),D(e,yo),un()}var Tl=lu;fo(["click","change","contextmenu","pointerdown","pointerup","input"]);Wr(Tl,{target:document.body});
+`)}}function Ws(e){let t=Yi.get(e);if(t)he(e,"message",{value:t.message}),he(e,"stack",{value:t.stack})}function Zs(e){if(k===null){if(N===null)hs(e);ms()}if(lt)vs(e)}function Wf(e,t){var r=t.last;if(r===null)t.last=t.first=e;else r.next=e,e.prev=r,t.last=e}function Ct(e,t){var r=k;if(p)while(r!==null&&(r.f&Kt)!==0)r=r.parent;if(r!==null&&(r.f&fe)!==0)e|=fe;var n={ctx:L,deps:null,nodes:null,f:e|F|Fe,first:null,fn:t,last:null,next:null,parent:r,b:r&&r.b,prev:null,teardown:null,wv:0,ac:null};if(p)n.component_function=bt;T?.register_created_effect(n);var o=n;if((e&kt)!==0)if(Hr!==null)Hr.push(n);else je.ensure().schedule(n);else if(t!==null){try{Rt(n)}catch(a){throw ae(n),a}if(o.deps===null&&o.teardown===null&&o.nodes===null&&o.first===o.last&&(o.f&Tt)===0){if(o=o.first,(e&Se)!==0&&(e&Ve)!==0&&o!==null)o.f|=Ve}}if(o!==null){if(o.parent=r,r!==null)Wf(o,r);if(N!==null&&(N.f&te)!==0&&(e&He)===0){var i=N;(i.effects??=[]).push(o)}}return n}function Jt(){return N!==null&&!Ye}function be(e){let t=Ct(zt,null);return q(t,G),t.teardown=e,t}function Gr(e){if(Zs("$effect"),p)he(e,"name",{value:"$effect"});var t=k.f,r=!N&&(t&ge)!==0&&L!==null&&!L.i;if(r){var n=L;(n.e??=[]).push(e)}else return Ti(e)}function Ti(e){return Ct(kt|Za,e)}function Vi(e){je.ensure();let t=Ct(He|Tt,e);return()=>{ae(t)}}function Xs(e){je.ensure();let t=Ct(He|Tt,e);return(r={})=>new Promise((n)=>{if(r.outro)Ot(t,()=>{ae(t),n(void 0)});else ae(t),n(void 0)})}function tt(e){return Ct(kt,e)}function Is(e){return Ct(Ke|Tt,e)}function we(e,t=0){return Ct(zt|t,e)}function V(e,t=[],r=[],n=[]){eo(n,t,r,(o)=>{Ct(zt,()=>{e(...o.map(l))})})}function rt(e,t=0){var r=Ct(Se|t,e);if(p)r.dev_stack=St;return r}function ve(e){return Ct(ge|Tt,e)}function Ui(e){var t=e.teardown;if(t!==null){let r=lt,n=N;Hi(!0),de(null);try{t.call(null)}catch(o){Ue(o,e.parent)}finally{Hi(r),de(n)}}}function mn(e,t=!1){var r=e.first;e.first=e.last=null;while(r!==null){let o=r.ac;if(o!==null)Je(()=>{o.abort(Pt)});var n=r.next;if((r.f&He)!==0)r.parent=null;else ae(r,t);r=n}}function Js(e){var t=e.first;while(t!==null){var r=t.next;if((t.f&ge)===0)ae(t);t=r}}function ae(e,t=!0){var r=!1;if((t||(e.f&vi)!==0)&&e.nodes!==null&&e.nodes.end!==null)Qs(e.nodes.start,e.nodes.end),r=!0;e.f|=Ft,mn(e,t&&!r),gr(e,0);var n=e.nodes&&e.nodes.t;if(n!==null)for(let i of n)i.stop();Ui(e),e.f^=Ft,e.f|=W;var o=e.parent;if(o!==null&&o.first!==null)Li(e);if(p)e.component_function=null;e.next=e.prev=e.teardown=e.ctx=e.deps=e.fn=e.nodes=e.ac=e.b=null}function Qs(e,t){while(e!==null){var r=e===t?null:xe(e);e.remove(),e=r}}function Li(e){var{parent:t,prev:r,next:n}=e;if(r!==null)r.next=n;if(n!==null)n.prev=r;if(t!==null){if(t.first===e)t.first=n;if(t.last===e)t.last=r}}function Ot(e,t,r=!0){var n=[];e.f|=Fn,el(e,n,!0);var o=()=>{if(r)ae(e);if(t)t()},i=n.length;if(i>0){var a=()=>--i||o();for(var f of n)f.out(a)}else o()}function el(e,t,r){if((e.f&fe)!==0)return;e.f^=fe;var n=e.nodes&&e.nodes.t;if(n!==null){for(let f of n)if(f.is_global||r)t.push(f)}var o=e.first;while(o!==null){var i=o.next;if((o.f&He)===0){var a=(o.f&Ve)!==0||(o.f&ge)!==0&&(e.f&Se)!==0;el(o,t,a?r:!1)}o=i}}function qr(e){e.f&=~Fn,tl(e,!0)}function tl(e,t){if((e.f&Fn)!==0)return;if((e.f&fe)===0)return;if(e.f^=fe,(e.f&G)===0)q(e,F),je.ensure().schedule(e);var r=e.first;while(r!==null){var n=r.next,o=(r.f&Ve)!==0||(r.f&ge)!==0;tl(r,o?t:!1),r=n}var i=e.nodes&&e.nodes.t;if(i!==null){for(let a of i)if(a.is_global||t)a.in()}}function zr(e,t){if(!e.nodes)return;var r=e.nodes.start,n=e.nodes.end;while(r!==null){var o=r===n?null:xe(r);t.append(r),r=o}}var rl=null;var lt=!1;function Hi(e){lt=e}var N=null,Ye=!1;function de(e){N=e}var k=null;function _e(e){k=e}var $t=null;function oo(e){if(N!==null&&(!ce&&(N.f&Cr)!==0||(N.f&te)!==0))($t??=new Set).add(e)}var ye=null,Be=0,et=null;function Vs(e){et=e}var ol=1,wr=0,tr=wr;function Bi(e){tr=e}function Br(){return++ol}function er(e){var t=e.f;if((t&F)!==0)return!0;if((t&oe)!==0){var r=e.deps,n=r.length;for(var o=0;o<n;o++){var i=r[o];if(er(i))ji(i);if(i.wv>e.wv)return!0}if((t&Fe)!==0&&$e===null)q(e,G)}return!1}function il(e,t,r=!0){var n=e.reactions;if(n===null)return;if(!ce&&$t!==null&&$t.has(e))return;for(var o=0;o<n.length;o++){var i=n[o];if((i.f&te)!==0)il(i,t,!1);else if(t===i){if(r)q(i,F);else if((i.f&G)!==0)q(i,oe);gn(i)}}}function ro(e){var t=ye,r=Be,n=et,o=N,i=$t,a=L,f=Ye,c=tr,h=e.f;if(ye=null,Be=0,et=null,N=(h&(ge|He))===0?e:null,$t=null,Ht(e.ctx),Ye=!1,tr=++wr,e.ac!==null)Je(()=>{e.ac.abort(Pt)}),e.ac=null;try{e.f|=Cr;var m=e.fn,v=m();e.f|=Pe;var _=nl(e);if(Nt()&&et!==null&&!Ye&&_!==null&&(e.f&(te|oe|F))===0)for(var d=0;d<et.length;d++)il(et[d],e);if(o!==null&&o!==e){if(wr++,o.deps!==null)for(let y=0;y<r;y+=1)o.deps[y].rv=wr;if(t!==null)for(let y of t)y.rv=wr;if(et!==null)if(n===null)n=et;else n.push(...et)}if((e.f&it)!==0)e.f^=it;return v}catch(y){return nl(e),Ks(y)}finally{e.f^=Cr,ye=t,Be=r,et=n,N=o,$t=i,Ht(a),Ye=f,tr=c}}function nl(e){var t=e.deps,r=T?.is_fork;if(ye!==null){var n;if(!r)gr(e,Be);if(t!==null&&Be>0){t.length=Be+ye.length;for(n=0;n<ye.length;n++)t[Be+n]=ye[n]}else e.deps=t=ye;if(Jt()&&(e.f&Fe)!==0)for(n=Be;n<t.length;n++)(t[n].reactions??=[]).push(e)}else if(!r&&t!==null&&Be<t.length)gr(e,Be),t.length=Be;return t}function Zf(e,t){let r=t.reactions;if(r!==null){var n=Ka.call(r,e);if(n!==-1){var o=r.length-1;if(o===0)r=t.reactions=null;else r[n]=r[o],r.pop()}}if(r===null&&(t.f&te)!==0&&(ye===null||!Lt.call(ye,t))){var i=t;if((i.f&Fe)!==0)i.f^=Fe;if(i.v!==Z)Dr(i);if(i.ac!==null)Je(()=>{i.ac.abort(Pt),i.ac=null,q(i,F)});Os(i),gr(i,0)}}function gr(e,t){var r=e.deps;if(r===null)return;for(var n=t;n<r.length;n++)Zf(e,r[n])}function Rt(e){var t=e.f;if((t&W)!==0)return;q(e,G);var r=k;if(k=e,p){var n=bt;Zn(e.component_function);var o=St;Ir(e.dev_stack??St)}try{if((t&(Se|cr))!==0)Js(e);else mn(e);Ui(e);var i=ro(e);if(e.teardown=typeof i==="function"?i:null,e.wv=ol,p&&gt&&(e.f&F)!==0&&e.deps!==null){for(var a of e.deps)if(a.set_during_effect)a.wv=Br(),a.set_during_effect=!1}}finally{if(k=r,p)Zn(n),Ir(o)}}async function yn(){if(ce)return new Promise((e)=>{requestAnimationFrame(()=>e()),setTimeout(()=>e())});await Promise.resolve(),Qt()}function l(e){var t=e.f,r=(t&te)!==0;if(rl?.add(e),N!==null&&!Ye){var n=k!==null&&(k.f&W)!==0;if(!n&&($t===null||!$t.has(e))){var o=N.deps;if((N.f&Cr)!==0){if(e.rv<wr)if(e.rv=wr,ye===null&&o!==null&&o[Be]===e)Be++;else if(ye===null)ye=[e];else ye.push(e)}else{if(N.deps??=[],!Lt.call(N.deps,e))N.deps.push(e);var i=e.reactions;if(i===null)e.reactions=[N];else if(!Lt.call(i,N))i.push(N)}}}if(p){if(!Ye&&Ge&&T===null&&Qe===null&&!Ge.warned&&(Ge.effect.f&Cr)===0&&!Ge.effect_deps.has(e)){Ge.warned=!0,ns(e.label);var a=xt("traced at");if(a)console.warn(a)}if(_n.delete(e),gt&&!Ye&&fn!==null&&N!==null&&fn.reaction===N){if(e.trace)e.trace();else if(a=xt("traced at"),a){var f=fn.entries.get(e);if(f===void 0)f={traces:[]},fn.entries.set(e,f);var c=f.traces[f.traces.length-1];if(a.stack!==c?.stack)f.traces.push(a)}}}if(lt&&ct.has(e))return ct.get(e);if(r){var h=e;if(lt){var m=h.v;if((h.f&G)===0&&h.reactions!==null||sl(h))m=vn(h);return ct.set(h,m),m}var v=(h.f&Fe)===0&&!Ye&&N!==null&&(N.f&Fe)!==0,_=(h.f&Pe)===0;if(er(h)){if(v)h.f|=Fe;ji(h)}if(v&&!_)Ci(h),al(h)}if($e?.has(e))return $e.get(e);if((e.f&it)!==0)throw e.v;return e.v}function al(e){if(e.f|=Fe,e.deps===null)return;for(let r of e.deps){var t=r.reactions;if(t===null)r.reactions=[e];else if(!Lt.call(t,e))t.push(e);if((r.f&te)!==0&&(r.f&Fe)===0)Ci(r),al(r)}}function sl(e){if(e.v===Z)return!0;if(e.deps===null)return!1;for(let t of e.deps){if(ct.has(t))return!0;if((t.f&te)!==0&&sl(t))return!0}return!1}function J(e){var t=Ye;try{return Ye=!0,e()}finally{Ye=t}}var Jf=["allowfullscreen","async","autofocus","autoplay","checked","controls","default","disabled","formnovalidate","indeterminate","inert","ismap","loop","multiple","muted","nomodule","novalidate","open","playsinline","readonly","required","reversed","seamless","selected","webkitdirectory","defer","disablepictureinpicture","disableremoteplayback"];var B_=[...Jf,"formNoValidate","isMap","noModule","playsInline","readOnly","value","volume","defaultValue","defaultChecked","srcObject","noValidate","allowFullscreen","disablePictureInPicture","disableRemotePlayback"];var Qf=["touchstart","touchmove"];function ll(e){return Qf.includes(e)}var ec=["$state","$state.raw","$derived","$derived.by"],Y_=[...ec,"$state.eager","$state.snapshot","$props","$props.id","$bindable","$effect","$effect.pre","$effect.tracking","$effect.root","$effect.pending","$inspect","$inspect().with","$inspect.trace","$host"];var Kr=Symbol("events"),zi=new Set,co=new Set;function Ki(e){if(!w)return;e.removeAttribute("onload"),e.removeAttribute("onerror");let t=e.__e;if(t!==void 0)e.__e=void 0,queueMicrotask(()=>{if(e.isConnected)e.dispatchEvent(t)})}function ul(e,t,r,n={}){function o(i){if(!n.capture)po.call(t,i);if(!i.cancelBubble)return Je(()=>r?.call(this,i))}if(e.startsWith("pointer")||e.startsWith("touch")||e==="wheel")o.__removed=!1,ue(()=>{if(!o.__removed)t.addEventListener(e,o,n)});else t.addEventListener(e,o,n);return o}function pt(e,t,r,n,o){var i={capture:n,passive:o},a=ul(e,t,r,i);if(t===document.body||t===window||t===document||t instanceof HTMLMediaElement)be(()=>{a.__removed=!0,t.removeEventListener(e,a,i)})}function z(e,t,r){(t[Kr]??={})[e]=r}function uo(e){for(var t=0;t<e.length;t++)zi.add(e[t]);for(var r of co)r(e)}var Gi=null,qi=!1;function po(e){var t=this,r=t.ownerDocument,n=e.type,o=e.composedPath?.()||[],i=o[0]||e.target;if(Gi=e,!qi)qi=!0,setTimeout(()=>{qi=!1,Gi=null});var a=0,f=Gi===e&&e[Kr];if(f){var c=o.indexOf(f);if(c!==-1&&(t===document||t===window)){e[Kr]=t;return}var h=o.indexOf(t);if(h===-1)return;if(c<=h)a=c}if(i=o[a]||e.target,i===t)return;he(e,"currentTarget",{configurable:!0,get(){return i||r}});var m=N,v=k;de(null),_e(null);try{var _,d=[];while(i!==null){if(i===t)break;try{var y=i[Kr]?.[n];if(y!=null&&(!i.disabled||e.target===i))y.call(i,e)}catch(R){if(_)d.push(R);else _=R}if(e.cancelBubble)break;a++,i=a<o.length?o[a]:null}if(_){for(let R of d)queueMicrotask(()=>{throw R});throw _}}finally{e[Kr]=t,delete e.currentTarget,de(m),_e(v)}}var rc=globalThis?.window?.trustedTypes&&globalThis.window.trustedTypes.createPolicy("svelte-trusted-html",{createHTML:(e)=>e});function pl(e){return rc?.createHTML(e)??e}function _o(e){var t=jt("template");return t.innerHTML=pl(e.replaceAll("<!>","<!---->")),t.content}function Me(e,t){var r=k;if(r.nodes===null)r.nodes={start:e,end:t,a:null,t:null}}function re(e,t){var r=(t&bi)!==0,n=(t&rs)!==0,o,i=!e.startsWith("<!>");return()=>{if(w)return Me(j,null),j;if(o===void 0){if(o=_o(i?e:"<!>"+e),!r)o=ie(o)}var a=n||xn?document.importNode(o,!0):o.cloneNode(!0);if(r){var f=ie(a),c=a.lastChild;Me(f,c)}else Me(a,a);return a}}function ic(e,t,r="svg"){var n=!e.startsWith("<!>"),o=(t&bi)!==0,i=`<${r}>${n?e:"<!>"+e}</${r}>`,a;return()=>{if(w)return Me(j,null),j;if(!a){var f=_o(i),c=ie(f);if(o){a=document.createDocumentFragment();while(ie(c))a.appendChild(ie(c))}else a=ie(c)}var h=a.cloneNode(!0);if(o){var m=ie(h),v=h.lastChild;Me(m,v)}else Me(h,h);return h}}function Zi(e,t){return ic(e,t,"svg")}function Ut(e=""){if(!w){var t=se(e+"");return Me(t,t),t}var r=j;if(r.nodeType!==ur)r.before(r=se()),U(r);else bn(r);return Me(r,r),r}function Xi(){if(w)return Me(j,null),j;var e=document.createDocumentFragment(),t=document.createComment(""),r=se();return e.append(t,r),Me(t,r),e}function D(e,t){if(w){var r=k;if((r.f&Pe)===0||r.nodes.end===null)r.nodes.end=j;Oe();return}if(e===null)return;e.before(t)}function dl(e){let t=0,r=De(0),n;if(p)Ie(r,"createSubscriber version");return()=>{if(Jt())l(r),we(()=>{if(t===0)n=J(()=>e(()=>yr(r)));return t+=1,()=>{ue(()=>{if(t-=1,t===0)n?.(),n=void 0,yr(r)})}})}}var ac=Ve|Tt;function Ji(e,t,r,n){new _l(e,t,r,n)}class _l{parent;is_pending=!1;transform_error;#e;#t=w?j:null;#r;#s;#o;#n=null;#a=null;#i=null;#l=null;#d=0;#f=0;#v=!1;#g=new Map;#c=null;#m=dl(()=>{if(this.#c=De(this.#d),p)Ie(this.#c,"$effect.pending()");return()=>{this.#c=null}});constructor(e,t,r,n){if(this.#e=e,this.#r=t,this.#s=(o)=>{var i=k;i.b=this,i.f|=jr,r(o)},this.parent=k.b,this.transform_error=n??this.parent?.transform_error??((o)=>o),this.#o=rt(()=>{if(w){let o=_r(this.#t);Oe();let i=o===Zt;if(o.startsWith(yi)){let f=JSON.parse(o.slice(yi.length));this.#y(f)}else if(i)this.#_();else this.#x()}else this.#b()},ac),w)this.#e=j}#x(){try{this.#n=ve(()=>this.#s(this.#e))}catch(e){this.error(e)}}#y(e){let t=this.#r.failed,{reset:r,invoke_onerror:n}=this.#h(e);if(ue(n),!t)return;this.#i=ve(()=>{t(this.#e,()=>e,()=>r)})}#h(e){var t=!1,r=!1;let n=()=>{if(this.#u())return;if(t){fs();return}if(t=!0,r)Es();if(this.#i!==null)Ot(this.#i,()=>{this.#i=null});this.#$(()=>{this.#b()})};return{reset:n,invoke_onerror:()=>{if(this.#u())return;try{r=!0,this.#r.onerror?.(e,n),r=!1}catch(i){Ue(i,this.#o&&this.#o.parent)}}}}#u(){return(this.#o.f&(W|Ft))!==0}#_(){let e=this.#r.pending;if(!e)return;this.is_pending=!0,this.#a=ve(()=>e(this.#e)),ue(()=>{if(this.#u())return;var t=this.#l=document.createDocumentFragment(),r=se(),n=!1;if(t.append(r),this.#n=this.#$(()=>{try{return ve(()=>this.#s(r))}catch(o){try{this.error(o),n=!0}catch(i){Ue(i,this.#o.parent)}return null}}),this.#n===null){if(this.#l=null,n)this.#p(T);return}if(this.#f===0)this.#e.before(t),this.#l=null,Ot(this.#a,()=>{this.#a=null}),this.#p(T)})}#b(){try{if(this.is_pending=this.has_pending_snippet(),this.#f=0,this.#d=0,this.#n=ve(()=>{this.#s(this.#e)}),this.#f>0){var e=this.#l=document.createDocumentFragment();zr(this.#n,e);let t=this.#r.pending;this.#a=ve(()=>t(this.#e))}else this.#p(T)}catch(t){this.error(t)}}#p(e){this.is_pending=!1,e.transfer_reactions(this.#g)}defer_effect(e){Jn(e,this.#g)}is_rendered(){return!this.is_pending&&(!this.parent||this.parent.is_rendered())}has_pending_snippet(){return!!this.#r.pending}#$(e){var t=k,r=N,n=L;_e(this.#o),de(this.#o),Ht(this.#o.ctx);try{return je.ensure(),e()}finally{_e(t),de(r),Ht(n)}}#w(e,t){if(!this.has_pending_snippet()){if(this.parent)this.parent.#w(e,t);return}if(this.#f+=e,this.#f===0){if(this.#p(t),this.#a)Ot(this.#a,()=>{this.#a=null});if(this.#l)this.#e.before(this.#l),this.#l=null}}update_pending_count(e,t){if(this.#w(e,t),this.#d+=e,!this.#c||this.#v)return;this.#v=!0,ue(()=>{if(this.#v=!1,this.#c)yt(this.#c,this.#d)})}get_effect_pending(){return this.#m(),l(this.#c)}error(e){if(e===Ze)throw e;if(!this.#r.onerror&&!this.#r.failed)throw e;if(T?.is_fork){if(this.#n)T.skip_effect(this.#n);if(this.#a)T.skip_effect(this.#a);if(this.#i)T.skip_effect(this.#i);T.oncommit(()=>{if(!this.#u())this.#E(e)})}else this.#E(e)}#E(e){if(this.#n)ae(this.#n),this.#n=null;if(this.#a)ae(this.#a),this.#a=null;if(this.#i)ae(this.#i),this.#i=null;if(w)U(this.#t),Xe(),U(At());let t=this.#r.failed,r=(n)=>{if(this.#u())return;let{reset:o,invoke_onerror:i}=this.#h(n);if(i(),t&&!this.#u())this.#i=this.#$(()=>{try{return ve(()=>{var a=k;a.b=this,a.f|=jr,t(this.#e,()=>n,()=>o)})}catch(a){return Ue(a,this.#o.parent),null}})};ue(()=>{if(this.#u())return;var n;try{n=this.transform_error(e)}catch(o){Ue(o,this.#o&&this.#o.parent);return}if(n!==null&&typeof n==="object"&&typeof n.then==="function")n.then(r,(o)=>Ue(o,this.#o&&this.#o.parent));else r(n)})}}var Qi=!0;function M(e,t){var r=t==null?"":typeof t==="object"?`${t}`:t;if(r!==(e[ln]??=e.nodeValue))e[ln]=r,e.nodeValue=`${r}`}function Wr(e,t){return vl(e,t)}function ta(e,t){lo(),t.intro=t.intro??!1;let r=t.target,n=w,o=j;try{var i=ie(r);while(i&&(i.nodeType!==at||i.data!==Or))i=xe(i);if(!i)throw Ze;pe(!0),U(i);let a=vl(e,{...t,anchor:i});return pe(!1),a}catch(a){if(a instanceof Error&&a.message.split(`
+`).some((f)=>f.startsWith("https://svelte.dev/e/")))throw a;if(a!==Ze)console.warn("Failed to hydrate: ",a);if(t.recover===!1)xs();return lo(),pn(r),pe(!1),Wr(e,t)}finally{pe(n),U(o)}}var vo=new Map;function vl(e,{target:t,anchor:r,props:n={},events:o,context:i,intro:a=!0,transformError:f}){lo();var c=void 0,h=Xs(()=>{var m=r??t.appendChild(se());Ji(m,{pending:()=>{}},(d)=>{cn({});var y=L;if(i)y.c=i;if(o)n.$$events=o;if(w)Me(d,null);if(Qi=a,c=e(d,n)||Xn(),Qi=!0,w){if(k.nodes.end=j,j===null||j.nodeType!==at||j.data!==pr)throw dr(),Ze}un()},f);var v=new Set,_=(d)=>{for(var y=0;y<d.length;y++){var R=d[y];if(v.has(R))continue;v.add(R);var b=ll(R);for(let ee of[t,document]){var C=vo.get(ee);if(C===void 0)C=new Map,vo.set(ee,C);var Y=C.get(R);if(Y===void 0)ee.addEventListener(R,po,{passive:b}),C.set(R,1);else C.set(R,Y+1)}}};return _(Nr(zi)),co.add(_),()=>{for(var d of v)for(let b of[t,document]){var y=vo.get(b),R=y.get(d);if(--R==0){if(b.removeEventListener(d,po),y.delete(d),y.size===0)vo.delete(b)}else y.set(d,R)}if(co.delete(_),m!==r)m.parentNode?.removeChild(m)}});return ea.set(c,h),c}var ea=new WeakMap;function ra(e,t){let r=ea.get(e);if(r)return ea.delete(e),r(t);if(p)ss();return Promise.resolve()}class rr{anchor;#e=new Map;#t=new Map;#r=new Map;#s=new Set;#o=!0;constructor(e,t=!0){this.anchor=e,this.#o=t}#n=(e)=>{if(!this.#e.has(e))return;var t=this.#e.get(e),r=this.#t.get(t);if(r)qr(r),this.#s.delete(t);else{var n=this.#r.get(t);if(n){if(qr(n.effect),this.#t.set(t,n.effect),this.#r.delete(t),p)n.fragment.lastChild[hi]=this.anchor;n.fragment.lastChild.remove(),this.anchor.before(n.fragment),r=n.effect}}for(let[o,i]of this.#e){if(this.#e.delete(o),o===e)break;let a=this.#r.get(i);if(a)ae(a.effect),this.#r.delete(i)}for(let[o,i]of this.#t){if(o===t||this.#s.has(o))continue;let a=()=>{if(Array.from(this.#e.values()).includes(o)){var c=document.createDocumentFragment();zr(i,c),c.append(se()),this.#r.set(o,{effect:i,fragment:c})}else ae(i);this.#s.delete(o),this.#t.delete(o)};if(this.#o||!r)this.#s.add(o),Ot(i,a,!1);else a()}};#a=(e)=>{this.#e.delete(e);let t=Array.from(this.#e.values());for(let[r,n]of this.#r)if(!t.includes(r))ae(n.effect),this.#r.delete(r)};ensure(e,t){var r=T,n=fo();if(t&&!this.#t.has(e)&&!this.#r.has(e))if(n){var o=document.createDocumentFragment(),i=se();o.append(i),this.#r.set(e,{effect:ve(()=>t(i)),fragment:o})}else this.#t.set(e,ve(()=>t(this.anchor)));if(this.#e.set(r,e),n){for(let[a,f]of this.#t)if(a===e)r.unskip_effect(f);else r.skip_effect(f);for(let[a,f]of this.#r)if(a===e)r.unskip_effect(f.effect);else r.skip_effect(f.effect);r.oncommit(this.#n),r.ondiscard(this.#a)}else{if(w)this.anchor=j;this.#n(r)}}}function ne(e,t,r=!1){var n;if(w)n=j,Oe();var o=new rr(e),i=r?Ve:0;function a(f,c){if(w){var h=_r(n);if(f!==parseInt(h.substring(1))){var m=At();U(m),o.anchor=m,pe(!1),o.ensure(f,c),pe(!0);return}}o.ensure(f,c)}rt(()=>{var f=!1;if(t((c,h=0)=>{f=!0,a(h,c)}),!f)a(-1,null)},i)}var vh=Symbol("NaN");function oa(e,t){return t}function lc(e,t,r){var n=[],o=t.length,i,a=t.length;for(var f=0;f<o;f++){let v=t[f];Ot(v,()=>{if(i){if(i.pending.delete(v),i.done.add(v),i.pending.size===0){var _=e.outrogroups;if(na(e,Nr(i.done)),_.delete(i),_.size===0)e.outrogroups=null}}else a-=1},!1)}if(a===0){var c=n.length===0&&r!==null&&e.pending.size===0;if(c){var h=r,m=h.parentNode;pn(m),m.append(h),e.items.clear()}na(e,t,!c)}else i={pending:new Set(t),done:new Set},(e.outrogroups??=new Set).add(i)}function na(e,t,r=!0){var n;if(e.pending.size>0){n=new Set;for(let a of e.pending.values())for(let f of a)n.add(e.items.get(f).e)}for(var o=0;o<t.length;o++){var i=t[o];if(n?.has(i)){i.f|=ht;let a=document.createDocumentFragment();zr(i,a)}else ae(t[o],r)}}var ml;function or(e,t,r,n,o,i=null){var a=e,f=new Map,c=(t&xi)!==0;if(c){var h=e;a=w?U(ie(h)):h.appendChild(se())}if(w)Oe();var m=null,v=Fr(()=>{var Y=r();return mt(Y)?Y:Y==null?[]:Nr(Y)});if(p)Ie(v,"{#each ...}");var _=new Map,d=!0;function y(Y){if((C.effect.f&W)!==0)return;C.pending.delete(Y);var ee=l(v);if(C.fallback=m,fc(C,ee,a,t,n),m!==null)if(ee.length===0)if((m.f&ht)===0)qr(m);else m.f^=ht,wn(m,null,a);else Ot(m,()=>{m=null})}function R(Y){C.pending.delete(Y)}var b=rt(()=>{var Y=l(v),ee=Y.length;let le=!1;if(w){var dt=_r(a)===Zt;if(dt!==(ee===0))a=At(),U(a),pe(!1),le=!0}var Ee=new Set,ke=T,wt=fo();for(var Le=0;Le<ee;Le+=1){if(w&&j.nodeType===at&&j.data===pr)a=j,le=!0,pe(!1);var qe=Y[Le],Gt=n(qe,Le);if(p){var ar=n(qe,Le);if(Gt!==ar)_s(String(Le),String(Gt),String(ar))}var _t=d?null:f.get(Gt);if(_t){if(_t.v)yt(_t.v,qe);if(_t.i)yt(_t.i,Le);if(wt)ke.unskip_effect(_t.e)}else{if(_t=cc(f,d?a:ml??=se(),qe,Gt,Le,o,t,r),!d)_t.e.f|=ht;f.set(Gt,_t)}Ee.add(Gt)}if(ee===0&&i&&!m)if(d)m=ve(()=>i(a));else m=ve(()=>i(ml??=se())),m.f|=ht;if(ee>Ee.size)if(p)uc(Y,n);else ki("","","");if(w&&ee>0)U(At());if(!d)if(_.set(ke,Ee),wt){for(let[kn,Jr]of f)if(!Ee.has(kn))ke.skip_effect(Jr.e);ke.oncommit(y),ke.ondiscard(R)}else y(ke);if(le)pe(!0);l(v)}),C={effect:b,flags:t,items:f,pending:_,outrogroups:null,fallback:m};if(d=!1,w)a=j}function $n(e){while(e!==null&&(e.f&ge)===0)e=e.next;return e}function fc(e,t,r,n,o){var i=(n&es)!==0,a=t.length,f=e.items,c=$n(e.effect.first),h,m=null,v,_=[],d=[],y,R,b,C;if(i){for(C=0;C<a;C+=1)if(y=t[C],R=o(y,C),b=f.get(R).e,(b.f&ht)===0)b.nodes?.a?.measure(),(v??=new Set).add(b)}for(C=0;C<a;C+=1){if(y=t[C],R=o(y,C),b=f.get(R).e,e.outrogroups!==null)for(let qe of e.outrogroups)qe.pending.delete(b),qe.done.delete(b);if((b.f&fe)!==0){if(qr(b),i)b.nodes?.a?.unfix(),(v??=new Set).delete(b)}if((b.f&ht)!==0)if(b.f^=ht,b===c)wn(b,null,r);else{var Y=m?m.next:c;if(b===e.effect.last)e.effect.last=b.prev;if(b.prev)b.prev.next=b.next;if(b.next)b.next.prev=b.prev;nr(e,m,b),nr(e,b,Y),wn(b,Y,r),m=b,_=[],d=[],c=$n(m.next);continue}if(b!==c){if(h!==void 0&&h.has(b)){if(_.length<d.length){var ee=d[0],le;m=ee.prev;var dt=_[0],Ee=_[_.length-1];for(le=0;le<_.length;le+=1)wn(_[le],ee,r);for(le=0;le<d.length;le+=1)h.delete(d[le]);nr(e,dt.prev,Ee.next),nr(e,m,dt),nr(e,Ee,ee),c=ee,m=Ee,C-=1,_=[],d=[]}else h.delete(b),wn(b,c,r),nr(e,b.prev,b.next),nr(e,b,m===null?e.effect.first:m.next),nr(e,m,b),m=b;continue}_=[],d=[];while(c!==null&&c!==b)(h??=new Set).add(c),d.push(c),c=$n(c.next);if(c===null)continue}if((b.f&ht)===0)_.push(b);m=b,c=$n(b.next)}if(e.outrogroups!==null){for(let qe of e.outrogroups)if(qe.pending.size===0)na(e,Nr(qe.done)),e.outrogroups?.delete(qe);if(e.outrogroups.size===0)e.outrogroups=null}if(c!==null||h!==void 0){var ke=[];if(h!==void 0){for(b of h)if((b.f&fe)===0)ke.push(b)}while(c!==null){if((c.f&fe)===0&&c!==e.fallback)ke.push(c);c=$n(c.next)}var wt=ke.length;if(wt>0){var Le=(n&xi)!==0&&a===0?r:null;if(i){for(C=0;C<wt;C+=1)ke[C].nodes?.a?.measure();for(C=0;C<wt;C+=1)ke[C].nodes?.a?.fix()}lc(e,ke,Le)}}if(i)ue(()=>{if(v===void 0)return;for(b of v)b.nodes?.a?.apply()})}function cc(e,t,r,n,o,i,a,f){var c=(a&Ja)!==0?(a&ts)===0?br(r,!1,!1):De(r):null,h=(a&Qa)!==0?De(o):null;if(p&&c)c.trace=()=>{f()[h?.v??o]};return{v:c,i:h,e:ve(()=>(i(t,c??r,h??o,f),()=>{e.delete(n)}))}}function wn(e,t,r){if(!e.nodes)return;var n=e.nodes.start,o=e.nodes.end,i=t&&(t.f&ht)===0?t.nodes.start:r;while(n!==null){var a=xe(n);if(i.before(n),n===o)return;n=a}}function nr(e,t,r){if(t===null)e.effect.first=r;else t.next=r;if(r===null)e.effect.last=t;else r.prev=t}function uc(e,t){let r=new Map,n=e.length;for(let o=0;o<n;o++){let i=t(e[o],o);if(r.has(i)){let a=String(r.get(i)),f=String(o),c=String(i);if(c.startsWith("[object "))c=null;ki(a,f,c)}r.set(i,o)}}var gl=[...` 	
+\r\f \v\uFEFF`];function xl(e,t,r){var n=e==null?"":""+e;if(t)n=n?n+" "+t:t;if(r){for(var o of Object.keys(r))if(r[o])n=n?n+" "+o:o;else if(n.length){var i=o.length,a=0;while((a=n.indexOf(o,a))>=0){var f=a+i;if((a===0||gl.includes(n[a-1]))&&(f===n.length||gl.includes(n[f])))n=(a===0?"":n.substring(0,a))+n.substring(f+1);else a=f}}}return n===""?null:n}function ir(e,t,r,n,o,i){var a=e[sn];if(w||a!==r||a===void 0){var f=xl(r,n,i);if(!w||f!==e.getAttribute("class"))if(f==null)e.removeAttribute("class");else if(t)e.className=f;else e.setAttribute("class",f);e[sn]=r}else if(i&&o!==i)for(var c in i){var h=!!i[c];if(o==null||h!==!!o[c])e.classList.toggle(c,h)}return i}function ia(e,t){if(t){if(!e.hasAttribute("selected"))e.setAttribute("selected","")}else e.removeAttribute("selected")}function hc(e,t){var{__defaultValue:r,multiple:n}=e,o=n?r??[]:null;if(n&&!mt(o))return;var i=e.selectedIndex,a=t&&n?new Set(e.selectedOptions):null;for(var f of e.options){var c=Zr(f);ia(f,n?o.includes(c):so(c,r))}if(!t)return;if(a!==null)for(f of e.options){var h=a.has(f);if(f.selected!==h)f.selected=h}else if(e.selectedIndex!==i)e.selectedIndex=i}function Xr(e,t,r=!1){if(e.multiple){if(t==null)return;if(!mt(t))return ls();for(var n of e.options)n.selected=t.includes(Zr(n));return}for(n of e.options){var o=Zr(n);if(so(o,t)){n.selected=!0;return}}if(!r||t!==void 0)e.selectedIndex=-1}function Er(e){var t=new MutationObserver((r)=>{if(r.every(gc))return;if("__defaultValue"in e)hc(e,!1);if("__value"in e)Xr(e,e.__value)});t.observe(e,{childList:!0,subtree:!0,attributes:!0,attributeFilter:["value"]}),be(()=>{t.disconnect()})}function En(e,t,r=t){var n=new WeakSet,o=!0;dn(e,"change",(i)=>{var a=i?"[selected]":":checked",f;if(e.multiple)f=[].map.call(e.querySelectorAll(a),Zr);else{var c=e.querySelector(a)??e.querySelector("option:not([disabled])");f=c&&Zr(c)}if(r(f),e.__value=f,T!==null)n.add(T)}),tt(()=>{var i=t();if(e===document.activeElement){var a=ce?Qe:T;if(n.has(a))return}if(Xr(e,i,o),o&&i===void 0){var f=e.querySelector(":checked");if(f!==null)i=Zr(f),r(i)}e.__value=i,o=!1})}function Zr(e){if("__value"in e)return e.__value;else return e.value}function gc(e){if(e.target.closest("selectedcontent")!==null)return!0;if(e.type==="childList"){var t=[...e.addedNodes,...e.removedNodes];return t.length>0&&t.every((r)=>r.nodeName==="SELECTEDCONTENT")}return!1}var wc=Symbol("class"),Ec=Symbol("style"),kc=Symbol("is custom element"),Tc=Symbol("is html"),Ac=gi?"link":"LINK";function ot(e){if(!w)return;var t=!1,r=()=>{if(t)return;if(t=!0,e.hasAttribute("value")){var n=e.value;nt(e,"value",null),e.value=n}if(e.hasAttribute("checked")){var o=e.checked;nt(e,"checked",null),e.checked=o}};e[Wt]=r,ue(r),Qn()}function mo(e,t){var r=wl(e);if(r.checked===(r.checked=t??void 0))return;e.checked=t}function nt(e,t,r,n){var o=wl(e);if(w){if(o[t]=e.getAttribute(t),t==="src"||t==="srcset"||t==="href"&&e.nodeName===Ac){if(!n)Nc(e,t,r??"");return}}var i=o[t];if(i===(o[t]=r))return;if(t==="loading")e[Xa]=r;if(r==null)e.removeAttribute(t);else if(typeof r!=="string"&&Sc(e).has(t))e[t]=r;else if(!(w&&(typeof r==="number"||typeof r==="boolean")&&i===String(r)))e.setAttribute(t,r)}function wl(e){return e[Hn]??={[kc]:e.nodeName.includes("-"),[Tc]:e.namespaceURI===Vn}}var bl=new Map;function Sc(e){var t=e.getAttribute("is")||e.nodeName,r=bl.get(t);if(r)return r;bl.set(t,r=new Set);var n,o=e,i=Element.prototype;while(i!==o){n=ui(o);for(var a in n)if(n[a].set&&a!=="innerHTML"&&a!=="textContent"&&a!=="innerText")r.add(a);o=Rr(o)}return r}function Nc(e,t,r){if(!p)return;if(t==="srcset"&&Rc(e,r))return;if(aa(e.getAttribute(t)??"",r))return;as(t,e.outerHTML.replace(e.innerHTML,e.innerHTML&&"..."),String(r))}function aa(e,t){if(e===t)return!0;return new URL(e,document.baseURI).href===new URL(t,document.baseURI).href}function yl(e){return e.split(",").map((t)=>t.trim().split(" ").filter(Boolean))}function Rc(e,t){var r=yl(e.srcset),n=yl(t);return n.length===r.length&&n.every(([o,i],a)=>i===r[a][1]&&(aa(r[a][0],o)||aa(o,r[a][0])))}function It(e,t,r=t){var n=new WeakSet;if(dn(e,"input",async(o)=>{if(p&&e.type==="checkbox")Ei();var i=o?e.defaultValue:e.value;if(i=sa(e)?la(i):i,r(i),T!==null)n.add(T);if(await yn(),i!==(i=t())){var{selectionStart:a,selectionEnd:f}=e,c=e.value.length;if(e.value=i??"",f!==null){var h=e.value.length;if(a===f&&f===c&&h>c)e.selectionStart=h,e.selectionEnd=h;else e.selectionStart=a,e.selectionEnd=Math.min(f,h)}}}),w&&e.defaultValue!==e.value||J(t)==null&&e.value){if(r(sa(e)?la(e.value):e.value),T!==null)n.add(T)}we(()=>{if(p&&e.type==="checkbox")Ei();var o=t();if(e===document.activeElement){var i=ce?Qe:T;if(n.has(i))return}if(sa(e)&&o===la(e.value))return;if(e.type==="date"&&!o&&!e.value)return;if(o!==e.value)e.value=o??""})}function fa(e,t,r=t){if(dn(e,"change",(n)=>{var o=n?e.defaultChecked:e.checked;r(o)}),w&&e.defaultChecked!==e.checked||J(t)==null)r(e.checked);we(()=>{var n=t();e.checked=Boolean(n)})}function sa(e){var t=e.type;return t==="number"||t==="range"}function la(e){return e===""?null:+e}var Oy=Symbol("unmounted");function El(e){return new kl(e)}class kl{#e;#t;constructor(e){var t=new Map,r=(o,i)=>{var a=br(i,!1,!1);return t.set(o,a),a};let n=new Proxy({...e.props||{},$$events:{}},{get(o,i){return l(t.get(i)??r(i,Reflect.get(o,i)))},has(o,i){if(i===Bn)return!0;return l(t.get(i)??r(i,Reflect.get(o,i))),Reflect.has(o,i)},set(o,i,a){return A(t.get(i)??r(i,a),a),Reflect.set(o,i,a)}});if(this.#t=(e.hydrate?ta:Wr)(e.component,{target:e.target,anchor:e.anchor,props:n,context:e.context,intro:e.intro??!1,recover:e.recover,transformError:e.transformError}),!ce&&(!e?.props?.$$host||e.sync===!1))Qt();this.#e=n.$$events;for(let o of Object.keys(this.#t)){if(o==="$set"||o==="$destroy"||o==="$on")continue;he(this,o,{get(){return this.#t[o]},set(i){this.#t[o]=i},enumerable:!0})}this.#t.$set=(o)=>{Object.assign(n,o)},this.#t.$destroy=()=>{ra(this.#t)}}$set(e){this.#t.$set(e)}$on(e,t){this.#e[e]=this.#e[e]||[];let r=(...n)=>t.call(this,...n);return this.#e[e].push(r),()=>{this.#e[e]=this.#e[e].filter((n)=>n!==r)}}$destroy(){this.#t.$destroy()}}var Bc;if(typeof HTMLElement==="function")Bc=class extends HTMLElement{$$ctor;$$s;$$c;$$cn=!1;$$d={};$$r=!1;$$p_d={};$$l={};$$l_u=new Map;$$me;$$shadowRoot=null;constructor(e,t,r){super();if(this.$$ctor=e,this.$$s=t,r)this.$$shadowRoot=this.attachShadow(r)}addEventListener(e,t,r){if(this.$$l[e]=this.$$l[e]||[],this.$$l[e].push(t),this.$$c){let n=this.$$c.$on(e,t);this.$$l_u.set(t,n)}super.addEventListener(e,t,r)}removeEventListener(e,t,r){if(super.removeEventListener(e,t,r),this.$$c){let n=this.$$l_u.get(t);if(n)n(),this.$$l_u.delete(t)}}async connectedCallback(){if(this.$$cn=!0,!this.$$c){let e=function(n){return(o)=>{let i=jt("slot");if(n!=="default")i.name=n;D(o,i)}};if(await Promise.resolve(),!this.$$cn||this.$$c)return;let t={},r=Yc(this);for(let n of this.$$s)if(n in r)if(n==="default"&&!this.$$d.children)this.$$d.children=e(n),t.default=!0;else t[n]=e(n);for(let n of this.attributes){let o=this.$$g_p(n.name);if(!(o in this.$$d))this.$$d[o]=ua(o,n.value,this.$$p_d,"toProp")}for(let n in this.$$p_d)if(!(n in this.$$d)&&this[n]!==void 0)this.$$d[n]=this[n],delete this[n];this.$$c=El({component:this.$$ctor,target:this.$$shadowRoot||this,props:{...this.$$d,$$slots:t,$$host:this}}),this.$$me=Vi(()=>{we(()=>{this.$$r=!0;for(let n of ci(this.$$c)){if(!this.$$p_d[n]?.reflect)continue;this.$$d[n]=this.$$c[n];let o=ua(n,this.$$d[n],this.$$p_d,"toAttribute");if(o==null)this.removeAttribute(this.$$p_d[n].attribute||n);else this.setAttribute(this.$$p_d[n].attribute||n,o)}this.$$r=!1})});for(let n in this.$$l)for(let o of this.$$l[n]){let i=this.$$c.$on(n,o);this.$$l_u.set(o,i)}this.$$l={}}}attributeChangedCallback(e,t,r){if(this.$$r)return;e=this.$$g_p(e),this.$$d[e]=ua(e,r,this.$$p_d,"toProp"),this.$$c?.$set({[e]:this.$$d[e]})}disconnectedCallback(){this.$$cn=!1,Promise.resolve().then(()=>{if(!this.$$cn&&this.$$c)this.$$c.$destroy(),this.$$me(),this.$$c=void 0})}$$g_p(e){return ci(this.$$p_d).find((t)=>this.$$p_d[t].attribute===e||!this.$$p_d[t].attribute&&t.toLowerCase()===e)||e}};function ua(e,t,r,n){let o=r[e]?.type;if(t=o==="Boolean"&&typeof t!=="boolean"?t!=null:t,!n||!r[e])return t;else if(n==="toAttribute")switch(o){case"Object":case"Array":return t==null?null:JSON.stringify(t);case"Boolean":return t?"":null;case"Number":return t==null?null:t;default:return t}else switch(o){case"Object":case"Array":return t&&JSON.parse(t);case"Boolean":return t;case"Number":return t!=null?+t:t;default:return t}}function Yc(e){let t={};return e.childNodes.forEach((r)=>{t[r.slot||"default"]=!0}),t}if(p){let e=function(t){if(!(t in globalThis)){let r;Object.defineProperty(globalThis,t,{configurable:!0,get:()=>{if(r!==void 0)return r;bs(t)},set:(n)=>{r=n}})}};e("$state"),e("$effect"),e("$derived"),e("$inspect"),e("$props"),e("$bindable")}function Tl(e){if(L===null)zn("onMount");if(Xt&&L.l!==null)Gc(L).m.push(e);else Gr(()=>{let t=J(e);if(typeof t==="function")return t})}function Gc(e){var t=e.l;return t.u??={a:[],b:[],m:[]}}var Al="5";if(typeof window<"u")((window.__svelte??={}).v??=new Set).add(Al);var qc=re('<br class="svelte-1xjvnya8h1aa3"/> ',1),zc=re('<p class="waktu svelte-1xjvnya8h1aa3"> <!></p>'),Kc=re('<span class="svelte-1xjvnya8h1aa3"> </span>'),Wc=re('<div class="peringatan svelte-1xjvnya8h1aa3"></div>'),kr=re('<p class="ket svelte-1xjvnya8h1aa3"> </p>'),Zc=re('<img alt=""/> <!>',1),Xc=re('<button class="stop svelte-1xjvnya8h1aa3"> </button>'),Jc=re("<button> </button>"),Qc=re('<button class="aktif-jelajah svelte-1xjvnya8h1aa3"> </button>'),eu=re('<select aria-label="Lama jelajah" class="svelte-1xjvnya8h1aa3"><option class="svelte-1xjvnya8h1aa3">5 menit</option><option class="svelte-1xjvnya8h1aa3">10 menit</option><option class="svelte-1xjvnya8h1aa3">15 menit</option><option class="svelte-1xjvnya8h1aa3">30 menit</option></select> <button class="svelte-1xjvnya8h1aa3">Jelajah sendiri</button>',1),Sl=re('<small class="svelte-1xjvnya8h1aa3"> </small>'),tu=Zi('<line x1="0" class="svelte-1xjvnya8h1aa3"></line><text x="2" class="svelte-1xjvnya8h1aa3"> </text>',1),ru=re('<svg class="grafik svelte-1xjvnya8h1aa3" role="img"><!><path class="svelte-1xjvnya8h1aa3"></path></svg> <div class="sumbu svelte-1xjvnya8h1aa3"><span class="svelte-1xjvnya8h1aa3"> </span><span class="svelte-1xjvnya8h1aa3">sekarang</span></div>',1),nu=re('<p class="ket svelte-1xjvnya8h1aa3">Grafik muncul setelah robot menyala 2 menit (satu titik per menit, paling lama 6 jam).</p>'),ou=re(" <!>",1),iu=re('<li class="svelte-1xjvnya8h1aa3"><b class="svelte-1xjvnya8h1aa3"> </b> <span class="svelte-1xjvnya8h1aa3"> <small class="svelte-1xjvnya8h1aa3"> </small></span> <button class="hapus svelte-1xjvnya8h1aa3">✕</button></li>'),au=re('<ul class="alarm svelte-1xjvnya8h1aa3"></ul>'),su=re('<label class="svelte-1xjvnya8h1aa3"><input type="checkbox" class="svelte-1xjvnya8h1aa3"/> </label>'),lu=re('<div class="hari svelte-1xjvnya8h1aa3"></div>'),fu=re('<button><b class="svelte-1xjvnya8h1aa3"> </b> <span class="svelte-1xjvnya8h1aa3"> </span></button>'),cu=re('<p class="status svelte-1xjvnya8h1aa3"> </p>'),uu=re('<main class="svelte-1xjvnya8h1aa3"><header class="svelte-1xjvnya8h1aa3"><h1 class="svelte-1xjvnya8h1aa3"> </h1> <span></span> <span class="kecil svelte-1xjvnya8h1aa3"><!></span></header> <!> <!> <section class="bicara svelte-1xjvnya8h1aa3"><button> </button> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Ketuk, lalu bicara ke mikrofon robot. Robot berhenti merekam saat kamu diam (paling lama 6 detik).</p> <label class="saklar svelte-1xjvnya8h1aa3"><input type="checkbox" class="svelte-1xjvnya8h1aa3"/> </label></section> <section class="kamera svelte-1xjvnya8h1aa3"><!> <button class="kecil-btn svelte-1xjvnya8h1aa3"> </button></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Gerak <small class="svelte-1xjvnya8h1aa3">tahan untuk jalan, lepas untuk berhenti</small></h2> <div class="dpad svelte-1xjvnya8h1aa3"></div> <label class="svelte-1xjvnya8h1aa3"> <input type="range" min="100" max="255" class="svelte-1xjvnya8h1aa3"/></label> <div class="baris belok svelte-1xjvnya8h1aa3"><button class="svelte-1xjvnya8h1aa3">⟲ 90° kiri</button> <button class="svelte-1xjvnya8h1aa3">↻ balik</button> <button class="svelte-1xjvnya8h1aa3">90° kanan ⟳</button></div> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Belok tepat memakai giroskop di badan; sudutnya tidak berubah walau baterai melemah.</p> <div class="baris jelajah svelte-1xjvnya8h1aa3"><!></div> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Maju sampai ada halangan, lalu belok ke arah acak. Berhenti sendiri kalau waktunya habis, baterai tinggal 10%, atau tombol STOP ditekan. Tombol arah juga menghentikannya.</p></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Baterai <!></h2> <!> <p class="ket kecil-ket svelte-1xjvnya8h1aa3"><!> Peringatan dikirim ke Telegram saat tinggal 20% dan 10%.</p></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Kepala</h2> <label class="svelte-1xjvnya8h1aa3"> <input type="range" min="-60" max="60" class="svelte-1xjvnya8h1aa3"/></label> <label class="svelte-1xjvnya8h1aa3"> <input type="range" min="40" max="150" class="svelte-1xjvnya8h1aa3"/></label> <button class="kecil-btn svelte-1xjvnya8h1aa3">Lurus ke depan</button></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Musik dan suara</h2> <div class="baris svelte-1xjvnya8h1aa3"><button class="svelte-1xjvnya8h1aa3">Lagu berikutnya</button> <button class="svelte-1xjvnya8h1aa3">Radio berikutnya</button> <button class="svelte-1xjvnya8h1aa3">Diam</button></div> <label class="svelte-1xjvnya8h1aa3"> <input type="range" min="0" max="21" class="svelte-1xjvnya8h1aa3"/></label> <label class="suara svelte-1xjvnya8h1aa3">Suara bicara <select class="svelte-1xjvnya8h1aa3"><option class="svelte-1xjvnya8h1aa3"> </option><option class="svelte-1xjvnya8h1aa3">Google</option></select></label> <p class="ket kecil-ket svelte-1xjvnya8h1aa3"><!></p> <form class="svelte-1xjvnya8h1aa3"><input type="text" placeholder="Suruh Zond bilang..." maxlength="140" class="svelte-1xjvnya8h1aa3"/> <button type="submit" class="svelte-1xjvnya8h1aa3">Bilang</button></form> <form class="svelte-1xjvnya8h1aa3"><input type="text" placeholder="Pesan untuk layar Zond..." maxlength="190" class="svelte-1xjvnya8h1aa3"/> <button type="submit" class="svelte-1xjvnya8h1aa3">Kirim</button></form></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Alarm dan pengingat</h2> <!> <form class="form-alarm svelte-1xjvnya8h1aa3"><div class="baris svelte-1xjvnya8h1aa3"><input type="time" required="" class="svelte-1xjvnya8h1aa3"/> <select class="svelte-1xjvnya8h1aa3"><option class="svelte-1xjvnya8h1aa3">Sekali</option><option class="svelte-1xjvnya8h1aa3">Setiap hari</option><option class="svelte-1xjvnya8h1aa3">Senin-Jumat</option><option class="svelte-1xjvnya8h1aa3">Sabtu-Minggu</option><option class="svelte-1xjvnya8h1aa3">Pilih hari</option></select></div> <!> <input type="text" placeholder="Pesan, misalnya: bangun, minum obat" maxlength="79" class="svelte-1xjvnya8h1aa3"/> <div class="baris svelte-1xjvnya8h1aa3"><select class="svelte-1xjvnya8h1aa3"><option class="svelte-1xjvnya8h1aa3">Suara saja</option><option class="svelte-1xjvnya8h1aa3">Suara + radio</option><option class="svelte-1xjvnya8h1aa3">Suara + lagu SD</option></select> <button type="submit" class="svelte-1xjvnya8h1aa3">Pasang</button></div> <!></form> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Alarm sebelum jam 11 siang sekalian menyebut cuaca hari ini. Pengingat juga dikirim ke Telegram.</p></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Fitur kamera AI</h2> <label class="saklar svelte-1xjvnya8h1aa3"><input type="checkbox" class="svelte-1xjvnya8h1aa3"/> Aktifkan "lihat sekeliling" dan "suit". Tiap kali dipakai, foto dikirim ke AI dan memakai jatah AI lebih cepat.</label> <div class="baris svelte-1xjvnya8h1aa3"><button class="svelte-1xjvnya8h1aa3">Lihat sekeliling</button> <button class="svelte-1xjvnya8h1aa3">Main suit</button></div> <!> <!></section> <section class="svelte-1xjvnya8h1aa3"><h2 class="svelte-1xjvnya8h1aa3">Otak AI <!></h2> <div class="ai svelte-1xjvnya8h1aa3"></div> <!> <p class="ket kecil-ket svelte-1xjvnya8h1aa3">Kalau pilihanmu gagal (jatah habis atau saldo kosong), robot otomatis memakai yang gratis.</p></section> <!></main>');function pu(e,t){cn(t,!0);let r=P(5);async function n(s){await Q(`/api/jelajah?menit=${s}`),await lr()}function o(s){let u=Math.max(0,s);return`${Math.floor(u/60)}:${String(u%60).padStart(2,"0")}`}let i=P(ut([]));async function a(){let s=await Q("/api/baterai");if(s&&s.ok)A(i,(await s.json()).v,!0)}let f=6.4,c=8.4,h=320,m=120;function v(s){let u=(Math.min(c,Math.max(f,s))-f)/(c-f);return m-4-u*(m-8)}let _=no(()=>{let s=l(i).length;if(s<2)return"";return l(i).map((u,g)=>`${g?"L":"M"}${(g/(s-1)*h).toFixed(1)},${v(u/100).toFixed(1)}`).join("")});function d(s){if(s<60)return`${s} menit`;return`${Math.floor(s/60)} jam${s%60?` ${s%60} menit`:""}`}async function y(s){await Q(`/api/suara?pakai=${s.currentTarget.value}`),await lr()}function R(s){Q(`/api/belok?d=${s}`)}let b=["Min","Sen","Sel","Rab","Kam","Jum","Sab"],C=["suara","radio","lagu SD"],Y=P(ut([])),ee=P("06:00"),le=P("0"),dt=ut([!1,!0,!0,!0,!0,!0,!1]),Ee=P(""),ke=P(0),wt=P("");async function Le(){let s=await Q("/api/alarm");if(s&&s.ok)A(Y,(await s.json()).alarm,!0)}async function qe(s){s.preventDefault();let u=l(le)==="pilih"?dt.reduce((H,B,K)=>B?H|1<<K:H,0):Number(l(le)),g=new URLSearchParams({jam:l(ee),hari:String(u),pesan:l(Ee).trim(),bunyi:String(l(ke))}),I=await Q(`/api/alarm/tambah?${g}`);if(A(wt,!I?"Robot tidak menjawab":I.ok?"":await I.text(),!0),I?.ok)A(Ee,"");await Le()}async function Gt(s){await Q(`/api/alarm/hapus?i=${s}`),await Le()}let ar=P("");async function _t(s){let u=s.currentTarget.checked;await Q(`/api/fiturkamera?on=${u?1:0}`),await lr()}async function kn(s,u){let g=await Q(s);A(ar,!g?"Robot tidak menjawab":g.ok?u:await g.text(),!0),setTimeout(()=>A(ar,""),6000)}let Jr=P(!1);async function Rl(){A(Jr,!0),await Q("/api/bicara"),setTimeout(()=>A(Jr,!1),1500)}async function jl(s){let u=s.currentTarget.checked;await Q(`/api/dengar?on=${u?1:0}`),await lr()}let Cl=[{id:"otomatis",nama:"Otomatis",ket:"gratis: Gemini, lalu Gemma, lalu Groq"},{id:"gemini",nama:"Gemini",ket:"gratis, jatah harian kecil"},{id:"gemma",nama:"Gemma",ket:"gratis, jatah besar"},{id:"groq",nama:"Groq",ket:"gratis, cepat"},{id:"haiku",nama:"Claude Haiku",ket:"berbayar per pemakaian"}],go=P(""),Qr=P("");async function Ol(s){A(go,s,!0),A(Qr,"");let u=await Q(`/api/ai?m=${s}`);if(!u)A(Qr,"Robot tidak menjawab");else if(!u.ok)A(Qr,await u.text(),!0);await lr(),A(go,"")}let E=P(null),Dt=P(!1),en=P(160),Tr=P(null),Ar=P(0),tn=P(90),rn=P(12),xo=!1,Tn=P(""),sr=P(!0),An=P(!1),pa=P("");async function Q(s,u=1500){let g=new AbortController,I=setTimeout(()=>g.abort(),u);try{return await fetch(s,{signal:g.signal,cache:"no-store"})}catch{return null}finally{clearTimeout(I)}}async function lr(){let s=await Q("/api/status");if(!s||!s.ok){A(Dt,!1);return}if(A(Dt,!0),A(E,await s.json(),!0),!xo)A(rn,l(E).vol,!0)}let Il={maju:[1,1],mundur:[-1,-1],kiri:[-1,1],kanan:[1,-1],majukiri:[0.35,1],majukanan:[1,0.35],mundurkiri:[-0.35,-1],mundurkanan:[-1,-0.35]},Sr=null,bo=!1;function da(){if(!l(Tr)||bo)return;let[s,u]=Il[l(Tr)];bo=!0,Q(`/api/gerak?l=${Math.round(s*l(en))}&r=${Math.round(u*l(en))}`,600).finally(()=>bo=!1)}function _a(s){if(A(Tr,s,!0),da(),Sr)clearInterval(Sr);Sr=setInterval(da,150)}function Mt(){if(Sr)clearInterval(Sr);if(Sr=null,l(Tr))Q("/api/stop");A(Tr,null)}function Dl(s,u){s.currentTarget.setPointerCapture(s.pointerId),_a(u)}let va={ArrowUp:"maju",w:"maju",ArrowDown:"mundur",s:"mundur",ArrowLeft:"kiri",a:"kiri",ArrowRight:"kanan",d:"kanan"};function Ml(s){if(s.target.tagName==="INPUT")return;if(s.key===" "){s.preventDefault(),Mt(),Q("/api/stop");return}let u=va[s.key];if(u&&!s.repeat)s.preventDefault(),_a(u)}function Ll(s){if(va[s.key])Mt()}let ma=0,yo=null;function $o(){let s=Date.now();if(yo)clearTimeout(yo);let u=()=>{ma=Date.now(),Q(`/api/kepala?p=${90-l(Ar)}&t=${l(tn)}`)};if(s-ma>150)u();else yo=setTimeout(u,150)}function Fl(){A(Ar,0),A(tn,90),$o()}async function Pl(){xo=!0,await Q(`/api/volume?v=${l(rn)}`),setTimeout(()=>xo=!1,1500)}let Sn=P("");async function Bl(s){s.preventDefault();let u=l(Sn).trim();if(!u)return;A(Sn,""),await Q(`/api/pesan?teks=${encodeURIComponent(u)}`,3000)}async function Yl(s){s.preventDefault();let u=l(Tn).trim();if(!u)return;A(Tn,""),await Q(`/api/bilang?t=${encodeURIComponent(u)}`,3000)}function Nn(s){setTimeout(()=>{if(!l(sr)||!l(E)?.kamera){if(l(sr))Nn(1000);return}A(pa,`http://${l(E).kamera}/capture?res=vga&t=${Date.now()}`)},s)}function Hl(s){let u=[];if(s&1)u.push("Tombol STOP terkunci");if(s&2)u.push("Baterai lemah");if(s&4)u.push("Halangan depan");if(s&8)u.push("Halangan belakang");if(s&16)u.push("Robot miring");return u}Tl(()=>{lr(),Le(),a();let s=setInterval(lr,1000),u=setInterval(Le,30000),g=setInterval(a,60000),I=()=>Mt(),H=()=>document.hidden&&Mt();return window.addEventListener("blur",I),document.addEventListener("visibilitychange",H),()=>{clearInterval(s),clearInterval(u),clearInterval(g),window.removeEventListener("blur",I),document.removeEventListener("visibilitychange",H),Mt()}}),Gr(()=>{if(l(sr))Nn(0)});var wo=uu();pt("keydown",Ur,Ml),pt("keyup",Ur,Ll);var Eo=O(wo),ha=O(Eo),Vl=X(ha,!0),ga=x(ha,2);let xa;var ba=x(ga,2),Ul=O(ba);{var Gl=(s)=>{var u=Ut("otak tidak terhubung");D(s,u)},ql=(s)=>{var u=Ut("badan tidak menjawab");D(s,u)},zl=(s)=>{var u=Ut();V((g)=>M(u,`${l(E).bateraiPersen>=0?`${l(E).bateraiPersen}% · `:""}${g??""} V · depan ${l(E).depan??""} cm · belakang ${l(E).belakang??""} cm`),[()=>l(E).baterai.toFixed(1)]),D(s,u)};ne(Ul,(s)=>{if(!l(Dt))s(Gl);else if(!l(E)?.hidup)s(ql,1);else s(zl,-1)})}S(ba),S(Eo);var ya=x(Eo,2);{var Kl=(s)=>{var u=zc(),g=O(u),I=x(g);{var H=(B)=>{var K=qc(),Te=x(Vt(K),1,!0);V(()=>M(Te,l(E).cuaca)),D(B,K)};ne(I,(B)=>{if(l(E).cuaca)B(H)})}S(u),V(()=>M(g,`${l(E).jam??""} · ${l(E).tanggal??""}`)),D(s,u)};ne(ya,(s)=>{if(l(E)?.jam)s(Kl)})}var $a=x(ya,2);{var Wl=(s)=>{var u=Wc();or(u,20,()=>Hl(l(E).flag),(g)=>g,(g,I)=>{var H=Kc(),B=X(H,!0);V(()=>M(B,I)),D(g,H)}),S(u),D(s,u)};ne($a,(s)=>{if(l(E)&&l(E).flag)s(Wl)})}var ko=x($a,2),nn=O(ko);let wa;var Zl=X(nn,!0),Ea=x(nn,4),on=O(Ea);ot(on);var Xl=x(on);S(Ea),S(ko);var To=x(ko,2),ka=O(To);{var Jl=(s)=>{var u=Zc(),g=Vt(u);let I;var H=x(g,2);{var B=(K)=>{var Te=kr(),Ae=X(Te);V(()=>M(Ae,`Kamera tidak terhubung (${l(E).kamera??""})`)),D(K,Te)};ne(H,(K)=>{if(l(An))K(B)})}V(()=>{nt(g,"src",l(pa)),I=ir(g,1,"svelte-1xjvnya8h1aa3",null,I,{redup:l(An)})}),pt("load",g,()=>{A(An,!1),Nn(100)}),pt("error",g,()=>{A(An,!0),Nn(1500)}),Ki(g),D(s,u)},Ql=(s)=>{var u=kr(),g=X(u,!0);V(()=>M(g,l(E)?.kamera?"Kamera dimatikan":"Alamat kamera belum diketahui")),D(s,u)};ne(ka,(s)=>{if(l(sr)&&l(E)?.kamera)s(Jl);else s(Ql,-1)})}var Ta=x(ka,2),ef=X(Ta,!0);S(To);var Ao=x(To,2),Rn=x(O(Ao),2);or(Rn,20,()=>[["majukiri","↖"],["maju","▲"],["majukanan","↗"],["kiri","◀"],["stop","■"],["kanan","▶"],["mundurkiri","↙"],["mundur","▼"],["mundurkanan","↘"]],([s,u])=>s,(s,u)=>{var g=no(()=>_i(u,2));let I=()=>l(g)[0],H=()=>l(g)[1];var B=Xi(),K=Vt(B);{var Te=(me)=>{var Ce=Xc(),vt=X(Ce,!0);V(()=>M(vt,H())),z("pointerdown",Ce,()=>{Mt(),Q("/api/stop")}),D(me,Ce)},Ae=(me)=>{var Ce=Jc();let vt;var fr=X(Ce,!0);V(()=>{vt=ir(Ce,1,"svelte-1xjvnya8h1aa3",null,vt,{aktif:l(Tr)===I()}),M(fr,H())}),z("pointerdown",Ce,(fi)=>Dl(fi,I())),z("pointerup",Ce,Mt),pt("pointercancel",Ce,Mt),pt("lostpointercapture",Ce,Mt),D(me,Ce)};ne(K,(me)=>{if(I()==="stop")me(Te);else me(Ae,-1)})}D(s,B)}),S(Rn);var So=x(Rn,2),Aa=O(So),Sa=x(Aa);ot(Sa),S(So);var No=x(So,2),Na=O(No),Ra=x(Na,2),tf=x(Ra,2);S(No);var ja=x(No,4),rf=O(ja);{var nf=(s)=>{var u=Qc(),g=X(u);V((I)=>M(g,`Berhenti menjelajah (sisa ${I??""})`),[()=>o(l(E).jelajahSisa)]),z("click",u,()=>n(0)),D(s,u)},of=(s)=>{var u=eu(),g=Vt(u),I=O(g);I.value=I.__value=5;var H=x(I);H.value=H.__value=10;var B=x(H);B.value=B.__value=15;var K=x(B);K.value=K.__value=30,S(g),Er(g);var Te=x(g,2);V(()=>Te.disabled=!l(Dt)||!l(E)?.hidup),En(g,()=>l(r),(Ae)=>A(r,Ae)),z("click",Te,()=>n(l(r))),D(s,u)};ne(rf,(s)=>{if(l(E)?.mode==="jelajah")s(nf);else s(of,-1)})}S(ja),Xe(2),S(Ao);var Ro=x(Ao,2),jo=O(Ro),af=x(O(jo));{var sf=(s)=>{var u=Sl(),g=X(u);V((I)=>M(g,`${l(E).bateraiPersen??""}% · ${I??""} V`),[()=>l(E).baterai.toFixed(2)]),D(s,u)};ne(af,(s)=>{if(l(E)&&l(E).bateraiPersen>=0)s(sf)})}S(jo);var Ca=x(jo,2);{var lf=(s)=>{var u=ru(),g=Vt(u);nt(g,"viewBox","0 0 320 120");var I=O(g);or(I,16,()=>[8.4,7.8,7.2,6.6],(Ae)=>Ae,(Ae,me)=>{var Ce=tu(),vt=Vt(Ce);nt(vt,"x2",h);var fr=x(vt),fi=X(fr);V((Of,If,Df,Mf)=>{nt(vt,"y1",Of),nt(vt,"y2",If),nt(fr,"y",Df),M(fi,`${Mf??""} V`)},[()=>v(me),()=>v(me),()=>me===c?v(me)+11:v(me)-3,()=>me.toFixed(1)]),D(Ae,Ce)});var H=x(I);S(g);var B=x(g,2),K=O(B),Te=X(K);Xe(),S(B),V((Ae,me)=>{nt(g,"aria-label",`Tegangan baterai ${Ae??""} terakhir`),nt(H,"d",l(_)),M(Te,`${me??""} lalu`)},[()=>d(l(i).length),()=>d(l(i).length)]),D(s,u)},ff=(s)=>{var u=nu();D(s,u)};ne(Ca,(s)=>{if(l(i).length>=2)s(lf);else s(ff,-1)})}var Oa=x(Ca,2),cf=O(Oa);{var uf=(s)=>{var u=Ut();V((g)=>M(u,`Perkiraan sisa ${g??""}, kalau pemakaiannya seperti setengah jam terakhir.`),[()=>d(l(E).sisaMenit)]),D(s,u)},pf=(s)=>{var u=Ut("Perkiraan sisa waktu muncul setelah sekitar 10 menit menyala.");D(s,u)};ne(cf,(s)=>{if(l(E)&&l(E).sisaMenit>=0)s(uf);else s(pf,-1)})}Xe(),S(Oa),S(Ro);var Co=x(Ro,2),Oo=x(O(Co),2),Ia=O(Oo),Io=x(Ia);ot(Io),S(Oo);var Do=x(Oo,2),Da=O(Do),Mo=x(Da);ot(Mo),S(Do);var df=x(Do,2);S(Co);var Lo=x(Co,2),Fo=x(O(Lo),2),Ma=O(Fo),La=x(Ma,2),_f=x(La,2);S(Fo);var Po=x(Fo,2),Fa=O(Po),Bo=x(Fa);ot(Bo),S(Po);var Yo=x(Po,2),qt=x(O(Yo)),an=O(qt),vf=X(an);an.value=an.__value="gemini";var Pa=x(an);Pa.value=Pa.__value="google",S(qt);var jn;Er(qt),S(Yo);var Ho=x(Yo,2),mf=O(Ho);{var hf=(s)=>{var u=Ut("Suara cowok belum aktif: isi SUARA_GEMINI dan GEMINI_API_KEY di kode.");D(s,u)},gf=(s)=>{var u=ou(),g=Vt(u),I=x(g);{var H=(B)=>{var K=Ut();V(()=>M(K,`Galat terakhir: kode ${l(E).suaraGalat??""}, sementara memakai suara Google.`)),D(B,K)};ne(I,(B)=>{if(l(E).suaraGalat)B(H)})}V(()=>M(g,`Suara Gemini hari ini ${l(E).suaraHariIni??""} kalimat (jatah gratis harian).`)),D(s,u)};ne(mf,(s)=>{if(!l(E)?.suaraSiap)s(hf);else s(gf,-1)})}S(Ho);var Cn=x(Ho,2),Ba=O(Cn);ot(Ba),Xe(2),S(Cn);var Vo=x(Cn,2),Ya=O(Vo);ot(Ya),Xe(2),S(Vo),S(Lo);var Uo=x(Lo,2),Ha=x(O(Uo),2);{var xf=(s)=>{var u=au();or(u,21,()=>l(Y),oa,(g,I,H)=>{var B=iu(),K=O(B),Te=X(K,!0),Ae=x(K,2),me=O(Ae,!0),Ce=x(me),vt=X(Ce);S(Ae);var fr=x(Ae,2);S(B),V(()=>{M(Te,l(I).jam),M(me,l(I).pesan),M(vt,`${l(I).kapan??""} · ${C[l(I).bunyi]??"suara"??""}`),nt(fr,"aria-label",`Hapus alarm ${l(I).jam??""}`)}),z("click",fr,()=>Gt(H)),D(g,B)}),S(u),D(s,u)},bf=(s)=>{var u=kr(),g=X(u);V(()=>M(g,`Belum ada alarm. Bisa juga lewat suara: "${l(E)?.nama??"Zond"??""}, ingatkan aku jam 5 sore minum obat".`)),D(s,u)};ne(Ha,(s)=>{if(l(Y).length)s(xf);else s(bf,-1)})}var Go=x(Ha,2),qo=O(Go),zo=O(qo);ot(zo);var On=x(zo,2),Ko=O(On);Ko.value=Ko.__value="0";var Wo=x(Ko);Wo.value=Wo.__value="127";var Zo=x(Wo);Zo.value=Zo.__value="62";var Xo=x(Zo);Xo.value=Xo.__value="65";var Va=x(Xo);Va.value=Va.__value="pilih",S(On),Er(On),S(qo);var Ua=x(qo,2);{var yf=(s)=>{var u=lu();or(u,22,()=>b,(g)=>g,(g,I,H)=>{var B=su(),K=O(B);ot(K);var Te=x(K,1,!0);S(B),V(()=>M(Te,I)),fa(K,()=>dt[l(H)],(Ae)=>dt[l(H)]=Ae),D(g,B)}),S(u),D(s,u)};ne(Ua,(s)=>{if(l(le)==="pilih")s(yf)})}var Jo=x(Ua,2);ot(Jo);var Qo=x(Jo,2),In=O(Qo),ei=O(In);ei.value=ei.__value=0;var ti=x(ei);ti.value=ti.__value=1;var Ga=x(ti);Ga.value=Ga.__value=2,S(In),Er(In),Xe(2),S(Qo);var $f=x(Qo,2);{var wf=(s)=>{var u=kr(),g=X(u,!0);V(()=>M(g,l(wt))),D(s,u)};ne($f,(s)=>{if(l(wt))s(wf)})}S(Go),Xe(2),S(Uo);var ri=x(Uo,2),ni=x(O(ri),2),Dn=O(ni);ot(Dn),Xe(),S(ni);var oi=x(ni,2),ii=O(oi),qa=x(ii,2);S(oi);var za=x(oi,2);{var Ef=(s)=>{var u=kr(),g=X(u);V(()=>M(g,`Skor suit: kamu ${l(E).skorKamu??""}, ${l(E).nama??""} ${l(E).skorZond??""}`)),D(s,u)};ne(za,(s)=>{if(l(E)?.fiturKamera&&(l(E).skorKamu||l(E).skorZond))s(Ef)})}var kf=x(za,2);{var Tf=(s)=>{var u=kr(),g=X(u,!0);V(()=>M(g,l(ar))),D(s,u)};ne(kf,(s)=>{if(l(ar))s(Tf)})}S(ri);var ai=x(ri,2),si=O(ai),Af=x(O(si));{var Sf=(s)=>{var u=Sl(),g=X(u);V(()=>M(g,`terakhir menjawab: ${l(E).aiTerakhir??""}`)),D(s,u)};ne(Af,(s)=>{if(l(E)?.aiTerakhir)s(Sf)})}S(si);var li=x(si,2);or(li,21,()=>Cl,(s)=>s.id,(s,u)=>{var g=fu();let I;var H=O(g),B=X(H,!0),K=x(H,2),Te=X(K,!0);S(g),V(()=>{g.disabled=!l(E)?.aiTersedia?.[l(u).id]||l(go)!=="",I=ir(g,1,"svelte-1xjvnya8h1aa3",null,I,{pilih:l(E)?.ai===l(u).id}),M(B,l(u).nama),M(Te,l(E)?.aiTersedia?.[l(u).id]===!1?"API key belum diisi":l(u).ket)}),z("click",g,()=>Ol(l(u).id)),D(s,g)}),S(li);var Nf=x(li,2);{var Rf=(s)=>{var u=kr(),g=X(u,!0);V(()=>M(g,l(Qr))),D(s,u)};ne(Nf,(s)=>{if(l(Qr))s(Rf)})}Xe(2),S(ai);var jf=x(ai,2);{var Cf=(s)=>{var u=cu(),g=X(u,!0);V(()=>M(g,l(E).status)),D(s,u)};ne(jf,(s)=>{if(l(E)?.status)s(Cf)})}S(wo),V(()=>{if(M(Vl,l(E)?.nama??"Robot"),xa=ir(ga,1,"titik svelte-1xjvnya8h1aa3",null,xa,{on:l(Dt)&&l(E)?.hidup}),wa=ir(nn,1,"mik svelte-1xjvnya8h1aa3",null,wa,{dengar:l(E)?.mendengar||l(Jr)}),nn.disabled=!l(Dt),M(Zl,l(E)?.mendengar?"Mendengarkan... bicara sekarang":"Bicara ke "+(l(E)?.nama??"robot")),mo(on,l(E)?.dengarTerus??!1),on.disabled=!l(Dt),M(Xl,` Dengar terus (cukup sebut "${l(E)?.nama??"nama robot"??""}"). Boros: setiap suara di ruangan memakai jatah suara-ke-teks.`),M(ef,l(sr)?"Matikan kamera":"Nyalakan kamera"),M(Aa,`Kecepatan ${l(en)??""}`),M(Ia,`Toleh ${l(Ar)<0?"kiri":l(Ar)>0?"kanan":"lurus"}`),M(Da,`Angguk ${l(tn)??""}°`),M(Fa,`Volume ${l(rn)??""}`),qt.disabled=!l(Dt),an.disabled=!l(E)?.suaraSiap,M(vf,`Cowok (${(l(E)?.suaraNama||"Gemini")??""})`),jn!==(jn=l(E)?.suara??"gemini"))qt.value=(qt.__value=jn)??"",Xr(qt,jn);mo(Dn,l(E)?.fiturKamera??!1),Dn.disabled=!l(Dt),ii.disabled=!l(E)?.fiturKamera,qa.disabled=!l(E)?.fiturKamera}),z("click",nn,Rl),z("change",on,jl),z("click",Ta,()=>A(sr,!l(sr))),z("contextmenu",Rn,(s)=>s.preventDefault()),It(Sa,()=>l(en),(s)=>A(en,s)),z("click",Na,()=>R(-90)),z("click",Ra,()=>R(180)),z("click",tf,()=>R(90)),z("input",Io,$o),It(Io,()=>l(Ar),(s)=>A(Ar,s)),z("input",Mo,$o),It(Mo,()=>l(tn),(s)=>A(tn,s)),z("click",df,Fl),z("click",Ma,()=>Q("/api/lagu",4000)),z("click",La,()=>Q("/api/radio",4000)),z("click",_f,()=>Q("/api/diam")),z("change",Bo,Pl),It(Bo,()=>l(rn),(s)=>A(rn,s)),z("change",qt,y),pt("submit",Cn,Yl),It(Ba,()=>l(Tn),(s)=>A(Tn,s)),pt("submit",Vo,Bl),It(Ya,()=>l(Sn),(s)=>A(Sn,s)),pt("submit",Go,qe),It(zo,()=>l(ee),(s)=>A(ee,s)),En(On,()=>l(le),(s)=>A(le,s)),It(Jo,()=>l(Ee),(s)=>A(Ee,s)),En(In,()=>l(ke),(s)=>A(ke,s)),z("change",Dn,_t),z("click",ii,()=>kn("/api/sekeliling","Zond menoleh dan memotret. Ceritanya dikirim ke Telegram.")),z("click",qa,()=>kn("/api/suit","Siapkan tanganmu di depan kamera!")),D(e,wo),un()}var Nl=pu;uo(["click","change","contextmenu","pointerdown","pointerup","input"]);Wr(Nl,{target:document.body});
 </script></body></html>)PANEL";
 // </PANEL_WEB>
 
@@ -2453,6 +3262,12 @@ void siapkanWeb() {
     jawabOk();
   });
   web.on("/api/stop", HTTP_GET, [] { if (mode != M_BIASA) gantiMode(M_BIASA); kirimBadan("S"); arahMata = 0; jawabOk(); });
+  web.on("/api/pesan", HTTP_GET, [] {                 // pesan ke layar: ?teks=...&dari=...
+    String t = web.arg("teks"); t.trim();
+    if (!t.length()) { web.send(400, "text/plain", "teks kosong"); return; }
+    tambahPesan(web.arg("dari").length() ? web.arg("dari") : String("Panel web"), t.substring(0, 199));
+    jawabOk();
+  });
   web.on("/api/jelajah", HTTP_GET, [] { jelajah(argAngka("menit", 5, 0, 60)); jawabOk(); });   // menit=0: berhenti
   web.on("/api/suara", HTTP_GET, [] { aturSuara(web.arg("pakai") != "google"); jawabOk(); });   // pakai=gemini|google
   web.on("/api/baterai", HTTP_GET, [] {               // riwayat tegangan per menit, paling lama dulu
@@ -2625,7 +3440,9 @@ void setup() {
   antrianTugas = xQueueCreate(2, sizeof(Tugas));
   antrianKirim = xQueueCreate(6, sizeof(PesanKirim));
   kunciAlarm = xSemaphoreCreateMutex();
+  kunciPesan = xSemaphoreCreateMutex();
   muatAlarm();
+  muatPesan();
 
   pref.begin("robot", false);
   uint8_t arah = ARAH_LAYAR, geo = pref.getUChar("geo", 1), rgb = pref.getUChar("rgb", 1);   // geo dan rgb: pilihan di tes_layar
@@ -2649,13 +3466,13 @@ void setup() {
                 millis() - tLayar, (esp_reset_reason() == ESP_RST_POWERON || esp_reset_reason() == ESP_RST_BROWNOUT) ? "600 ms" : "tidak ada", (unsigned)LAYAR_MHZ);
   lcd.setRotation(arah > 7 ? 6 : arah);
   if (lcd.width() < lcd.height()) lcd.setRotation(geo ? 6 : 1);   // robot memakai layar mendatar 320 x 240
+  { Preferences q; q.begin("robot", true); if (q.getUChar("putar", 0)) lcd.setRotation(lcd.getRotation() ^ 2); q.end(); }   // Setelan: putar 180
   lcd.setBrightness(255); lcd.fillScreen(TFT_BLACK);
   Serial.printf("[layar] arah %d, ukuran %d x %d\n", lcd.getRotation(), (int)lcd.width(), (int)lcd.height());
   int32_t tx, ty; bool paksa = lcd.getTouchRaw(&tx, &ty);    // sentuh layar saat menyala = kalibrasi ulang
   if (paksa) Serial.printf("[layar] sentuhan terbaca saat menyala (x %d, y %d): masuk kalibrasi ulang\n", (int)tx, (int)ty);
   kalibrasiSentuh(paksa);
-  wajah.setPsram(true); wajah.setColorDepth(16); wajah.createSprite(320, 186);
-  gambarTombol();
+  siapkanLayar();
 
   SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI);
   diagSentuh();
@@ -2673,7 +3490,7 @@ void setup() {
     Serial.println("Mikrofon gagal mulai");
 
   setStatus("Menyambung WiFi...");
-  gambarWajah();
+  perbaruiLayar();
   WiFi.mode(WIFI_STA); WiFi.begin(WIFI_NAMA, WIFI_PASSWORD);
   for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) delay(500);
   if (WiFi.status() == WL_CONNECTED) {
@@ -2716,7 +3533,6 @@ void loop() {
     if (b == 1 && WiFi.status() == WL_CONNECTED) kirimAudio(A_URL, DAFTAR_RADIO[0]);
     else if (b == 2) tekanTombol(T_LAGU);
   }
-  static unsigned long tWajah = 0;
-  if (millis() - tWajah > 100) { tWajah = millis(); gambarWajah(); }
+  perbaruiLayar();
   delay(5);
 }

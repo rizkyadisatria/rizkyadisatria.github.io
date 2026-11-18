@@ -1,4 +1,3 @@
-14242f663829	The full code is about 2,500 lines (mostly the compressed web panel): <a href="../kode/robot_otak/robot_otak.ino" download>download robot_otak.ino</a>. Do not upload a file that already contains your token and API keys anywhere public.
 f372d70a3ca5	Web panel: <b>Jelajah sendiri</b> (pick 5-30 minutes), or Telegram <code>/jelajah 10</code>
 c9ee264584a7	the robot drives forward until there is an obstacle about 40 cm ahead, then turns 70-130° in a random direction (using the gyroscope). If it is boxed in or stuck, it backs up and turns around. It stops on its own when the time is up, the battery is down to 10%, the robot tilts, or the STOP button is pressed. The arrow buttons, <code>/biasa</code>, or STOP also end it. Works through the AI too: "go for a walk"
 422167f0b5c3	Web panel: the <b>Baterai</b> section, or Telegram <code>/baterai</code>

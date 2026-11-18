@@ -29,10 +29,6 @@ a6ac9f6cd88b	No sound but the speaker test worked: Google TTS may be refusing ri
 91782c023849	Try every ability
 acb9274289bb	Try this
 34f064fbd090	What happens
-1ecf4c18e763	Tap STOP on the screen
-29493907c679	motors and sound stop, the mode returns to normal
-0dcfc516d342	Tap the robot's face
-a33e6c6f4210	the screen shows the camera for 10 seconds (tap again to leave)
 3f2ebbf1c6ae	Telegram: <code>/status</code>
 57d6eda15b0c	distance, battery, temperature, humidity, tilt
 6fa567262678	Telegram: <code>/maju 800</code>, <code>/kiri</code>, <code>/stop</code>
