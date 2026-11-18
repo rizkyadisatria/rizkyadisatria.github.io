@@ -22,7 +22,6 @@ ccadb254c96c	<b>Why this way?</b> The AI is asked to answer in JSON format: a se
 5240191b0af1	<span class="py">OK to lock in</span> All the code is considered final after this stage. Part 6 only adjusts constants (Stage 8).
 8d53b30379a4	<span class="pn">Not yet</span> The wheels stay lifted until Part 6 Stage 7. Do not take apart the table setup before every feature in the table is proven to work, because finding the cause after dismantling is harder.
 1a490acb56ba	The AI answers but the robot does not move: look at the Serial Monitor. If you see "E DITOLAK", there is an obstacle or the STOP button is latched.
-f1ca8a3fc601	Photo fails: is the camera on? Is the IP in KAMERA_ALAMAT correct? Is the /stream tab in the browser closed?
 edd3c74596a2	SPEAK gives "Tidak terdengar jelas": speak closer to the microphone, or GROQ_API_KEY has not been filled in.
 2947cf619107	Security and privacy
 df1a93c4bda9	The robot only obeys your chat ID. Anyone else who finds your bot gets the reply "aku hanya menurut ke pemilikku".

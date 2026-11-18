@@ -20,7 +20,6 @@ da1bdc19c7e4	<span class="py">Fine to make permanent</span> Gemini API key from 
 6d8b72bfd21a	Groq: speech to text and backup AI (optional)
 f16ebabe7f2e	The same key also becomes the backup brain: if Gemini refuses (for example the daily quota is used up), the brain code asks the <code>GROQ_MODEL</code> model on Groq, which can also see photos.
 ff7a9896c1f2	Your recording is sent to Groq's servers. Read their privacy policy if that matters to you. Leaving this key empty is fine too: the TALK button will not work and there is no backup AI.
-237da7554215	Open <a href="../kode/robot_otak/robot_otak.ino" download>robot_otak.ino</a>. Fill in the CONFIGURATION section: WiFi, token, chat ID, Gemini API key, Groq API key (may be empty, but recommended as a backup), and <code>KAMERA_ALAMAT</code> with the camera IP from Part 4.
 50779d4595b2	The robot says "Jatah AI gratis sedang habis" (free AI quota used up): the daily limit of Gemini (and Groq if filled in) has been used. Wait for the quota to reset around 15:00-16:00 WITA, or pick another model with a larger quota on the AI Studio limits page.
 3008dfa341f6	The bot token, Gemini API key, and Groq API key are like passwords. Do not upload them to GitHub or send them to anyone. If one leaks, delete the key in AI Studio or the Groq console and create a new one.
 082bac9554ca	AI does not answer (code 400/403/404/429)

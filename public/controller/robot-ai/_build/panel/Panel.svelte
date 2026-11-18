@@ -503,7 +503,7 @@
       </select>
     </label>
     <p class="ket kecil-ket">
-      {#if s?.suara === 'edge'}Suara Edge: gratis tanpa jatah. Hari ini {s.suaraHariIni} kalimat.{:else if s?.suara === 'gemini'}Suara Gemini hari ini {s.suaraHariIni} kalimat (jatah gratis harian kecil).{:else}Suara Google: paling sederhana, selalu bisa.{/if}{#if s?.suaraGalat} Galat terakhir: kode {s.suaraGalat}, kalimat itu memakai suara Google.{/if}
+      {#if s?.suara === 'edge'}Suara Edge: gratis, tidak ada jatah harian.{:else if s?.suara === 'gemini'}Suara Gemini hari ini {s.suaraHariIni} kalimat (jatah gratis harian kecil).{:else}Suara Google: paling sederhana, selalu bisa.{/if}{#if s?.suaraGalat} Galat terakhir: kode {s.suaraGalat}, kalimat itu memakai suara Google.{/if}
     </p>
     <form onsubmit={bilang}>
       <input type="text" placeholder="Suruh Zond bilang..." bind:value={kalimat} maxlength="140" />

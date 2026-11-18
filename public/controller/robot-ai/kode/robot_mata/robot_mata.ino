@@ -20,11 +20,13 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ESPmDNS.h>
+#include <WiFiUdp.h>
 
 // ================== ISI DENGAN WIFI RUMAHMU (2.4 GHz) ==================
 const char* WIFI_NAMA     = "NAMA_WIFI";
 const char* WIFI_PASSWORD = "PASSWORD_WIFI";
 const char* NAMA_MDNS     = "robotcam";        // jadi robotcam.local
+const uint16_t PORT_OTAK  = 47100;             // siaran alamat kamera ke otak (sama dengan PORT_KAMERA di kode otak)
 const bool  KAMERA_TERBALIK = false;           // true kalau gambar terbalik atas-bawah
 
 // ================== PIN KAMERA AI-THINKER (jangan diubah) ==================
@@ -143,6 +145,16 @@ void handleRoot() {
     "<img src=/capture style='max-width:100%'>");
 }
 
+// IP kamera dibagi router dan bisa berubah. Kamera menyiarkan "ZOND-MATA <ip>" ke seluruh WiFi supaya otak selalu
+// tahu alamat terbarunya, tanpa perlu mengisi IP di kode otak.
+WiFiUDP udp;
+void umumkanAlamat() {
+  udp.beginPacket(WiFi.broadcastIP(), PORT_OTAK);
+  udp.print("ZOND-MATA ");
+  udp.print(WiFi.localIP());
+  udp.endPacket();
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.println("\n=== MATA ROBOT ===");
@@ -174,6 +186,11 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  static bool tadiTersambung = false;
+  static unsigned long tUmumkan = 0;
+  bool tersambung = WiFi.status() == WL_CONNECTED;
+  if (tersambung && (!tadiTersambung || millis() - tUmumkan > 30000)) { tUmumkan = millis(); umumkanAlamat(); }   // tiap 30 detik dan setiap tersambung ulang
+  tadiTersambung = tersambung;
   if (WiFi.status() != WL_CONNECTED) {      // WiFi putus: coba lagi
     static unsigned long t = 0;
     if (millis() - t > 10000) { t = millis(); WiFi.reconnect(); }

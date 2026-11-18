@@ -104,7 +104,7 @@ PATEN = {
         'Kunci Groq (boleh dikosongkan).',
         'Rekaman suara dikirim ke server Groq. Kalau keberatan, kosongkan kuncinya.'),
     ('5-ai', 4): (
-        'robot_otak.ino yang sudah terisi (WiFi, token, chat ID, API key, KAMERA_ALAMAT, nama robot). Kalibrasi sentuh tersimpan di S3.',
+        'robot_otak.ino yang sudah terisi (WiFi, token, chat ID, API key, nama robot). Kalibrasi sentuh tersimpan di S3.',
         'Berkas yang sudah berisi kunci jangan diunggah ke tempat publik. Roda tetap terangkat.'),
     ('5-ai', 5): (
         'Semua kode dianggap final setelah tahap ini. Bagian 6 hanya menyetel konstanta (Tahap 8).',
