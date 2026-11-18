@@ -1,0 +1,2 @@
+849d1326490c	Ask anything (voice or Telegram), for example "jelaskan kenapa langit biru" (explain why the sky is blue) or "siapa Sultan Hasanuddin?"
+a40bc43f9724	small talk gets short answers, questions that need explaining get up to about 6 sentences. When unsure about a fact, the AI first searches Wikipedia (free) and answers from the summary. Zond remembers the last 10 questions and answers until switched off. It still does not know today's news: Google Search for Gemini is only on the paid plan

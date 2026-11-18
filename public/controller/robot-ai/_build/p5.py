@@ -89,6 +89,7 @@ def halaman():
         ['Telegram: <code>/foto</code>', 'foto dari kamera'],
         ['Telegram: <code>/lihat ada apa di depanmu?</code>', 'foto dikirim, AI menjelaskan isinya'],
         ['Telegram: pesan biasa, misalnya "maju sedikit lalu lihat ke kiri"', 'AI menjawab dan menggerakkan badan'],
+        ['Tanya apa saja (suara atau Telegram), misalnya "jelaskan kenapa langit biru" atau "siapa Sultan Hasanuddin?"', 'obrolan dijawab singkat, pertanyaan yang butuh penjelasan dijawab sampai sekitar 6 kalimat. Kalau tidak yakin soal fakta, AI mencari dulu di Wikipedia (gratis) lalu menjawab dari ringkasannya. Zond mengingat 10 tanya-jawab terakhir sampai dimatikan. Berita hari ini tetap tidak ia ketahui: pencarian Google untuk Gemini hanya ada di paket berbayar'],
         ['Telegram: <code>/lagu</code>, <code>/putar hujan</code> (cukup sebagian nama), <code>/volume 15</code>, <code>/diam</code>', 'musik dari SD card: mp3, flac, wav, m4a, aac, ogg, opus'],
         ['Telegram: <code>/radio</code> + alamat stream', 'memutar radio internet (alamat stream MP3/AAC dari situs radio)'],
         ['Telegram: <code>/bilang selamat pagi</code>', 'robot mengucapkan teks'],

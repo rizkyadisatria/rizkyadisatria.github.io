@@ -1334,24 +1334,37 @@ String suaraKeTeks() {
 }
 
 // ======================= AI (Gemini, cadangan Groq) =======================
-String riwayatPeran[6], riwayatIsi[6]; int riwayatN = 0;
+const int RIWAYAT_CHAT = 20;                       // 10 tanya-jawab terakhir diingat (hilang kalau robot dimatikan)
+String riwayatPeran[RIWAYAT_CHAT], riwayatIsi[RIWAYAT_CHAT]; int riwayatN = 0;
 
 void ingat(const String& peran, const String& isi) {
-  if (riwayatN == 6) { for (int i = 0; i < 4; i++) { riwayatPeran[i] = riwayatPeran[i + 2]; riwayatIsi[i] = riwayatIsi[i + 2]; } riwayatN = 4; }
-  riwayatPeran[riwayatN] = peran; riwayatIsi[riwayatN] = isi; riwayatN++;
+  if (riwayatN == RIWAYAT_CHAT) {
+    for (int i = 0; i < RIWAYAT_CHAT - 2; i++) { riwayatPeran[i] = riwayatPeran[i + 2]; riwayatIsi[i] = riwayatIsi[i + 2]; }
+    riwayatN = RIWAYAT_CHAT - 2;
+  }
+  riwayatPeran[riwayatN] = peran;
+  riwayatIsi[riwayatN] = isi.length() > 1500 ? isi.substring(0, 1500) : isi;   // batasi supaya RAM tidak habis
+  riwayatN++;
 }
 
 String promptSistem() {
   return String("Kamu adalah ") + NAMA_ROBOT + ", robot beroda empat milik " + NAMA_PEMILIK + " di Lombok. "
     "Namamu " + String(NAMA_ROBOT) + "; pemilikmu memanggil namamu sebelum memberi perintah, jadi abaikan panggilan itu dan tanggapi permintaannya. "
-    "Bicara Bahasa Indonesia santai, ramah, dan SINGKAT (paling banyak 2 kalimat) karena jawabanmu diucapkan lewat speaker kecil. "
-    "Jujur: kalau tidak tahu, bilang tidak tahu. Kamu punya badan yang bisa bergerak. "
+    "Bicara Bahasa Indonesia santai dan ramah. Untuk obrolan biasa dan perintah, jawab singkat (1-2 kalimat). "
+    "Kalau diminta menjelaskan, bercerita, memberi langkah, resep, atau saran, atau ditanya kenapa/bagaimana, jawab lengkap "
+    "dan pakai pengetahuanmu sepenuhnya, sampai sekitar 6 kalimat yang padat. Jawabanmu diucapkan lewat speaker, jadi "
+    "tulis kalimat biasa tanpa daftar bernomor, simbol, atau markdown. "
+    "Jujur: kalau tidak tahu, bilang tidak tahu. Pengetahuanmu punya batas waktu; untuk hal yang bisa berubah "
+    "(harga, jabatan, berita), bilang bahwa infomu mungkin sudah lama. Kamu punya badan yang bisa bergerak. "
     "Jawab HANYA dengan satu objek JSON tanpa teks lain, formatnya: "
     "{\"bicara\":\"kalimatmu\",\"aksi\":[...]} . Aksi yang tersedia: "
     "{\"m\":[kiri,kanan,ms]} maju atau mundur, kiri/kanan -200..200, ms 100..2000 (maju [150,150,800], mundur [-150,-150,800]); "
     "{\"belok\":derajat} berputar di tempat dengan tepat, positif = kanan, negatif = kiri (90 = seperempat putaran, 180 = balik arah); "
     "{\"kepala\":[pan,tilt]} arah kepala dalam derajat, 90,90 = lurus ke depan, pan 30=kanan 150=kiri; "
     "{\"foto\":1} ambil foto dari kameramu, HANYA kalau diminta melihat sesuatu; "
+    "{\"cari\":\"kata kunci\"} cari di Wikipedia kalau ditanya fakta (tokoh, tempat, sejarah, sains, istilah) yang tidak "
+    "kamu yakini; kata kunci singkat, isi bicara dengan kalimat pendek seperti \"Sebentar, aku cari dulu.\"; jangan dipakai "
+    "untuk obrolan, perintah gerak, cuaca, atau berita hari ini; "
     "{\"diam\":1} hentikan musik; {\"mode\":\"ikuti\"} ikuti benda di depanmu (misalnya kaki pemilik), "
     "{\"mode\":\"jaga\"} diam dan berjaga, {\"mode\":\"jelajah\"} jalan-jalan sendiri keliling ruangan selama 5 menit, "
     "{\"mode\":\"biasa\"} kembali normal (juga menghentikan jelajah); "
@@ -1563,8 +1576,50 @@ String tanyaAI(const String& pertanyaan, const String& fotoBase64 = "", bool sim
   return teks;
 }
 
-// jalankan JSON {"bicara":..,"aksi":[..]}; kembalikan kalimat untuk dikirim ke Telegram
-String jalankanJawaban(const String& jawaban, const String& pertanyaanAsli, bool bolehFoto) {
+// ======================= CARI DI WIKIPEDIA (gratis, tanpa kunci) =======================
+// Dipakai AI lewat aksi {"cari":"kata kunci"}: ringkasan artikel teratas dikirim balik ke AI untuk menjawab.
+String kodeUrl(const String& t) {
+  String o; char b[4];
+  for (unsigned int i = 0; i < t.length(); i++) {
+    unsigned char c = t[i];
+    if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') o += (char)c;
+    else { snprintf(b, sizeof(b), "%%%02X", c); o += b; }
+  }
+  return o;
+}
+
+String cariWikipediaDi(const char* bahasa, const String& kata) {
+  WiFiClientSecure c; c.setInsecure();
+  HTTPClient http;
+  String url = String("https://") + bahasa + ".wikipedia.org/w/api.php?action=query&format=json&formatversion=2"
+               "&generator=search&gsrlimit=1&prop=extracts&exintro=1&explaintext=1&exchars=1200&redirects=1&gsrsearch=" + kodeUrl(kata);
+  if (!http.begin(c, url)) return String();
+  http.setUserAgent("Zond/1.0 (robot pribadi ESP32)");   // Wikipedia meminta nama aplikasi
+  http.setTimeout(10000);
+  int kode = http.GET();
+  String resp = kode == 200 ? http.getString() : String();
+  http.end();
+  if (!resp.length()) { Serial.printf("[cari] Wikipedia %s gagal (%d)\n", bahasa, kode); return String(); }
+  JsonDocument saring;
+  saring["query"]["pages"][0]["title"] = true;
+  saring["query"]["pages"][0]["extract"] = true;
+  JsonDocument d;
+  if (deserializeJson(d, resp, DeserializationOption::Filter(saring))) return String();
+  String judul = d["query"]["pages"][0]["title"] | "", isi = d["query"]["pages"][0]["extract"] | "";
+  if (!isi.length()) return String();
+  Serial.printf("[cari] %s: %s (%u huruf)\n", bahasa, judul.c_str(), (unsigned)isi.length());
+  return judul + " (Wikipedia " + bahasa + "): " + isi;
+}
+
+// Wikipedia bahasa Indonesia dulu; kalau tidak ada, bahasa Inggris (AI tetap menjawab dalam bahasa Indonesia).
+String cariWikipedia(const String& kata) {
+  String h = cariWikipediaDi("id", kata);
+  return h.length() ? h : cariWikipediaDi("en", kata);
+}
+
+// jalankan JSON {"bicara":..,"aksi":[..]}; kembalikan kalimat untuk dikirim ke Telegram.
+// sudahCari: jawaban ini sudah memakai hasil Wikipedia, jadi aksi cari tidak dijalankan lagi.
+String jalankanJawaban(const String& jawaban, const String& pertanyaanAsli, bool bolehFoto, bool sudahCari = false) {
   int a = jawaban.indexOf('{'), b = jawaban.lastIndexOf('}');
   JsonDocument j;
   if (a < 0 || b < a || deserializeJson(j, jawaban.substring(a, b + 1))) {
@@ -1573,6 +1628,7 @@ String jalankanJawaban(const String& jawaban, const String& pertanyaanAsli, bool
   String bicara = j["bicara"] | "";
   if (bicara.length()) ucapkan(bicara);                  // bicara dulu, baru bergerak
   bool mintaFoto = false;
+  String cari;
   for (JsonObject x : j["aksi"].as<JsonArray>()) {
     if (x["m"].is<JsonArray>()) {
       int l = constrain((int)x["m"][0], -200, 200), r = constrain((int)x["m"][1], -200, 200), ms = constrain((int)x["m"][2], 100, 2000);
@@ -1594,6 +1650,8 @@ String jalankanJawaban(const String& jawaban, const String& pertanyaanAsli, bool
       kirimBadan("P " + String((int)x["kepala"][0]) + " " + String((int)x["kepala"][1])); vTaskDelay(pdMS_TO_TICKS(400));
     } else if (x["foto"].is<int>()) {
       mintaFoto = true;
+    } else if (x["cari"].is<const char*>() && !sudahCari) {
+      cari = x["cari"].as<String>();
     } else if (x["diam"].is<int>()) {
       kirimAudio(A_STOP);
     } else if (x["mode"].is<const char*>()) {
@@ -1601,6 +1659,18 @@ String jalankanJawaban(const String& jawaban, const String& pertanyaanAsli, bool
       if (md == "jelajah") jelajah(5);
       else gantiMode(md == "ikuti" ? M_IKUTI : md == "jaga" ? M_JAGA : M_BIASA);
     }
+  }
+  if (cari.length()) {
+    setStatus("Mencari: " + cari);
+    String hasil = cariWikipedia(cari);
+    String q2 = pertanyaanAsli + "\n\n(Hasil pencarian Wikipedia untuk \"" + cari + "\": " +
+                (hasil.length() ? hasil : String("tidak ditemukan")) +
+                ")\nJawab pertanyaan di atas memakai hasil ini kalau cocok, dengan kata-katamu sendiri. Jangan memakai aksi cari lagi.";
+    String j2 = tanyaAI(q2, "", false);
+    // ganti jawaban "sebentar, aku cari dulu" di riwayat dengan jawaban akhirnya
+    if (riwayatN > 0 && riwayatPeran[riwayatN - 1] == "assistant") riwayatIsi[riwayatN - 1] = j2.substring(0, 1500);
+    String akhir = jalankanJawaban(j2, pertanyaanAsli, bolehFoto, true);
+    return bicara.length() ? bicara + "\n" + akhir : akhir;
   }
   if (mintaFoto && bolehFoto) {
     setStatus("Melihat...");
@@ -1610,7 +1680,7 @@ String jalankanJawaban(const String& jawaban, const String& pertanyaanAsli, bool
     xSemaphoreGive(kunciFoto);
     if (ok) {
       String j2 = tanyaAI(pertanyaanAsli + " (Ini foto dari kameramu barusan. Jawab berdasarkan foto.)", b64);
-      return jalankanJawaban(j2, pertanyaanAsli, false);
+      return jalankanJawaban(j2, pertanyaanAsli, false, sudahCari);
     }
     bicara = "Kameraku tidak bisa dihubungi.";
     ucapkan(bicara);
