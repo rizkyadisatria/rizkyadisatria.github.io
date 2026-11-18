@@ -30,6 +30,8 @@
     sisaMenit: number
     suara: string
     suaraSiap: boolean
+    edgeSiap: boolean
+    edgeNama: string
     suaraNama: string
     suaraHariIni: number
     suaraGalat: number
@@ -494,13 +496,14 @@
     </div>
     <label>Volume {volume}<input type="range" min="0" max="21" bind:value={volume} onchange={aturVolume} /></label>
     <label class="suara">Suara bicara
-      <select value={s?.suara ?? 'gemini'} onchange={pilihSuara} disabled={!tersambung}>
-        <option value="gemini" disabled={!s?.suaraSiap}>Cowok ({s?.suaraNama || 'Gemini'})</option>
+      <select value={s?.suara ?? 'edge'} onchange={pilihSuara} disabled={!tersambung}>
+        <option value="edge" disabled={!s?.edgeSiap}>Edge ({s?.edgeNama || 'Ardi'})</option>
+        <option value="gemini" disabled={!s?.suaraSiap}>Gemini ({s?.suaraNama || 'Puck'})</option>
         <option value="google">Google</option>
       </select>
     </label>
     <p class="ket kecil-ket">
-      {#if !s?.suaraSiap}Suara cowok belum aktif: isi SUARA_GEMINI dan GEMINI_API_KEY di kode.{:else}Suara Gemini hari ini {s.suaraHariIni} kalimat (jatah gratis harian).{#if s.suaraGalat} Galat terakhir: kode {s.suaraGalat}, sementara memakai suara Google.{/if}{/if}
+      {#if s?.suara === 'edge'}Suara Edge: gratis tanpa jatah. Hari ini {s.suaraHariIni} kalimat.{:else if s?.suara === 'gemini'}Suara Gemini hari ini {s.suaraHariIni} kalimat (jatah gratis harian kecil).{:else}Suara Google: paling sederhana, selalu bisa.{/if}{#if s?.suaraGalat} Galat terakhir: kode {s.suaraGalat}, kalimat itu memakai suara Google.{/if}
     </p>
     <form onsubmit={bilang}>
       <input type="text" placeholder="Suruh Zond bilang..." bind:value={kalimat} maxlength="140" />
