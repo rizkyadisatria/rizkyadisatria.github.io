@@ -271,6 +271,12 @@ struct PerintahAudio { JenisAudio jenis; char isi[320]; };
 // Semua jenis data (enum/struct) harus dibuat sebelum fungsi pertama: Arduino IDE menaruh deklarasi
 // fungsi otomatis tepat sebelum fungsi pertama. Fungsi dengan nilai bawaan dideklarasikan sendiri di sini.
 void kirimAudio(JenisAudio j, const String& isi = "");
+// Fungsi yang dipakai sebelum ditulis. Dideklarasikan di sini supaya tidak bergantung pada prototipe otomatis Arduino.
+bool jamSiap(struct tm& t);
+bool pasangSD();
+int mintaSuaraGemini(const String& teks, int tingkat);
+void tambahPesan(const String& dari, const String& isi);
+String namaHost();
 
 void setStatus(const String& s) { strlcpy(teksStatus, s.c_str(), sizeof(teksStatus)); Serial.println("[status] " + s); tAktif = millis(); }
 
