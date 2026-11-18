@@ -41,6 +41,7 @@
 #include <ArduinoJson.h>
 #include <base64.h>
 #include "mbedtls/base64.h"
+#include "esp_heap_caps.h"
 #include <ESP_I2S.h>
 #include "Audio.h"
 
@@ -350,23 +351,32 @@ void tulisHeaderWav(File& f, uint32_t pcmByte, uint32_t rate) {
 // Kalau Google menolak (kode 400), bentuk berikutnya dicoba dan yang berhasil dipakai terus sampai robot menyala ulang.
 int tingkatSuara = 0;
 
-// 0 = berhasil. Selain itu kode HTTP dari Google, atau negatif kalau sambungan/isi jawaban/penyimpanan gagal.
+// 0 = berhasil. Positif = kode HTTP dari Google. -1 sampai -11 = sambungan gagal (kode HTTPClient).
+// -101 dan seterusnya = jawaban tidak berisi audio atau penyimpanan gagal.
 int unduhSuaraGemini(const String& teks) {
+  bool sudahUlang = false;
   for (;;) {
     int h = mintaSuaraGemini(teks, tingkatSuara);
-    if (h != 400 || tingkatSuara >= 2) return h;
-    tingkatSuara++;
-    Serial.printf("[suara] ditolak (400), coba bentuk permintaan %d\n", tingkatSuara);
+    if (h == 400 && tingkatSuara < 2) {
+      tingkatSuara++;
+      Serial.printf("[suara] ditolak (400), coba bentuk permintaan %d\n", tingkatSuara);
+      continue;
+    }
+    if (h < 0 && h > -100 && !sudahUlang) {             // sambungan gagal: coba sekali lagi
+      sudahUlang = true;
+      Serial.printf("[suara] sambungan gagal (%s), coba lagi\n", suaraPesanGalat.c_str());
+      continue;
+    }
+    return h;
   }
 }
 
 int mintaSuaraGemini(const String& teks, int tingkat) {
-  static WiFiClientSecure klien;                       // sambungan dipakai ulang supaya kalimat berikutnya lebih cepat
+  WiFiClientSecure klien;                              // sambungan baru tiap kalimat (sambungan lama bisa diputus Google)
   klien.setInsecure();
   HTTPClient http;
-  http.setReuse(true);
-  if (!http.begin(klien, "https://generativelanguage.googleapis.com/v1beta/interactions")) return -1;
-  http.setTimeout(20000);
+  if (!http.begin(klien, "https://generativelanguage.googleapis.com/v1beta/interactions")) { suaraPesanGalat = "begin gagal"; return -1; }
+  http.setTimeout(40000);                              // membuat suara bisa makan belasan detik untuk kalimat panjang
   http.addHeader("x-goog-api-key", GEMINI_API_KEY);
   http.addHeader("Content-Type", "application/json");
   JsonDocument q;
@@ -382,15 +392,22 @@ int mintaSuaraGemini(const String& teks, int tingkat) {
   if (tingkat == 0) { q["response_format"]["mime_type"] = "audio/l16"; q["response_format"]["sample_rate"] = SUARA_RATE; }
   q["generation_config"]["speech_config"].add<JsonObject>()["voice"] = SUARA_GEMINI;
   String permintaan; serializeJson(q, permintaan);
+  unsigned long t0 = millis();
   int kode = http.POST(permintaan);
+  if (kode <= 0) {
+    suaraPesanGalat = http.errorToString(kode) + " setelah " + String((millis() - t0) / 1000) + " detik, RAM bebas " +
+                      String(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024) + " KB";
+    http.end();
+    return kode < 0 ? kode : -1;
+  }
   PenampungPSRAM jaw;
-  if (kode > 0) http.writeToStream(&jaw);
+  int terima = http.writeToStream(&jaw);
   http.end();
   if (kode != 200) {
     suaraPesanGalat = jaw.buf ? String((const char*)jaw.buf).substring(0, 240) : String();
-    return kode > 0 ? kode : -2;
+    return kode;
   }
-  if (!jaw.buf) return -3;
+  if (!jaw.buf) { suaraPesanGalat = "jawaban kosong (" + http.errorToString(terima) + ")"; return -101; }
   // Cari string "data" terpanjang di JSON: itu audionya (base64). Tidak memakai ArduinoJson karena ukurannya besar.
   char* awal = nullptr; size_t panjang = 0;
   for (char* p = strstr((char*)jaw.buf, "\"data\""); p; p = strstr(p + 6, "\"data\"")) {
@@ -400,20 +417,23 @@ int mintaSuaraGemini(const String& teks, int tingkat) {
     char* akhir = strchr(v + 1, '"');
     if (akhir && (size_t)(akhir - v - 1) > panjang) { awal = v + 1; panjang = akhir - v - 1; }
   }
-  if (!awal || panjang < 100) { suaraPesanGalat = String((const char*)jaw.buf).substring(0, 240); return -4; }
+  if (!awal || panjang < 100) { suaraPesanGalat = String((const char*)jaw.buf).substring(0, 240); return -102; }
   size_t n = 0;                                        // buang garis miring terbalik (escape JSON) kalau ada
   for (size_t i = 0; i < panjang; i++) if (awal[i] != '\\') awal[n++] = awal[i];
   size_t ukuran = n / 4 * 3 + 4, hasil = 0;
   uint8_t* audioBuf = (uint8_t*)ps_malloc(ukuran);
-  if (!audioBuf) return -5;
-  if (mbedtls_base64_decode(audioBuf, ukuran, &hasil, (const uint8_t*)awal, n) != 0 || hasil < 100) { free(audioBuf); return -6; }
+  if (!audioBuf) { suaraPesanGalat = "PSRAM penuh"; return -103; }
+  if (mbedtls_base64_decode(audioBuf, ukuran, &hasil, (const uint8_t*)awal, n) != 0 || hasil < 100) {
+    free(audioBuf); suaraPesanGalat = "audio base64 rusak"; return -104;
+  }
   File f = FFat.open("/suara.wav", FILE_WRITE);
-  if (!f) { free(audioBuf); return -7; }
+  if (!f) { free(audioBuf); suaraPesanGalat = "tidak bisa menulis ke flash"; return -105; }
   if (memcmp(audioBuf, "RIFF", 4) != 0) tulisHeaderWav(f, hasil, tingkat == 0 ? SUARA_RATE : 24000);   // PCM tanpa header
   size_t tertulis = f.write(audioBuf, hasil);
   f.close();
   free(audioBuf);
-  return tertulis == hasil ? 0 : -8;
+  if (tertulis != hasil) { suaraPesanGalat = "flash penuh"; return -106; }
+  return 0;
 }
 
 // Dipanggil tugas audio. true = sedang diputar dengan suara Gemini, false = pakai Google.
@@ -423,13 +443,14 @@ bool bicaraSuaraAI(const String& teks) {
   int h = unduhSuaraGemini(teks);
   if (h != 0) {
     Serial.printf("[suara] Gemini TTS gagal (%d, bentuk %d), kalimat ini memakai suara Google. %s\n", h, tingkatSuara, suaraPesanGalat.c_str());
-    if (h != suaraGalat && h != -2)                     // satu kali per jenis galat (putus internet tidak dilaporkan)
+    if (h != suaraGalat)                                 // satu kali per jenis galat
       kirimTelegram("Suara Gemini gagal (kode " + String(h) + (h == 429 ? ": jatah habis atau terlalu sering" : "") +
                     ", " SUARA_MODEL ", suara " SUARA_GEMINI ", bentuk " + String(tingkatSuara) + "). Sementara memakai suara Google. " +
                     suaraPesanGalat);
     suaraGalat = h;
     if (h == 429) suaraIstirahat = millis() + 300000UL;                          // jatah: coba lagi 5 menit kemudian
     else if (h == 400 || h == 401 || h == 403 || h == 404) suaraIstirahat = millis() + 600000UL;
+    else if (h < 0 && h > -100) suaraIstirahat = millis() + 120000UL;           // sambungan gagal: pakai Google 2 menit dulu
     return false;
   }
   suaraGalat = 0;
