@@ -609,8 +609,17 @@ int mintaSuaraEdge(const String& teks, const String& suara) {
   time_t kini = time(nullptr);
   if (kini < 1700000000) { suaraPesanGalat = "jam belum tersinkron (NTP)"; return -107; }
   char gec[90]; tokenEdge((uint64_t)(kini + edgeSelisihJam), gec);
-  WiFiClientSecure k; k.setInsecure(); k.setTimeout(10);
-  if (!k.connect("speech.platform.bing.com", 443)) { suaraPesanGalat = "tidak bisa tersambung ke speech.platform.bing.com"; return -1; }
+  WiFiClientSecure k; k.setInsecure();
+  k.setTimeout(15000);                                  // milidetik (inti ESP32 3.x), dipakai juga untuk membuka sambungan
+  k.setHandshakeTimeout(15);                            // detik
+  if (!k.connect("speech.platform.bing.com", 443)) {
+    IPAddress ip; char tls[100] = "";
+    k.lastError(tls, sizeof(tls));
+    suaraPesanGalat = !WiFi.hostByName("speech.platform.bing.com", ip) ? String("DNS gagal: nama speech.platform.bing.com tidak ditemukan") :
+                      "tidak bisa tersambung ke speech.platform.bing.com (" + ip.toString() + ")" + (tls[0] ? String(", TLS: ") + tls : String()) +
+                      ", RAM bebas " + String(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024) + " KB";
+    return -1;
+  }
   uint8_t acak[16]; for (int i = 0; i < 16; i++) acak[i] = esp_random();
   unsigned char kunciWs[32]; size_t nk = 0;
   mbedtls_base64_encode(kunciWs, sizeof(kunciWs), &nk, acak, 16); kunciWs[nk] = 0;
