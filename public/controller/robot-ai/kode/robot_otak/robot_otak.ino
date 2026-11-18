@@ -4166,16 +4166,16 @@ void gambarRekam() {
 }
 
 // ---- Galeri foto: foto dari kamera disimpan di SD /foto ----
-int fotoKe = 0, fotoDimuat = -1;
+int galeriKe = 0, fotoDimuat = -1;
 LGFX_Sprite fotoLayar(&lcd);                              // foto yang sedang dilihat, sudah dikecilkan (dibuat saat perlu)
 
 void muatFotoLayar() {
   if (!fotoLayar.getBuffer()) { fotoLayar.setPsram(true); fotoLayar.setColorDepth(16); if (!fotoLayar.createSprite(320, 172)) return; }
   fotoLayar.fillScreen(TFT_BLACK);
-  fotoDimuat = fotoKe;
-  if (fotoKe >= (int)daftarFoto.size()) return;
+  fotoDimuat = galeriKe;
+  if (galeriKe >= (int)daftarFoto.size()) return;
   kunciSD();
-  File f = SD.open("/foto/" + daftarFoto[fotoKe].nama);
+  File f = SD.open("/foto/" + daftarFoto[galeriKe].nama);
   size_t n = f ? f.size() : 0;
   uint8_t* b = (n > 0 && n < 600000) ? (uint8_t*)ps_malloc(n) : nullptr;
   bool ok = b && f.read(b, n) == n;
@@ -4200,7 +4200,7 @@ void ambilFotoGaleri() {
     lepasSD();
   }
   xSemaphoreGive(kunciFoto);
-  muatBerkas(1); fotoKe = 0; fotoDimuat = -1;
+  muatBerkas(1); galeriKe = 0; fotoDimuat = -1;
   toast(!ok ? "Kamera tidak bisa dihubungi" : simpan ? "Foto disimpan" : "Gagal menyimpan ke SD");
 }
 
@@ -4212,14 +4212,14 @@ void gambarGaleri() {
     tulisTengah("Tekan FOTO untuk memotret lewat kamera robot.", 86, &fonts::Font2, W_REDUP);
     tulisTengah("Disimpan di SD card, folder /foto.", 106, &fonts::Font2, W_REDUP);
   } else {
-    fotoKe = constrain(fotoKe, 0, n - 1);
-    if (fotoDimuat != fotoKe) muatFotoLayar();
+    galeriKe = constrain(galeriKe, 0, n - 1);
+    if (fotoDimuat != galeriKe) muatFotoLayar();
     fotoLayar.pushSprite(&kanvas, 0, 0);
     kanvas.setFont(&fonts::Font2); kanvas.setTextDatum(top_left); kanvas.setTextColor(TFT_WHITE, TFT_BLACK);
-    kanvas.drawString((String(fotoKe + 1) + "/" + String(n) + "  " + tanggalBerkas(daftarFoto[fotoKe].nama)).c_str(), 4, 2);
+    kanvas.drawString((String(galeriKe + 1) + "/" + String(n) + "  " + tanggalBerkas(daftarFoto[galeriKe].nama)).c_str(), 4, 2);
   }
   const char* L[5] = {"<", "FOTO", ">", "KIRIM", tanyaHapus ? "YAKIN?" : "HAPUS"};
-  bool aktif[5] = {n > 0 && fotoKe > 0, adaSD && alamatKamera.length() > 0, n > 0 && fotoKe < n - 1, n > 0, n > 0};
+  bool aktif[5] = {n > 0 && galeriKe > 0, adaSD && alamatKamera.length() > 0, n > 0 && galeriKe < n - 1, n > 0, n > 0};
   for (int i = 0; i < 5; i++) tombol(kanvas, ISI_Y, 63 + i, 6 + i * 62, 176, 58, 32, L[i], i == 1 ? W_BIRU : i == 4 ? W_MERAH : W_TOMBOL, aktif[i]);
 }
 
@@ -4260,7 +4260,7 @@ void bukaAlat(int h) {                                    // dipanggil buka() sa
   tanyaHapus = false;
   if (h == H_ALARM) alarmDipilih = -1;
   if (h == H_REKAM) { rekamDipilih = -1; muatBerkas(0); }
-  if (h == H_GALERI) { muatBerkas(1); fotoKe = 0; fotoDimuat = -1; }
+  if (h == H_GALERI) { muatBerkas(1); galeriKe = 0; fotoDimuat = -1; }
   if (h == H_SENTER) { layarPutih = false; senterGagal = false; }
   if (h == H_DERING) { tDeringMulai = tDeringUcap = millis(); deringKali = 1; }
 }
@@ -4390,14 +4390,14 @@ void tombolAlat(int id) {
     case H_GALERI: {
       int n = daftarFoto.size();
       if (id != 67) tanyaHapus = false;
-      if (id == 63 && fotoKe > 0) fotoKe--;
-      else if (id == 65 && fotoKe < n - 1) fotoKe++;
+      if (id == 63 && galeriKe > 0) galeriKe--;
+      else if (id == 65 && galeriKe < n - 1) galeriKe++;
       else if (id == 64) ambilFotoGaleri();
       else if (id == 66 && n) {
-        fotoDikirim = "/foto/" + daftarFoto[fotoKe].nama; mintaKirimFoto = true; toast("Mengirim ke Telegram...");
+        fotoDikirim = "/foto/" + daftarFoto[galeriKe].nama; mintaKirimFoto = true; toast("Mengirim ke Telegram...");
       } else if (id == 67 && n) {
         if (!tanyaHapus) { tanyaHapus = true; toast("Tekan sekali lagi untuk menghapus"); }
-        else { hapusBerkas("/foto/" + daftarFoto[fotoKe].nama); muatBerkas(1); fotoDimuat = -1; tanyaHapus = false; toast("Foto dihapus"); }
+        else { hapusBerkas("/foto/" + daftarFoto[galeriKe].nama); muatBerkas(1); fotoDimuat = -1; tanyaHapus = false; toast("Foto dihapus"); }
       }
       break;
     }
