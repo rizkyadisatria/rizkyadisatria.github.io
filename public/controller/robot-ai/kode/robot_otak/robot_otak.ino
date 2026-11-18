@@ -79,6 +79,21 @@ const int   VOLUME_AWAL     = 12;                     // 0..21
 const char* DAFTAR_RADIO[] = {
   "http://stream.radioparadise.com/mp3-128",           // Radio Paradise (musik campuran, tanpa iklan)
 };
+// Podcast untuk Musik → Podcast: nama dan alamat RSS. Alamat RSS ada di podnews.net (halaman podcastnya, tautan RSS).
+// Podcast yang khusus Spotify atau Noice tidak punya RSS terbuka, jadi tidak bisa diputar di sini.
+const char* DAFTAR_PODCAST[][2] = {
+  {"SBS Indonesian", "https://sbs-ondemand.streamguys1.com/sbs-indonesian/"},   // berita dan obrolan, episode baru tiap hari
+};
+// Qari untuk Musik → Murottal (dari mp3quran.net). File SD /murottal/001.mp3 sampai 114.mp3 diputar lebih dulu, tanpa internet.
+const char* DAFTAR_QARI[][2] = {
+  {"Alafasy",    "https://cdn.mp3quran.net/audio/mishary-alafasy/r1/"},
+  {"Abdul Basit", "https://cdn.mp3quran.net/audio/abdulbasit-abdulsamad/r3/"},
+  {"Al-Ghamdi",  "https://cdn.mp3quran.net/audio/saad-ghamdi/r1/"},
+  {"As-Sudais",  "https://cdn.mp3quran.net/audio/abdulrahman-sudais/r1/"},
+  {"Al-Husary",  "https://cdn.mp3quran.net/audio/mahmoud-husary/r1/"},
+  {"Al-Muaiqly", "https://cdn.mp3quran.net/audio/maher-muaiqly/r1/"},
+  {"Ad-Dosari",  "https://cdn.mp3quran.net/audio/yasser-dosari/r1/"},
+};
 
 // ======================= PIN (sesuai panduan) =======================
 #define TFT_SCK   12
@@ -268,9 +283,12 @@ volatile unsigned long jelajahSampai = 0;    // mode jelajah berhenti sendiri pa
 enum JenisAudio { A_FILE, A_URL, A_TTS, A_STOP, A_VOL, A_JEDA };
 char laguFile[100] = "";                       // lagu SD yang sedang/terakhir diputar, misalnya "/lagu1.mp3"
 volatile bool musikJeda = false, laguHabis = false;   // laguHabis: lagu SD selesai sendiri (untuk lagu berikutnya)
+volatile bool urlHabis = false;                        // siaran internet (murottal, podcast) selesai sendiri
+volatile uint32_t urlDiputar = 0;                      // sidik alamat yang terakhir diputar, untuk tahu siapa yang selesai
+uint32_t hashTeks(const char* s) { uint32_t h = 2166136261u; while (*s) { h ^= (uint8_t)*s++; h *= 16777619u; } return h; }
 volatile uint32_t laguDetik = 0, laguDurasi = 0;
 int volSekarang = VOLUME_AWAL;   // volume yang sedang dipakai, 0..21
-struct PerintahAudio { JenisAudio jenis; char isi[320]; };
+struct PerintahAudio { JenisAudio jenis; char isi[512]; };   // 512: alamat episode podcast bisa panjang
 
 // Semua jenis data (enum/struct) harus dibuat sebelum fungsi pertama: Arduino IDE menaruh deklarasi
 // fungsi otomatis tepat sebelum fungsi pertama. Fungsi dengan nilai bawaan dideklarasikan sendiri di sini.
@@ -284,6 +302,9 @@ String namaHost();
 void buka(int h);
 void gambarIsi();
 void ucapkanBahasa(const String& teks, const char* kode);
+void putarSurah(int n);
+void bukaKetik(int tujuan, const String& judul);
+enum { K_WIFI, K_CATATAN, K_WIKI, K_TERJEMAH };          // tujuan ketikan dari keyboard layar
 
 void setStatus(const String& s) { strlcpy(teksStatus, s.c_str(), sizeof(teksStatus)); Serial.println("[status] " + s); tAktif = millis(); }
 
@@ -537,14 +558,17 @@ void tugasAudio(void*) {
     while (xQueueReceive(antrianAudio, &p, 0) == pdTRUE) {
       kunciSD();
       switch (p.jenis) {
-        case A_FILE: antreTTS.clear(); pakaiSD = true; laguSekarang = p.isi; strlcpy(laguFile, p.isi, sizeof(laguFile));
+        case A_FILE: antreTTS.clear(); pakaiSD = true; urlDiputar = 0; laguSekarang = p.isi; strlcpy(laguFile, p.isi, sizeof(laguFile));
                      musikJeda = false; sengaja = false; laguDetik = laguDurasi = 0; audio.connecttoFS(SD, p.isi); break;
-        case A_URL:  antreTTS.clear(); pakaiSD = false; sengaja = true; musikJeda = false; laguFile[0] = 0; audio.connecttohost(p.isi); break;
+        case A_URL:  antreTTS.clear(); pakaiSD = false; sengaja = false; musikJeda = false; laguFile[0] = 0; laguDetik = laguDurasi = 0;
+                     urlDiputar = hashTeks(p.isi); audio.connecttohost(p.isi); break;
         case A_TTS:  if ((audio.isRunning() || musikJeda) && !sedangBicara) { audio.stopSong(); sengaja = true; musikJeda = false; }   // bicara memotong musik
                      antreTTS.push_back(String(p.isi)); break;
         case A_STOP: antreTTS.clear(); audio.stopSong(); sengaja = true; musikJeda = false; break;
         case A_VOL:  volSekarang = constrain(atoi(p.isi), 0, 21); audio.setVolume(volSekarang); break;
-        case A_JEDA: if (pakaiSD && laguFile[0]) { audio.pauseResume(); musikJeda = !musikJeda; } break;
+        case A_JEDA: if ((pakaiSD && laguFile[0]) || (!pakaiSD && urlDiputar && !sedangBicara && (audio.isRunning() || musikJeda))) {
+                       audio.pauseResume(); musikJeda = !musikJeda;
+                     } break;
       }
       lepasSD();
     }
@@ -570,9 +594,10 @@ void tugasAudio(void*) {
     audio.loop();
     if (pakaiSD) lepasSD();
     bool jalanSD = pakaiSD && audio.isRunning();
-    if (jalanLalu && !jalanSD && !musikJeda && !sengaja) { laguHabis = true; sengaja = true; }   // lagu selesai sendiri
-    jalanLalu = jalanSD;
-    if (jalanSD && millis() - tPosisi > 500) { tPosisi = millis(); laguDetik = audio.getAudioCurrentTime(); laguDurasi = audio.getAudioFileDuration(); }
+    bool jalanMusik = audio.isRunning() && !sedangBicara;   // lagu SD atau siaran internet (bukan suara bicara)
+    if (jalanLalu && !jalanMusik && !musikJeda && !sengaja) { if (pakaiSD) laguHabis = true; else urlHabis = true; sengaja = true; }
+    jalanLalu = jalanMusik;
+    if (jalanMusik && millis() - tPosisi > 500) { tPosisi = millis(); laguDetik = audio.getAudioCurrentTime(); laguDurasi = audio.getAudioFileDuration(); }
     // Pembacaan SD kadang macet di tengah lagu (gangguan di kabel SPI): posisi file berhenti naik.
     // Pasang ulang SD lalu lanjutkan lagu dari detik terakhir.
     if (pakaiSD && audio.isRunning()) {
@@ -970,7 +995,7 @@ void ekspresiOtomatis() {
 // Data diambil tugas jaringan (inti 0) dan dibaca layar (inti 1), jadi penulisan dan pembacaan memakai kunciInfo.
 volatile uint8_t mintaInfo = 0;                     // permintaan dari layar, dikerjakan tugas jaringan
 volatile bool infoBaru = false;                     // ada data baru: layar digambar ulang
-enum { INFO_CUACA = 1, INFO_SHOLAT = 2, INFO_BERITA = 4, INFO_KURS = 8 };
+enum { INFO_CUACA = 1, INFO_SHOLAT = 2, INFO_BERITA = 4, INFO_KURS = 8, INFO_PODCAST = 16 };
 String galatInfo;                                   // pesan galat terakhir untuk ditampilkan (baca/tulis lewat kunciInfo)
 void aturGalat(const String& g) { xSemaphoreTake(kunciInfo, portMAX_DELAY); galatInfo = g; xSemaphoreGive(kunciInfo); if (g.length()) Serial.println("[info] " + g); }
 
@@ -2187,6 +2212,114 @@ bool kirimFotoSD(const String& path) {
   return ok;
 }
 
+// ======================= PODCAST (RSS) DAN KETIKAN DARI LAYAR =======================
+// RSS podcast bisa beberapa MB. Isinya dibaca sambil lewat (tidak disimpan), dan berhenti setelah 15 episode.
+struct Episode { String judul, url, durasi, tanggal; };
+std::vector<Episode> episode;                          // episode podcast pilihan (baca/tulis lewat kunciInfo)
+const int JUMLAH_PODCAST = sizeof(DAFTAR_PODCAST) / sizeof(DAFTAR_PODCAST[0]);
+int podcastDipilih = 0, episodeDari = -1;              // episodeDari: podcast asal daftar episode
+unsigned long tEpisode = 0;
+
+class PenguraiRSS : public Stream {
+public:
+  std::vector<Episode>* hasil = nullptr;
+  size_t total = 0;
+  char ekor[24] = {0};                                 // 23 huruf terakhir, untuk mengenali tag
+  int ambil = 0;                                       // sedang menyalin: 1 judul, 2 alamat, 3 durasi, 4 tanggal
+  bool dalamItem = false, cariUrl = false;
+  String isi; Episode e;
+
+  bool akhiran(const char* s) { size_t n = strlen(s); return strncmp(ekor + 23 - n, s, n) == 0; }
+  void proses(char c) {
+    memmove(ekor, ekor + 1, 22); ekor[22] = c; ekor[23] = 0;
+    if (ambil == 2) {                                  // alamat MP3 di <enclosure url="...">
+      if (c == '"' || c == '\'') { e.url = isi; ambil = 0; cariUrl = false; }
+      else if (isi.length() < 600) isi += c;
+      return;
+    }
+    if (ambil) {
+      if (isi.length() < 400) isi += c;
+      const char* tutup = ambil == 1 ? "</title>" : ambil == 3 ? "</itunes:duration>" : "</pubDate>";
+      if (akhiran(tutup)) {
+        if (isi.endsWith(tutup)) isi.remove(isi.length() - strlen(tutup));
+        if (ambil == 1) e.judul = isi; else if (ambil == 3) e.durasi = isi; else e.tanggal = isi;
+        ambil = 0;
+      }
+      return;
+    }
+    if (akhiran("<item>") || akhiran("<item ")) { dalamItem = true; e = Episode(); }
+    else if (!dalamItem) return;
+    else if (akhiran("</item>")) { if (e.url.length()) hasil->push_back(e); dalamItem = false; }
+    else if (akhiran("<title>") && !e.judul.length()) { ambil = 1; isi = ""; }
+    else if (akhiran("<itunes:duration>")) { ambil = 3; isi = ""; }
+    else if (akhiran("<pubDate>")) { ambil = 4; isi = ""; }
+    else if (akhiran("<enclosure")) cariUrl = true;
+    else if (cariUrl && (akhiran("url=\"") || akhiran("url='"))) { ambil = 2; isi = ""; }
+    else if (cariUrl && c == '>') cariUrl = false;
+  }
+  size_t write(uint8_t c) override { return write(&c, 1); }
+  size_t write(const uint8_t* d, size_t n) override {
+    for (size_t i = 0; i < n; i++) proses((char)d[i]);
+    total += n;
+    if (hasil->size() >= 15 || total > 2000000) return 0;   // cukup: hentikan unduhan
+    return n;
+  }
+  int available() override { return 0; }
+  int read() override { return -1; }
+  int peek() override { return -1; }
+};
+
+String rapikanDurasi(String d) {                       // "3600" atau "01:00:00" -> "1:00:00"; "00:45:10" -> "45:10"
+  d.trim();
+  if (!d.length()) return d;
+  if (d.indexOf(':') < 0) {
+    long s = d.toInt(); char b[16];
+    if (s >= 3600) snprintf(b, sizeof(b), "%ld:%02ld:%02ld", s / 3600, s / 60 % 60, s % 60);
+    else snprintf(b, sizeof(b), "%ld:%02ld", s / 60, s % 60);
+    return b;
+  }
+  while (d.startsWith("00:") && d.length() > 5) d.remove(0, 3);
+  if (d.length() == 8 && d[0] == '0') d.remove(0, 1);
+  return d;
+}
+
+bool ambilEpisode() {
+  int k = podcastDipilih;
+  std::vector<Episode> baru;
+  PenguraiRSS r; r.hasil = &baru;
+  String url = DAFTAR_PODCAST[k][1];
+  WiFiClientSecure cs; cs.setInsecure();
+  WiFiClient cb;
+  HTTPClient http;
+  if (url.startsWith("https")) http.begin(cs, url); else http.begin(cb, url);
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  http.setUserAgent("Mozilla/5.0 (Zond robot)");
+  http.setTimeout(15000);
+  int kode = http.GET();
+  if (kode == 200) http.writeToStream(&r);              // berhenti sendiri setelah 15 episode (dianggap galat, tidak apa)
+  http.end();
+  if (baru.empty()) { aturGalat(kode == 200 ? String("Tidak ada episode MP3 di RSS ini") : "Podcast gagal diambil (kode " + String(kode) + ")"); return false; }
+  for (Episode& e : baru) {
+    e.judul = bersihkanHTML(e.judul);
+    e.url.replace("&amp;", "&"); e.url.trim();
+    e.durasi = rapikanDurasi(e.durasi);
+    e.tanggal = e.tanggal.length() > 11 ? e.tanggal.substring(5, 11) : String();   // "Wed, 18 Nov 2026 ..." -> "18 Nov"
+  }
+  // Judul yang awalnya sama semua ("SBS Audio Indonesian Program - Rabu ...") dipendekkan supaya bedanya terlihat.
+  String awal = baru[0].judul;
+  for (Episode& e : baru) { unsigned i = 0; while (i < awal.length() && i < e.judul.length() && awal[i] == e.judul[i]) i++; awal = awal.substring(0, i); }
+  int potong = awal.lastIndexOf(' ');
+  if (baru.size() > 1 && potong >= 8) for (Episode& e : baru) { e.judul = e.judul.substring(potong + 1); e.judul.trim(); }
+  xSemaphoreTake(kunciInfo, portMAX_DELAY); episode.swap(baru); episodeDari = k; tEpisode = millis(); xSemaphoreGive(kunciInfo);
+  Serial.printf("[podcast] %s: %u episode, %u byte RSS dibaca\n", DAFTAR_PODCAST[k][0], (unsigned)episode.size(), (unsigned)r.total);
+  return true;
+}
+
+// Ketikan dari keyboard layar yang butuh internet: dikerjakan tugas jaringan.
+String ketikanJaringan;
+volatile int mintaKetik = 0;                            // 1 cari di Wikipedia, 2 terjemahkan
+bool wifiAwal = false;                                   // WiFi tersambung saat menyala (panel web dan Telegram berjalan)
+
 // ======================= FITUR KAMERA AI: LIHAT SEKELILING DAN SUIT =======================
 // Keduanya memakai AI dengan foto (jatah AI lebih cepat habis), jadi harus diaktifkan dulu di panel web.
 // Dijalankan oleh tugas jaringan; chat = tujuan pesan Telegram.
@@ -2358,7 +2491,7 @@ const char* BANTUAN =
   "/panel  alamat panel kontrol web\n/dengar on|off  mendengar terus (boros) atau hanya saat BICARA\n/ai  pilih otak AI (gemini, gemma, groq, haiku)\n/lagu  daftar lagu di SD\n/putar nama lagu (cukup sebagian)\n/radio url\n/diam  hentikan suara\n/volume 0-21\n"
   "/ikuti  ikuti benda di depan\n/jaga  berjaga, kirim foto kalau ada gerakan\n/jelajah [menit]  jalan-jalan sendiri (bawaan 5 menit)\n/biasa  kembali normal\n"
   "/baterai  isi dan perkiraan sisa baterai\n/pesan teks  tampilkan pesan di layar\n/catat [teks]  catatan dan daftar tugas\n"
-  "/senter on|off  lampu kamera\n/terjemah [bahasa] kalimat  (inggris, arab, jepang, mandarin, korea, jawa, sasak)\n/sholat  jadwal sholat hari ini\n/kurs  kurs rupiah\n/wiki topik  cari di Wikipedia\n/suara  suara bicara (/suara gemini atau /suara google)\n\n"
+  "/senter on|off  lampu kamera\n/terjemah [bahasa] kalimat  (inggris, arab, jepang, mandarin, korea, jawa, sasak)\n/sholat  jadwal sholat hari ini\n/kurs  kurs rupiah\n/wiki topik  cari di Wikipedia\n/murottal 36  putar surah (1-114)\n/suara  suara bicara (/suara gemini atau /suara google)\n\n"
   "Pesan biasa tanpa / = ngobrol dengan AI (bisa menyuruh bergerak).";
 
 void tanganiPesan(const telegramMessage& m) {
@@ -2483,6 +2616,11 @@ void tanganiPesan(const telegramMessage& m) {
     bot.sendMessage(chat, teksSholat() + "\n\nPengingat: " + P[pengingatSholat % 3] + ". Ubah: /sholat mati, /sholat suara, /sholat adzan");
   }
   else if (cmd == "/kurs") { if (!kurs.ada || millis() - kurs.t > 21600000UL) ambilKurs(); bot.sendMessage(chat, teksKurs()); }
+  else if (cmd == "/murottal") {
+    int n = arg.toInt();
+    if (n < 1 || n > 114) bot.sendMessage(chat, "Tulis nomor surah 1-114, misalnya /murottal 36 untuk Yasin. /diam untuk berhenti.");
+    else { putarSurah(n); bot.sendMessage(chat, "Memutar surah ke-" + String(n) + ". Lanjut sendiri ke surah berikutnya."); }
+  }
   else if (cmd == "/wiki") {
     if (!arg.length()) bot.sendMessage(chat, "Tulis topiknya, misalnya: /wiki Gunung Rinjani");
     else { bot.sendChatAction(chat, "typing"); String h = cariWikipedia(arg); simpanWiki(arg, h); bot.sendMessage(chat, h.length() ? h : String("Tidak ditemukan di Wikipedia.")); }
@@ -2618,6 +2756,13 @@ void tugasJaringan(void*) {
       if (m & INFO_SHOLAT) ambilSholat();
       if (m & INFO_BERITA) ambilBerita();
       if (m & INFO_KURS) ambilKurs();
+      if (m & INFO_PODCAST) ambilEpisode();
+      infoBaru = true;
+    }
+    if (mintaKetik) {                                    // ketikan dari keyboard layar
+      int m = mintaKetik; String k = ketikanJaringan; mintaKetik = 0;
+      if (m == 1) { ekspresi = PIKIR; simpanWiki(k, cariWikipedia(k)); ekspresi = NORMAL; }
+      else terjemahkan(k);
       infoBaru = true;
     }
     if (mintaSenter) {                                   // tombol senter di layar
@@ -2792,9 +2937,10 @@ LGFX_Sprite bilah(&lcd), kanvas(&lcd), muka(&lcd), bawah(&lcd);   // muka dan ba
 
 enum { H_BERANDA, H_MENU, H_SUB, H_MUSIK, H_DAFTARLAGU, H_RADIO, H_STATUS, H_PESAN, H_SETELAN, H_MODE, H_HITUNG, H_BERGERAK,
        H_CUACA, H_SHOLAT, H_BERITA, H_BACA, H_KALENDER, H_KURS, H_WIKI,
-       H_ALARM, H_ALARMBARU, H_DERING, H_TIMER, H_KALKU, H_SENTER, H_TERJEMAH, H_CATATAN, H_REKAM, H_GALERI };
+       H_ALARM, H_ALARMBARU, H_DERING, H_TIMER, H_KALKU, H_SENTER, H_TERJEMAH, H_CATATAN, H_REKAM, H_GALERI,
+       H_TTT, H_2048, H_TERBANG, H_PODCAST, H_EPISODE, H_MUROTTAL, H_WIFI, H_KETIK };
 // id tombol: 1-9 umum, 10-99 khusus halaman, 100 ke atas = baris daftar
-enum { B_KEMBALI = 1, B_STOP, B_MUKA, B_BICARA, B_MENU, B_ATAS, B_BAWAH };
+enum { B_KEMBALI = 1, B_STOP, B_MUKA, B_BICARA, B_MENU, B_ATAS, B_BAWAH, B_LOMPATMUNDUR, B_LOMPATMAJU };
 int halaman = H_BERANDA, halamanSub = 0, halamanHal = 0, tabStatus = 0;
 bool gambarUlang = true, bilahUlang = true, abaikanSentuh = false, konfirmasiRestart = false, layarRedup = false;
 unsigned long tSentuh = 0, tIsi = 0;
@@ -2847,6 +2993,8 @@ int pesanBelumDibaca() {
 // ---- musik dari SD: daftar lagu, putar, berikutnya, acak, ulang ----
 std::vector<String> laguSD;
 int laguKe = -1, radioKe = -1;
+int murottalKe = -1;                                       // surah yang sedang diputar (1-114), -1 = bukan murottal
+String judulKetik;                                         // judul halaman keyboard layar
 bool acakLagu = false, ulangLagu = false;
 volatile bool putarSekali = false;                         // adzan: jangan lanjut ke lagu berikutnya setelah selesai
 
@@ -2866,7 +3014,7 @@ void muatDaftarLagu() {
 
 void putarLaguKe(int i) {
   if (i < 0 || i >= (int)laguSD.size()) return;
-  laguKe = i; radioKe = -1; putarSekali = false;
+  laguKe = i; radioKe = -1; putarSekali = false; murottalKe = -1;
   kirimAudio(A_FILE, "/" + laguSD[i]);
   setStatus("Lagu " + String(i + 1) + "/" + String(laguSD.size()) + ": " + laguSD[i]);
 }
@@ -2885,14 +3033,14 @@ const int JUMLAH_RADIO = sizeof(DAFTAR_RADIO) / sizeof(DAFTAR_RADIO[0]);
 
 void putarRadioKe(int i) {
   if (WiFi.status() != WL_CONNECTED) { setStatus("Radio butuh WiFi"); return; }
-  radioKe = (i + JUMLAH_RADIO) % JUMLAH_RADIO; laguKe = -1;
+  radioKe = (i + JUMLAH_RADIO) % JUMLAH_RADIO; laguKe = -1; murottalKe = -1;
   kirimAudio(A_URL, DAFTAR_RADIO[radioKe]);
   setStatus("Radio " + String(radioKe + 1) + "/" + String(JUMLAH_RADIO));
 }
 
 void hentikanSemua() {
   gantiMode(M_BIASA); kirimBadan("S"); kirimAudio(A_STOP);
-  radioKe = -1; setStatus("Berhenti");
+  radioKe = -1; murottalKe = -1; setStatus("Berhenti");
 }
 
 // ---- alat gambar ----
@@ -3040,6 +3188,14 @@ String judulHalaman() {
     case H_CATATAN: return "Catatan";
     case H_REKAM: return "Rekam suara";
     case H_GALERI: return "Galeri foto";
+    case H_TTT: return "Tic-tac-toe";
+    case H_2048: return "2048";
+    case H_TERBANG: return "Ketuk terbang";
+    case H_PODCAST: return "Podcast";
+    case H_EPISODE: return DAFTAR_PODCAST[podcastDipilih][0];
+    case H_MUROTTAL: return "Murottal";
+    case H_WIFI: return "Pilih WiFi";
+    case H_KETIK: return judulKetik;
     default: return "";
   }
 }
@@ -3169,23 +3325,30 @@ void gambarBawahBeranda() {
 
 // ---- halaman menu dan sub-menu ----
 struct ItemMenu { const char* nama; int16_t tujuan; };        // tujuan: halaman, -1 = menyusul, -2 kamera, -3 suit
-const ItemMenu MENU_MUSIK[] = {{"Lagu SD", H_MUSIK}, {"Radio", H_RADIO}, {"Podcast", -1}, {"Murottal", -1}};
+const ItemMenu MENU_MUSIK[] = {{"Lagu SD", H_MUSIK}, {"Radio", H_RADIO}, {"Podcast", H_PODCAST}, {"Murottal", H_MUROTTAL}};
 const ItemMenu MENU_INFO[]  = {{"Status robot", H_STATUS}, {"Cuaca", H_CUACA}, {"Jadwal sholat", H_SHOLAT}, {"Berita", H_BERITA},
                                {"Kalender", H_KALENDER}, {"Kurs", H_KURS}, {"Wikipedia", H_WIKI}};
 const ItemMenu MENU_ALAT[]  = {{"Mode gerak", H_MODE}, {"Kamera", -2}, {"Alarm", H_ALARM}, {"Timer", H_TIMER}, {"Kalkulator", H_KALKU},
                                {"Senter", H_SENTER}, {"Penerjemah", H_TERJEMAH}, {"Catatan", H_CATATAN}, {"Rekam suara", H_REKAM},
                                {"Galeri foto", H_GALERI}};
-const ItemMenu MENU_MAIN[]  = {{"Suit", -3}, {"Tic-tac-toe", -1}, {"2048", -1}, {"Ketuk terbang", -1}};
+const ItemMenu MENU_MAIN[]  = {{"Suit", -3}, {"Tic-tac-toe", H_TTT}, {"2048", H_2048}, {"Ketuk terbang", H_TERBANG}};
 const ItemMenu* MENU_SUB[4] = {MENU_MUSIK, MENU_INFO, MENU_ALAT, MENU_MAIN};
 const int JUMLAH_SUB[4] = {sizeof(MENU_MUSIK) / sizeof(ItemMenu), sizeof(MENU_INFO) / sizeof(ItemMenu),
                            sizeof(MENU_ALAT) / sizeof(ItemMenu), sizeof(MENU_MAIN) / sizeof(ItemMenu)};
 
 // Tombol ▲ ▼ di baris bawah untuk daftar yang lebih dari satu halaman.
+// Daftar panjang (lebih dari 8 halaman, misalnya 114 surah) mendapat tombol << dan >> untuk melompat 5 halaman.
 void navigasiHalaman(int jumlahHal) {
-  tombol(kanvas, ISI_Y, B_ATAS, 6, 180, 96, 28, "", W_TOMBOL, halamanHal > 0);
-  if (halamanHal > 0) kanvas.fillTriangle(54, 186, 44, 202, 64, 202, warnaIkon(B_ATAS));
-  tombol(kanvas, ISI_Y, B_BAWAH, 218, 180, 96, 28, "", W_TOMBOL, halamanHal < jumlahHal - 1);
-  if (halamanHal < jumlahHal - 1) kanvas.fillTriangle(256, 186, 276, 186, 266, 202, warnaIkon(B_BAWAH));
+  bool lompat = jumlahHal > 8;
+  int w = lompat ? 70 : 96, xb = 314 - w;
+  tombol(kanvas, ISI_Y, B_ATAS, 6, 180, w, 28, "", W_TOMBOL, halamanHal > 0);
+  if (halamanHal > 0) kanvas.fillTriangle(6 + w / 2, 186, 6 + w / 2 - 10, 202, 6 + w / 2 + 10, 202, warnaIkon(B_ATAS));
+  tombol(kanvas, ISI_Y, B_BAWAH, xb, 180, w, 28, "", W_TOMBOL, halamanHal < jumlahHal - 1);
+  if (halamanHal < jumlahHal - 1) kanvas.fillTriangle(xb + w / 2 - 10, 186, xb + w / 2 + 10, 186, xb + w / 2, 202, warnaIkon(B_BAWAH));
+  if (lompat) {
+    tombol(kanvas, ISI_Y, B_LOMPATMUNDUR, 80, 180, 50, 28, "<<", W_TOMBOL, halamanHal > 0);
+    tombol(kanvas, ISI_Y, B_LOMPATMAJU, 190, 180, 50, 28, ">>", W_TOMBOL, halamanHal < jumlahHal - 1);
+  }
   kanvas.setFont(&fonts::Font2); kanvas.setTextDatum(middle_center); kanvas.setTextColor(W_REDUP);
   kanvas.drawString((String(halamanHal + 1) + " / " + String(jumlahHal)).c_str(), 160, 194);
 }
@@ -3735,23 +3898,26 @@ void gambarKurs() {
   kanvas.drawString("Sumber: ExchangeRate-API (open.er-api.com)", 10, 192);
 }
 
+bool wikiPilih = false;                               // tombol CARI ditekan: tampilkan pilihan suara / ketik
 void gambarWiki() {
   xSemaphoreTake(kunciInfo, portMAX_DELAY);
   String j = wikiJudul, isi = wikiIsi;
   xSemaphoreGive(kunciInfo);
-  if (tujuanDengar == 1 || !j.length()) {
+  if (mintaKetik == 1) { tulisMemuat("Mencari di Wikipedia..."); return; }
+  if (tujuanDengar == 1 || !j.length() || wikiPilih) {
     kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE); kanvas.setTextDatum(middle_center);
     kanvas.drawString(tujuanDengar == 1 ? "Sebutkan topiknya..." : "Cari apa saja di Wikipedia", 160, 50);
     kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP);
-    kanvas.drawString("Ketuk tombol di bawah, lalu sebutkan topiknya,", 160, 76);
+    kanvas.drawString("Sebutkan atau ketik topiknya,", 160, 76);
     kanvas.drawString("misalnya \"Gunung Rinjani\".", 160, 94);
     kanvas.drawString("Dari Telegram: /wiki topik", 160, 112);
-    tombol(kanvas, ISI_Y, 89, 40, 136, 240, 56, tujuanDengar == 1 ? "MENDENGAR..." : "CARI DENGAN SUARA", W_HIJAU, tujuanDengar != 1);
+    tombol(kanvas, ISI_Y, 89, 40, 136, 116, 56, tujuanDengar == 1 ? "MENDENGAR..." : "SUARA", W_HIJAU, tujuanDengar != 1);
+    tombol(kanvas, ISI_Y, 87, 164, 136, 116, 56, "KETIK", W_BIRU, tujuanDengar != 1);
     return;
   }
   gambarTeksPanjang(j, "Wikipedia", isi);
   tombol(kanvas, ISI_Y, 88, 72, 180, 86, 30, "BACAKAN", W_BIRU, true);
-  tombol(kanvas, ISI_Y, 89, 162, 180, 86, 30, "CARI", W_HIJAU, true);
+  tombol(kanvas, ISI_Y, 90, 162, 180, 86, 30, "CARI", W_HIJAU, true);
 }
 
 // ---- halaman Alat: alarm, timer, kalkulator, senter, penerjemah, catatan, rekam suara, galeri foto ----
@@ -4088,10 +4254,11 @@ void gambarTerjemah() {
   xSemaphoreTake(kunciInfo, portMAX_DELAY);
   String asal = terjemahAsal, latin = terjemahLatin, hasil = terjemahHasil;
   xSemaphoreGive(kunciInfo);
-  if (tujuanDengar == 2) {
+  if (mintaKetik == 2) tulisTengah("Menerjemahkan...", 90, &fonts::FreeSansBold9pt7b, TFT_WHITE);
+  else if (tujuanDengar == 2) {
     tulisTengah("Ucapkan kalimat dalam bahasa Indonesia...", 90, &fonts::FreeSansBold9pt7b, TFT_GREEN);
   } else if (!latin.length()) {
-    tulisTengah("Tekan BICARA, ucapkan kalimatnya,", 80, &fonts::Font2, W_REDUP);
+    tulisTengah("Tekan BICARA lalu ucapkan kalimatnya (atau KETIK),", 80, &fonts::Font2, W_REDUP);
     tulisTengah("lalu Zond mengucapkan terjemahannya.", 100, &fonts::Font2, W_REDUP);
   } else {
     kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP);
@@ -4099,8 +4266,9 @@ void gambarTerjemah() {
     kanvas.setFont(&fonts::FreeSansBold12pt7b); kanvas.setTextColor(TFT_WHITE);
     tulisBungkus(kanvas, latin, 10, 84, 300, 24, 3);
   }
-  tombol(kanvas, ISI_Y, 56, 6, 160, 200, 44, tujuanDengar == 2 ? "MENDENGAR..." : "BICARA", W_HIJAU, tujuanDengar != 2);
-  tombol(kanvas, ISI_Y, 57, 212, 160, 102, 44, "ULANGI", W_TOMBOL, hasil.length() > 0);
+  tombol(kanvas, ISI_Y, 56, 6, 160, 140, 44, tujuanDengar == 2 ? "MENDENGAR..." : "BICARA", W_HIJAU, tujuanDengar != 2);
+  tombol(kanvas, ISI_Y, 69, 150, 160, 80, 44, "KETIK", W_BIRU, tujuanDengar != 2);
+  tombol(kanvas, ISI_Y, 57, 234, 160, 80, 44, "ULANGI", W_TOMBOL, hasil.length() > 0);
 }
 
 // ---- Catatan / daftar tugas ----
@@ -4116,8 +4284,9 @@ void gambarCatatan() {
   } else gambarDaftar(jumlahCatatan, 3, teksBarisCatatan, sorotCatatan);
   bool adaSelesai = false;
   for (int i = 0; i < jumlahCatatan; i++) if (daftarCatatan[i].selesai) adaSelesai = true;
-  tombol(kanvas, ISI_Y, 58, 6, 138, 190, 36, tujuanDengar == 3 ? "MENDENGAR..." : "+ DENGAN SUARA", W_HIJAU, tujuanDengar != 3 && jumlahCatatan < CATATAN_MAKS);
-  tombol(kanvas, ISI_Y, 59, 202, 138, 112, 36, "BERSIHKAN", W_TOMBOL, adaSelesai);
+  tombol(kanvas, ISI_Y, 58, 6, 138, 96, 36, tujuanDengar == 3 ? "DENGAR..." : "+ SUARA", W_HIJAU, tujuanDengar != 3 && jumlahCatatan < CATATAN_MAKS);
+  tombol(kanvas, ISI_Y, 68, 106, 138, 96, 36, "+ KETIK", W_BIRU, tujuanDengar != 3 && jumlahCatatan < CATATAN_MAKS);
+  tombol(kanvas, ISI_Y, 59, 206, 138, 108, 36, "BERSIHKAN", W_TOMBOL, adaSelesai);
 }
 
 // ---- Rekam suara: sampai 60 detik di PSRAM, lalu disimpan sebagai WAV di SD /rekaman ----
@@ -4240,7 +4409,9 @@ void gambarAlat() {
 }
 
 // Tombol yang diulang selama ditahan (jam/menit alarm, menit timer).
-bool bisaUlang(int id) { return (halaman == H_ALARMBARU && id >= 42 && id <= 45) || (halaman == H_TIMER && (id == 13 || id == 14)); }
+bool bisaUlang(int id) {
+  return (halaman == H_ALARMBARU && id >= 42 && id <= 45) || (halaman == H_TIMER && (id == 13 || id == 14)) || (halaman == H_KETIK && id == 41);
+}
 
 // Halaman yang tidak kembali ke Beranda sendiri setelah 45 detik.
 bool alatTetap() {
@@ -4262,6 +4433,7 @@ void bukaAlat(int h) {                                    // dipanggil buka() sa
   if (h == H_REKAM) { rekamDipilih = -1; muatBerkas(0); }
   if (h == H_GALERI) { muatBerkas(1); galeriKe = 0; fotoDimuat = -1; }
   if (h == H_SENTER) { layarPutih = false; senterGagal = false; }
+  if (h == H_WIKI) wikiPilih = false;
   if (h == H_DERING) { tDeringMulai = tDeringUcap = millis(); deringKali = 1; }
 }
 
@@ -4358,6 +4530,7 @@ void tombolAlat(int id) {
         bahasaTerjemah = (bahasaTerjemah + 1) % JUMLAH_BAHASA;
         Preferences q; q.begin("robot", false); q.putUChar("bhs", bahasaTerjemah); q.end();
       } else if (id == 56) { tujuanDengar = 2; kirimAudio(A_STOP); mintaDengar = true; }
+      else if (id == 69) { bukaKetik(K_TERJEMAH, "Ketik kalimat bahasa Indonesia"); return; }
       else if (id == 57) {
         xSemaphoreTake(kunciInfo, portMAX_DELAY); String h = terjemahHasil; xSemaphoreGive(kunciInfo);
         if (h.length()) ucapkanBahasa(h, BAHASA_TERJEMAH[bahasaTerjemah][1]);
@@ -4366,6 +4539,7 @@ void tombolAlat(int id) {
     case H_CATATAN:
       if (id >= 100) centangCatatan(id - 100);
       else if (id == 58) { tujuanDengar = 3; kirimAudio(A_STOP); mintaDengar = true; }
+      else if (id == 68) { bukaKetik(K_CATATAN, "Ketik catatan"); return; }
       else if (id == 59) { hapusCatatan(-1); toast("Catatan yang selesai dihapus"); }
       break;
     case H_REKAM:
@@ -4405,6 +4579,623 @@ void tombolAlat(int id) {
   gambarUlang = true;
 }
 
+// ---- tahap 4: permainan, podcast, murottal, ganti WiFi, keyboard layar ----
+
+// ---- Tic-tac-toe: kamu X, Zond O. Level sulit memakai minimax (Zond tidak bisa dikalahkan, paling bagus seri). ----
+uint8_t papanTTT[9];
+int hasilTTT = 0, garisTTT = -1;                          // hasil: 0 main, 1 kamu menang, 2 Zond menang, 3 seri
+int skorTTT[3] = {0, 0, 0};
+bool sulitTTT = false, zondMulaiTTT = false;
+unsigned long tZondTTT = 0;                               // kapan Zond melangkah (0 = bukan gilirannya)
+const uint8_t GARIS_TTT[8][3] = {{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {0, 3, 6}, {1, 4, 7}, {2, 5, 8}, {0, 4, 8}, {2, 4, 6}};
+
+int pemenangTTT(const uint8_t* p, int* garis) {           // 0 belum, 1 X, 2 O, 3 seri
+  for (int g = 0; g < 8; g++) {
+    uint8_t a = p[GARIS_TTT[g][0]];
+    if (a && a == p[GARIS_TTT[g][1]] && a == p[GARIS_TTT[g][2]]) { if (garis) *garis = g; return a; }
+  }
+  for (int i = 0; i < 9; i++) if (!p[i]) return 0;
+  return 3;
+}
+
+int minimaxTTT(uint8_t* p, bool giliranZond, int dalam) {
+  int w = pemenangTTT(p, nullptr);
+  if (w == 2) return 10 - dalam;
+  if (w == 1) return dalam - 10;
+  if (w == 3) return 0;
+  int terbaik = giliranZond ? -100 : 100;
+  for (int i = 0; i < 9; i++) if (!p[i]) {
+    p[i] = giliranZond ? 2 : 1;
+    int s = minimaxTTT(p, !giliranZond, dalam + 1);
+    p[i] = 0;
+    terbaik = giliranZond ? max(terbaik, s) : min(terbaik, s);
+  }
+  return terbaik;
+}
+
+void langkahZondTTT() {
+  int kosong[9], n = 0;
+  for (int i = 0; i < 9; i++) if (!papanTTT[i]) kosong[n++] = i;
+  if (!n) return;
+  int pilih = kosong[esp_random() % n];
+  if (sulitTTT || esp_random() % 100 < 50) {               // mudah: separuh langkahnya asal
+    int nilai = -1000, calon[9], nc = 0;
+    for (int k = 0; k < n; k++) {
+      papanTTT[kosong[k]] = 2;
+      int s = minimaxTTT(papanTTT, false, 1);
+      papanTTT[kosong[k]] = 0;
+      if (s > nilai) { nilai = s; nc = 0; }
+      if (s == nilai) calon[nc++] = kosong[k];
+    }
+    pilih = calon[esp_random() % nc];
+  }
+  papanTTT[pilih] = 2;
+}
+
+void cekAkhirTTT() {
+  int w = pemenangTTT(papanTTT, &garisTTT);
+  if (!w) return;
+  hasilTTT = w; skorTTT[w - 1]++;
+  zondMulaiTTT = !zondMulaiTTT;                            // gantian yang mulai
+  ucapkan(w == 1 ? "Wah, kamu menang!" : w == 2 ? "Aku menang!" : "Seri.");
+}
+
+void baruTTT() {
+  memset(papanTTT, 0, sizeof(papanTTT)); hasilTTT = 0; garisTTT = -1;
+  tZondTTT = zondMulaiTTT ? millis() + 600 : 0;
+}
+
+void gambarTTT() {
+  bool giliranku = !hasilTTT && !tZondTTT;
+  for (int i = 0; i < 9; i++) {
+    int x = 6 + (i % 3) * 64, y = 6 + (i / 3) * 64, cx = x + 30, cy = y + 30, id = 10 + i;
+    bool bisa = giliranku && !papanTTT[i];
+    kanvas.fillRoundRect(x, y, 60, 60, 8, bisa && id == tombolDitekan ? W_TEKAN : W_TOMBOL);
+    if (papanTTT[i] == 1) {
+      kanvas.drawWideLine(cx - 15, cy - 15, cx + 15, cy + 15, 4, WARNA(80, 170, 255));
+      kanvas.drawWideLine(cx + 15, cy - 15, cx - 15, cy + 15, 4, WARNA(80, 170, 255));
+    } else if (papanTTT[i] == 2) {
+      kanvas.fillCircle(cx, cy, 19, WARNA(255, 150, 60)); kanvas.fillCircle(cx, cy, 12, W_TOMBOL);
+    }
+    if (bisa) daftarkan(id, x, y + ISI_Y, 60, 60);
+  }
+  if (garisTTT >= 0 && hasilTTT && hasilTTT < 3) {
+    int a = GARIS_TTT[garisTTT][0], c = GARIS_TTT[garisTTT][2];
+    kanvas.drawWideLine(36 + (a % 3) * 64, 36 + (a / 3) * 64, 36 + (c % 3) * 64, 36 + (c / 3) * 64, 3, TFT_YELLOW);
+  }
+  const char* st = hasilTTT == 1 ? "Kamu menang!" : hasilTTT == 2 ? "Zond menang!" : hasilTTT == 3 ? "Seri" : tZondTTT ? "Zond berpikir" : "Giliranmu";
+  kanvas.setFont(&fonts::FreeSans9pt7b); kanvas.setTextDatum(middle_center);
+  kanvas.setTextColor(hasilTTT == 1 ? TFT_GREEN : hasilTTT == 2 ? TFT_ORANGE : TFT_WHITE);
+  kanvas.drawString(st, 259, 16);
+  kanvas.setFont(&fonts::Font2); kanvas.setTextDatum(middle_left);
+  kanvas.setTextColor(WARNA(80, 170, 255)); kanvas.drawString(("X Kamu   " + String(skorTTT[0])).c_str(), 214, 42);
+  kanvas.setTextColor(WARNA(255, 150, 60)); kanvas.drawString(("O Zond   " + String(skorTTT[1])).c_str(), 214, 60);
+  kanvas.setTextColor(W_REDUP); kanvas.drawString(("Seri       " + String(skorTTT[2])).c_str(), 214, 78);
+  tombol(kanvas, ISI_Y, 20, 204, 100, 110, 40, sulitTTT ? "Level: Sulit" : "Level: Mudah", W_TOMBOL, true);
+  bool adaLangkah = false; for (int i = 0; i < 9; i++) if (papanTTT[i]) adaLangkah = true;
+  tombol(kanvas, ISI_Y, 21, 204, 148, 110, 46, "MAIN LAGI", W_HIJAU, hasilTTT || adaLangkah);
+}
+
+// ---- 2048: geser petak (usap layar atau tombol panah); dua petak sama bergabung ----
+uint8_t petak2048[16];                                    // pangkat dua: 0 kosong, 1 = 2, 2 = 4, ... 11 = 2048
+uint32_t skor2048 = 0, terbaik2048 = 0, disimpan2048 = 0;
+bool habis2048 = false, menang2048 = false, muat2048 = false;
+unsigned long tSimpan2048 = 0;
+
+void tambahPetak2048() {
+  int kosong[16], n = 0;
+  for (int i = 0; i < 16; i++) if (!petak2048[i]) kosong[n++] = i;
+  if (n) petak2048[kosong[esp_random() % n]] = esp_random() % 10 == 0 ? 2 : 1;
+}
+
+void baru2048() {
+  memset(petak2048, 0, sizeof(petak2048)); skor2048 = 0; habis2048 = menang2048 = false;
+  tambahPetak2048(); tambahPetak2048();
+}
+
+bool bisaGerak2048() {
+  for (int i = 0; i < 16; i++) {
+    if (!petak2048[i]) return true;
+    if (i % 4 < 3 && petak2048[i] == petak2048[i + 1]) return true;
+    if (i < 12 && petak2048[i] == petak2048[i + 4]) return true;
+  }
+  return false;
+}
+
+void simpanTerbaik(const char* kunci, uint32_t nilai) { Preferences q; q.begin("robot", false); q.putUInt(kunci, nilai); q.end(); }
+
+void geser2048(int arah) {                                // 0 kiri, 1 kanan, 2 atas, 3 bawah
+  if (habis2048) return;
+  bool gerak = false;
+  for (int g = 0; g < 4; g++) {
+    int idx[4];
+    for (int k = 0; k < 4; k++)
+      idx[k] = arah == 0 ? g * 4 + k : arah == 1 ? g * 4 + 3 - k : arah == 2 ? k * 4 + g : (3 - k) * 4 + g;
+    uint8_t v[4], n = 0, keluar[4] = {0, 0, 0, 0}, m = 0;
+    for (int k = 0; k < 4; k++) if (petak2048[idx[k]]) v[n++] = petak2048[idx[k]];
+    for (int k = 0; k < n; k++) {
+      if (k + 1 < n && v[k] == v[k + 1]) {
+        keluar[m++] = v[k] + 1; skor2048 += 1UL << (v[k] + 1);
+        if (v[k] + 1 == 11 && !menang2048) { menang2048 = true; toast("2048! Boleh lanjut terus"); ucapkan("Hebat, dua ribu empat puluh delapan!"); }
+        k++;
+      } else keluar[m++] = v[k];
+    }
+    for (int k = 0; k < 4; k++) { if (petak2048[idx[k]] != keluar[k]) gerak = true; petak2048[idx[k]] = keluar[k]; }
+  }
+  if (!gerak) return;
+  tambahPetak2048();
+  if (skor2048 > terbaik2048) terbaik2048 = skor2048;
+  if (!bisaGerak2048()) {
+    habis2048 = true;
+    if (terbaik2048 > disimpan2048) { simpanTerbaik("t2048", terbaik2048); disimpan2048 = terbaik2048; }
+  }
+  gambarUlang = true;
+}
+
+void gambar2048() {
+  const uint16_t WP[13] = {WARNA(80, 74, 66), WARNA(238, 228, 218), WARNA(237, 224, 200), WARNA(242, 177, 121), WARNA(245, 149, 99),
+                           WARNA(246, 124, 95), WARNA(246, 94, 59), WARNA(237, 207, 114), WARNA(237, 204, 97), WARNA(237, 200, 80),
+                           WARNA(237, 197, 63), WARNA(237, 194, 46), WARNA(60, 58, 50)};
+  kanvas.fillRoundRect(2, 0, 212, 212, 8, WARNA(120, 110, 100));
+  for (int i = 0; i < 16; i++) {
+    int v = petak2048[i], x = 6 + (i % 4) * 52, y = 4 + (i / 4) * 52;
+    kanvas.fillRoundRect(x, y, 48, 48, 5, WP[min(v, 12)]);
+    if (!v) continue;
+    String t = String(1UL << v);
+    const lgfx::IFont* f = &fonts::Font2;                 // jenis font berbeda: pilih lewat penunjuk IFont
+    if (t.length() <= 3) f = &fonts::FreeSansBold12pt7b; else if (t.length() == 4) f = &fonts::FreeSansBold9pt7b;
+    kanvas.setFont(f);
+    kanvas.setTextDatum(middle_center); kanvas.setTextColor(v <= 2 ? WARNA(119, 110, 101) : TFT_WHITE);
+    kanvas.drawString(t.c_str(), x + 24, y + 25);
+  }
+  if (habis2048) {
+    kanvas.fillRoundRect(20, 78, 176, 56, 10, WARNA(30, 30, 30));
+    kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextDatum(middle_center); kanvas.setTextColor(TFT_WHITE);
+    kanvas.drawString("Tidak bisa geser lagi", 108, 96);
+    kanvas.setFont(&fonts::Font2); kanvas.drawString("Tekan BARU untuk main lagi", 108, 118);
+  }
+  kanvas.setFont(&fonts::Font2); kanvas.setTextDatum(middle_center); kanvas.setTextColor(W_REDUP);
+  kanvas.drawString("SKOR", 267, 8); kanvas.drawString("TERBAIK", 267, 46);
+  kanvas.setFont(&fonts::FreeSansBold12pt7b); kanvas.setTextColor(TFT_WHITE);
+  kanvas.drawString(String(skor2048).c_str(), 267, 26); kanvas.drawString(String(terbaik2048).c_str(), 267, 64);
+  tombol(kanvas, ISI_Y, 35, 220, 80, 94, 26, "BARU", W_HIJAU, true);
+  tombol(kanvas, ISI_Y, 31, 246, 110, 42, 32, "", W_TOMBOL, !habis2048);
+  tombol(kanvas, ISI_Y, 32, 220, 144, 42, 32, "", W_TOMBOL, !habis2048);
+  tombol(kanvas, ISI_Y, 34, 272, 144, 42, 32, "", W_TOMBOL, !habis2048);
+  tombol(kanvas, ISI_Y, 33, 246, 178, 42, 32, "", W_TOMBOL, !habis2048);
+  kanvas.fillTriangle(267, 116, 257, 136, 277, 136, warnaIkon(31));
+  kanvas.fillTriangle(231, 160, 251, 150, 251, 170, warnaIkon(32));
+  kanvas.fillTriangle(303, 160, 283, 150, 283, 170, warnaIkon(34));
+  kanvas.fillTriangle(267, 204, 257, 184, 277, 184, warnaIkon(33));
+}
+
+// ---- Ketuk terbang: ketuk layar supaya burung naik, lewati celah pipa ----
+const int TANAH_T = 194, CELAH_T = 78, PIPA_L = 36, PIPA_JARAK = 150, BURUNG_X = 70, BURUNG_R = 8;
+int stTerbang = 0;                                        // 0 siap, 1 main, 2 jatuh
+float burungY = 90, burungV = 0, pipaX[3];
+int pipaCelah[3], skorTerbang = 0;
+uint32_t terbaikTerbang = 0;
+bool pipaLewat[3], sentuhTerbangLalu = true, muatTerbang = false;
+unsigned long tTerbangLalu = 0, tJatuh = 0;
+
+void mulaiTerbang() {
+  burungY = 90; burungV = -200; skorTerbang = 0;
+  for (int i = 0; i < 3; i++) { pipaX[i] = 340 + i * PIPA_JARAK; pipaCelah[i] = 30 + esp_random() % (TANAH_T - CELAH_T - 50); pipaLewat[i] = false; }
+  stTerbang = 1; tTerbangLalu = millis();
+}
+
+void langkahTerbang() {                                   // dipanggil setiap putaran loop selama halaman ini terbuka
+  int32_t x, y;
+  xSemaphoreTake(kunciSPI, portMAX_DELAY); bool s = lcd.getTouch(&x, &y); xSemaphoreGive(kunciSPI);
+  bool ketuk = s && !sentuhTerbangLalu && y >= BILAH_H;   // sentuhan baru (bukan jari yang masih menempel)
+  sentuhTerbangLalu = s;
+  unsigned long kini = millis();
+  float dt = min(0.05f, (kini - tTerbangLalu) / 1000.0f); tTerbangLalu = kini;
+  if (stTerbang == 0) { burungY = 90 + 6 * sinf(kini / 250.0f); if (ketuk) mulaiTerbang(); return; }
+  if (stTerbang == 2) { if (ketuk && kini - tJatuh > 800) mulaiTerbang(); return; }
+  if (ketuk) burungV = -230;
+  burungV += 750 * dt; burungY += burungV * dt;
+  if (burungY < BURUNG_R) { burungY = BURUNG_R; burungV = 0; }
+  bool jatuh = burungY + BURUNG_R >= TANAH_T;
+  for (int i = 0; i < 3; i++) {
+    pipaX[i] -= 85 * dt;
+    if (pipaX[i] < -PIPA_L) { pipaX[i] += 3 * PIPA_JARAK; pipaCelah[i] = 30 + esp_random() % (TANAH_T - CELAH_T - 50); pipaLewat[i] = false; }
+    if (!pipaLewat[i] && pipaX[i] + PIPA_L < BURUNG_X) { pipaLewat[i] = true; skorTerbang++; }
+    bool sejajar = BURUNG_X + BURUNG_R - 2 > pipaX[i] && BURUNG_X - BURUNG_R + 2 < pipaX[i] + PIPA_L;
+    if (sejajar && (burungY - BURUNG_R + 2 < pipaCelah[i] || burungY + BURUNG_R - 2 > pipaCelah[i] + CELAH_T)) jatuh = true;
+  }
+  if (jatuh) {
+    stTerbang = 2; tJatuh = kini;
+    if ((uint32_t)skorTerbang > terbaikTerbang) { terbaikTerbang = skorTerbang; simpanTerbaik("tTerbang", terbaikTerbang); }
+  }
+}
+
+void gambarTerbang() {
+  kanvas.fillScreen(WARNA(110, 190, 235));
+  for (int i = 0; i < 3; i++) {
+    int x = (int)pipaX[i], c = pipaCelah[i];
+    if (stTerbang == 0 || x > 320) continue;
+    kanvas.fillRect(x, 0, PIPA_L, c, WARNA(70, 170, 60));
+    kanvas.fillRect(x - 3, c - 12, PIPA_L + 6, 12, WARNA(45, 130, 40));
+    kanvas.fillRect(x, c + CELAH_T, PIPA_L, TANAH_T - c - CELAH_T, WARNA(70, 170, 60));
+    kanvas.fillRect(x - 3, c + CELAH_T, PIPA_L + 6, 12, WARNA(45, 130, 40));
+  }
+  kanvas.fillRect(0, TANAH_T, 320, ISI_H - TANAH_T, WARNA(220, 200, 120));
+  kanvas.fillRect(0, TANAH_T, 320, 4, WARNA(90, 170, 60));
+  int by = (int)burungY;
+  kanvas.fillCircle(BURUNG_X, by, BURUNG_R, WARNA(255, 210, 40));
+  kanvas.fillCircle(BURUNG_X - 3, by + 2, 4, WARNA(240, 160, 30));
+  kanvas.fillCircle(BURUNG_X + 3, by - 3, 3, TFT_WHITE); kanvas.fillCircle(BURUNG_X + 4, by - 3, 1, TFT_BLACK);
+  kanvas.fillTriangle(BURUNG_X + 7, by - 1, BURUNG_X + 14, by + 2, BURUNG_X + 7, by + 4, TFT_ORANGE);
+  kanvas.setTextDatum(middle_center);
+  if (stTerbang == 1) {
+    kanvas.setFont(&fonts::FreeSansBold12pt7b); kanvas.setTextColor(TFT_BLACK); kanvas.drawString(String(skorTerbang).c_str(), 161, 19);
+    kanvas.setTextColor(TFT_WHITE); kanvas.drawString(String(skorTerbang).c_str(), 160, 18);
+  } else {
+    kanvas.fillRoundRect(60, 54, 200, 84, 12, WARNA(30, 40, 55));
+    kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE);
+    kanvas.drawString(stTerbang == 0 ? "Ketuk layar untuk terbang" : ("Jatuh! Skor " + String(skorTerbang)).c_str(), 160, 76);
+    kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP);
+    kanvas.drawString(("Terbaik: " + String(terbaikTerbang)).c_str(), 160, 100);
+    kanvas.drawString(stTerbang == 0 ? "Ketuk lagi supaya burung naik" : "Ketuk untuk main lagi", 160, 120);
+  }
+}
+
+// ---- Podcast ----
+int podcastMain = -1;                                     // episode yang sedang diputar
+uint32_t podcastHash = 0;
+
+String teksPodcast(int i) { return String(DAFTAR_PODCAST[i][0]) + (episodeDari == i && podcastMain >= 0 ? "\tdiputar" : ""); }
+
+String teksEpisode(int i) {
+  const Episode& e = episode[i];
+  String nilai = i == podcastMain ? (musikJeda ? "jeda " : "") + waktuMenit(laguDetik) : e.tanggal + (e.durasi.length() ? "  " + e.durasi : String());
+  return e.judul + "\t" + nilai;
+}
+bool sorotEpisode(int i) { return i == podcastMain; }
+
+void putarEpisode(int i) {
+  if (WiFi.status() != WL_CONNECTED) { toast("Podcast butuh WiFi"); return; }
+  xSemaphoreTake(kunciInfo, portMAX_DELAY); String url = i < (int)episode.size() ? episode[i].url : String(); xSemaphoreGive(kunciInfo);
+  if (!url.length()) return;
+  if (url.length() > 511) { toast("Alamat episode terlalu panjang"); return; }
+  podcastMain = i; murottalKe = -1; laguKe = radioKe = -1;
+  podcastHash = hashTeks(url.c_str());
+  kirimAudio(A_URL, url);
+  setStatus("Podcast: " + episode[i].judul);
+}
+
+void gambarPodcast() { gambarDaftar(JUMLAH_PODCAST, 4, teksPodcast, nullptr); }
+
+void gambarEpisode() {
+  xSemaphoreTake(kunciInfo, portMAX_DELAY); bool kosong = episode.empty() || episodeDari != podcastDipilih; xSemaphoreGive(kunciInfo);
+  if (kosong) tulisMemuat("Memuat episode...");
+  else {
+    xSemaphoreTake(kunciInfo, portMAX_DELAY);
+    gambarDaftar(episode.size(), 3, teksEpisode, sorotEpisode);
+    xSemaphoreGive(kunciInfo);
+  }
+  bool main = podcastMain >= 0;
+  tombol(kanvas, ISI_Y, 70, 6, 138, 96, 36, musikJeda ? "LANJUT" : "JEDA", W_TOMBOL, main);
+  tombol(kanvas, ISI_Y, 71, 106, 138, 96, 36, "STOP", W_MERAH, main);
+  tombol(kanvas, ISI_Y, 25, 206, 138, 52, 36, "VOL-", W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 26, 262, 138, 52, 36, "VOL+", W_TOMBOL, true);
+}
+
+// ---- Murottal: 114 surah, dari SD /murottal/001.mp3 kalau ada, selain itu dari mp3quran.net ----
+const char* NAMA_SURAH[114] = {
+  "Al-Fatihah", "Al-Baqarah", "Ali 'Imran", "An-Nisa'", "Al-Ma'idah", "Al-An'am", "Al-A'raf", "Al-Anfal", "At-Taubah", "Yunus",
+  "Hud", "Yusuf", "Ar-Ra'd", "Ibrahim", "Al-Hijr", "An-Nahl", "Al-Isra'", "Al-Kahf", "Maryam", "Taha",
+  "Al-Anbiya'", "Al-Hajj", "Al-Mu'minun", "An-Nur", "Al-Furqan", "Asy-Syu'ara'", "An-Naml", "Al-Qasas", "Al-'Ankabut", "Ar-Rum",
+  "Luqman", "As-Sajdah", "Al-Ahzab", "Saba'", "Fatir", "Yasin", "As-Saffat", "Sad", "Az-Zumar", "Gafir",
+  "Fussilat", "Asy-Syura", "Az-Zukhruf", "Ad-Dukhan", "Al-Jasiyah", "Al-Ahqaf", "Muhammad", "Al-Fath", "Al-Hujurat", "Qaf",
+  "Az-Zariyat", "At-Tur", "An-Najm", "Al-Qamar", "Ar-Rahman", "Al-Waqi'ah", "Al-Hadid", "Al-Mujadalah", "Al-Hasyr", "Al-Mumtahanah",
+  "As-Saff", "Al-Jumu'ah", "Al-Munafiqun", "At-Tagabun", "At-Talaq", "At-Tahrim", "Al-Mulk", "Al-Qalam", "Al-Haqqah", "Al-Ma'arij",
+  "Nuh", "Al-Jinn", "Al-Muzzammil", "Al-Muddassir", "Al-Qiyamah", "Al-Insan", "Al-Mursalat", "An-Naba'", "An-Nazi'at", "'Abasa",
+  "At-Takwir", "Al-Infitar", "Al-Mutaffifin", "Al-Insyiqaq", "Al-Buruj", "At-Tariq", "Al-A'la", "Al-Gasyiyah", "Al-Fajr", "Al-Balad",
+  "Asy-Syams", "Al-Lail", "Ad-Duha", "Asy-Syarh", "At-Tin", "Al-'Alaq", "Al-Qadr", "Al-Bayyinah", "Az-Zalzalah", "Al-'Adiyat",
+  "Al-Qari'ah", "At-Takasur", "Al-'Asr", "Al-Humazah", "Al-Fil", "Quraisy", "Al-Ma'un", "Al-Kausar", "Al-Kafirun", "An-Nasr",
+  "Al-Lahab", "Al-Ikhlas", "Al-Falaq", "An-Nas"};
+const int JUMLAH_QARI = sizeof(DAFTAR_QARI) / sizeof(DAFTAR_QARI[0]);
+int qariKe = 0;
+
+String urlSurah(int n) { char b[12]; snprintf(b, sizeof(b), "%03d.mp3", n); return String(DAFTAR_QARI[qariKe][1]) + b; }
+
+void putarSurah(int n) {                                  // n = 1..114
+  if (n < 1 || n > 114) return;
+  char f[24]; snprintf(f, sizeof(f), "/murottal/%03d.mp3", n);
+  kunciSD(); bool diSD = adaSD && SD.exists(f); lepasSD();
+  if (!diSD && WiFi.status() != WL_CONNECTED) { toast("Butuh WiFi, atau file di SD /murottal"); return; }
+  murottalKe = n; podcastMain = -1; laguKe = radioKe = -1;
+  if (diSD) kirimAudio(A_FILE, f); else kirimAudio(A_URL, urlSurah(n));
+  setStatus(String("Murottal ") + String(n) + ". " + NAMA_SURAH[n - 1] + (diSD ? " (SD)" : ""));
+}
+
+String teksSurah(int i) {
+  String t = String(i + 1) + ". " + NAMA_SURAH[i];
+  if (murottalKe == i + 1) t += musikJeda ? "\tjeda" : "\t" + waktuMenit(laguDetik);
+  return t;
+}
+bool sorotSurah(int i) { return murottalKe == i + 1; }
+
+void gambarMurottal() {
+  gambarDaftar(114, 3, teksSurah, sorotSurah);
+  String q = String("Qari: ") + DAFTAR_QARI[qariKe][0];
+  tombol(kanvas, ISI_Y, 72, 6, 138, 150, 36, q.c_str(), W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 73, 160, 138, 74, 36, musikJeda ? "LANJUT" : "JEDA", W_TOMBOL, murottalKe > 0);
+  tombol(kanvas, ISI_Y, 74, 238, 138, 76, 36, "STOP", W_MERAH, murottalKe > 0);
+}
+
+// ---- Ganti WiFi dari layar ----
+struct JaringanWiFi { String ssid; int rssi; bool kunci; };
+std::vector<JaringanWiFi> daftarWiFi;
+int statusPindai = 0, statusSambung = 0;                  // pindai: 0 belum, 1 berjalan, 2 selesai. sambung: 1 sedang mencoba
+String wifiDipilih, wifiLamaN, wifiLamaP, wifiBaruN, wifiBaruP;
+bool wifiSimpan = false;
+unsigned long tSambung = 0;
+
+void mulaiPindai() { WiFi.scanDelete(); daftarWiFi.clear(); WiFi.scanNetworks(true); statusPindai = 1; }
+
+void cekPindai() {
+  if (statusPindai != 1) return;
+  int n = WiFi.scanComplete();
+  if (n == WIFI_SCAN_RUNNING) return;
+  for (int i = 0; i < n; i++) {
+    String s = WiFi.SSID(i);
+    if (!s.length()) continue;                             // jaringan tersembunyi
+    bool ada = false;
+    for (JaringanWiFi& j : daftarWiFi) if (j.ssid == s) { j.rssi = max(j.rssi, (int)WiFi.RSSI(i)); ada = true; }
+    if (!ada) daftarWiFi.push_back({s, (int)WiFi.RSSI(i), WiFi.encryptionType(i) != WIFI_AUTH_OPEN});
+  }
+  std::sort(daftarWiFi.begin(), daftarWiFi.end(), [](const JaringanWiFi& a, const JaringanWiFi& b) { return a.rssi > b.rssi; });
+  WiFi.scanDelete();
+  statusPindai = 2; gambarUlang = true;
+}
+
+bool adaWiFiTersimpan() { Preferences q; q.begin("robot", true); bool a = q.getString("wifiN", "").length() > 0; q.end(); return a; }
+
+void sambungWiFi(const String& ssid, const String& sandi, bool simpan) {
+  wifiLamaN = WiFi.status() == WL_CONNECTED ? WiFi.SSID() : String(); wifiLamaP = WiFi.psk();
+  wifiBaruN = ssid; wifiBaruP = sandi; wifiSimpan = simpan;
+  WiFi.disconnect(); delay(100);
+  WiFi.begin(ssid.c_str(), sandi.c_str());
+  statusSambung = 1; tSambung = millis(); gambarUlang = true;
+}
+
+void cekSambung() {
+  if (statusSambung != 1) return;
+  if (WiFi.status() == WL_CONNECTED) {
+    statusSambung = 0;
+    Preferences q; q.begin("robot", false);
+    if (wifiSimpan) { q.putString("wifiN", wifiBaruN); q.putString("wifiP", wifiBaruP); } else { q.remove("wifiN"); q.remove("wifiP"); }
+    q.end();
+    if (!wifiAwal) {                                       // robot menyala tanpa WiFi: panel web dan Telegram belum jalan
+      toast("Tersambung. Memulai ulang...");
+      gambarIsi(); delay(1500); ESP.restart();
+    }
+    MDNS.end(); MDNS.begin(namaHost().c_str()); MDNS.addService("http", "tcp", 80);
+    kirimTelegram("Pindah ke WiFi " + wifiBaruN + ". Panel: http://" + WiFi.localIP().toString() + "/");
+    toast("Tersambung ke " + wifiBaruN);
+    gambarUlang = bilahUlang = true;
+  } else if (millis() - tSambung > 20000) {
+    statusSambung = 0;
+    toast("Gagal. Sandi salah atau sinyal lemah");
+    if (wifiLamaN.length()) WiFi.begin(wifiLamaN.c_str(), wifiLamaP.c_str());
+    gambarUlang = true;
+  }
+}
+
+String teksWiFi(int i) {
+  const JaringanWiFi& j = daftarWiFi[i];
+  return j.ssid + "\t" + (j.kunci ? "sandi, " : "terbuka, ") + (j.rssi > -60 ? "kuat" : j.rssi > -72 ? "sedang" : "lemah");
+}
+bool sorotWiFi(int i) { return WiFi.status() == WL_CONNECTED && daftarWiFi[i].ssid == WiFi.SSID(); }
+
+void gambarWiFi() {
+  if (statusSambung) {
+    tulisTengah("Menyambung ke", 70, &fonts::Font2, W_REDUP);
+    tulisTengah(wifiBaruN, 96, &fonts::FreeSansBold12pt7b, TFT_WHITE);
+    tulisTengah(String((millis() - tSambung) / 1000) + " detik (paling lama 20)", 126, &fonts::Font2, W_REDUP);
+    return;
+  }
+  if (statusPindai == 1) tulisTengah("Mencari jaringan WiFi...", 70, &fonts::FreeSansBold9pt7b, TFT_WHITE);
+  else if (daftarWiFi.empty()) tulisTengah("Tidak ada WiFi 2,4 GHz yang terlihat", 70, &fonts::FreeSansBold9pt7b, TFT_WHITE);
+  else gambarDaftar(daftarWiFi.size(), 3, teksWiFi, sorotWiFi);
+  tombol(kanvas, ISI_Y, 80, 6, 138, 151, 36, "PINDAI ULANG", W_TOMBOL, statusPindai != 1);
+  tombol(kanvas, ISI_Y, 81, 163, 138, 151, 36, "PAKAI WIFI KODE", W_TOMBOL, adaWiFiTersimpan());
+}
+
+// ---- Keyboard layar (sandi WiFi, catatan, topik Wikipedia, kalimat penerjemah) ----
+int tujuanKetik = K_CATATAN, modeKetik = 0;               // mode: 0 huruf, 1 angka, 2 simbol
+bool hurufBesar = false;
+String teksKetik;
+const char* BARIS_KETIK[3][3] = {{"qwertyuiop", "asdfghjkl", "zxcvbnm"},
+                                 {"1234567890", "-/:;()&@\"", ".,?!'#%"},
+                                 {"[]{}^*+=~|", "_\\<>$`;:'", ".,?!@/\""}};
+
+void bukaKetik(int tujuan, const String& judul) {
+  tujuanKetik = tujuan; judulKetik = judul; teksKetik = "";
+  modeKetik = 0; hurufBesar = tujuan != K_WIFI;            // catatan dan topik mulai dengan huruf besar
+  buka(H_KETIK);
+}
+
+void kembaliDariKetik() {
+  buka(tujuanKetik == K_WIFI ? H_WIFI : tujuanKetik == K_CATATAN ? H_CATATAN : tujuanKetik == K_WIKI ? H_WIKI : H_TERJEMAH);
+}
+
+void selesaiKetik() {
+  String t = teksKetik;
+  if (tujuanKetik != K_WIFI) t.trim();
+  int tujuan = tujuanKetik;
+  if (tujuan == K_WIFI) sambungWiFi(wifiDipilih, t, true);   // dulu, supaya halaman WiFi tidak mulai memindai
+  kembaliDariKetik();
+  if (tujuan == K_WIFI || !t.length()) return;
+  else if (tujuan == K_CATATAN) { String g = tambahCatatan(t); toast(g.length() ? "Gagal: " + g : String("Dicatat")); }
+  else { ketikanJaringan = t; mintaKetik = tujuan == K_WIKI ? 1 : 2; }
+}
+
+char hurufKetik(int baris, int k) {
+  char c = BARIS_KETIK[modeKetik][baris][k];
+  return modeKetik == 0 && hurufBesar ? toupper(c) : c;
+}
+
+void gambarKetik() {
+  kanvas.fillRoundRect(6, 2, 308, 32, 6, WARNA(14, 18, 24));
+  kanvas.setFont(&fonts::FreeSans9pt7b); kanvas.setTextDatum(middle_left); kanvas.setTextColor(TFT_WHITE);
+  String t = teksKetik + "_";
+  while (t.length() > 1 && kanvas.textWidth(t.c_str()) > 292) t.remove(0, 1);
+  if (!teksKetik.length()) { kanvas.setTextColor(W_REDUP); t = judulKetik; }
+  kanvas.drawString(t.c_str(), 14, 19);
+  const int Y[3] = {40, 80, 120}, X0[3] = {6, 21, 54};
+  for (int b = 0; b < 3; b++) {
+    int n = strlen(BARIS_KETIK[modeKetik][b]);
+    for (int k = 0; k < n; k++) {
+      char s[2] = {hurufKetik(b, k), 0};
+      tombol(kanvas, ISI_Y, 10 + b * 10 + k, X0[b] + k * 31, Y[b], 28, 36, s, W_TOMBOL, true);
+    }
+  }
+  const char* geser = modeKetik == 0 ? "^" : modeKetik == 1 ? "#+=" : "123";
+  tombol(kanvas, ISI_Y, 40, 6, 120, 44, 36, geser, modeKetik == 0 && hurufBesar ? W_BIRU : W_GARIS, true);
+  tombol(kanvas, ISI_Y, 41, 272, 120, 42, 36, "<-", W_GARIS, teksKetik.length() > 0);
+  tombol(kanvas, ISI_Y, 42, 6, 160, 56, 36, modeKetik == 0 ? "123" : "abc", W_GARIS, true);
+  tombol(kanvas, ISI_Y, 43, 66, 160, 152, 36, "spasi", W_TOMBOL, true);
+  const char* ok = tujuanKetik == K_WIFI ? "SAMBUNG" : tujuanKetik == K_CATATAN ? "SIMPAN" : tujuanKetik == K_WIKI ? "CARI" : "TERJEMAH";
+  tombol(kanvas, ISI_Y, 44, 222, 160, 92, 36, ok, W_HIJAU, tujuanKetik == K_WIFI || teksKetik.length() > 0);
+}
+
+// ---- bersama untuk halaman tahap 4 ----
+void gambarTahap4() {
+  switch (halaman) {
+    case H_TTT: gambarTTT(); break;
+    case H_2048: gambar2048(); break;
+    case H_TERBANG: gambarTerbang(); break;
+    case H_PODCAST: gambarPodcast(); break;
+    case H_EPISODE: gambarEpisode(); break;
+    case H_MUROTTAL: gambarMurottal(); break;
+    case H_WIFI: gambarWiFi(); break;
+    case H_KETIK: gambarKetik(); break;
+  }
+}
+
+bool tetapTahap4() {
+  return (halaman == H_TERBANG && stTerbang == 1) || (halaman == H_WIFI && statusSambung) ||
+         ((halaman == H_EPISODE || halaman == H_MUROTTAL) && (musikJalan() || musikJeda));
+}
+
+unsigned long jedaTahap4() {
+  if (halaman == H_TERBANG) return stTerbang == 1 ? 1 : stTerbang == 0 ? 60 : 0;
+  if (halaman == H_EPISODE || halaman == H_MUROTTAL) return musikJalan() ? 1000 : 0;
+  if (halaman == H_WIFI) return statusSambung || statusPindai == 1 ? 500 : 0;
+  return 0;
+}
+
+void bukaTahap4(int h) {                                  // dipanggil buka() saat pindah halaman
+  if (h == H_2048 && !muat2048) {
+    Preferences q; q.begin("robot", true); terbaik2048 = disimpan2048 = q.getUInt("t2048", 0); q.end();
+    muat2048 = true; baru2048();
+  }
+  if (h == H_TERBANG) {
+    if (!muatTerbang) { Preferences q; q.begin("robot", true); terbaikTerbang = q.getUInt("tTerbang", 0); q.end(); muatTerbang = true; }
+    stTerbang = 0; sentuhTerbangLalu = true; tTerbangLalu = millis();
+  }
+  if (h == H_EPISODE) {
+    xSemaphoreTake(kunciInfo, portMAX_DELAY);
+    bool lama = episodeDari != podcastDipilih || episode.empty() || millis() - tEpisode > 1800000UL;
+    if (episodeDari != podcastDipilih) episode.clear();
+    xSemaphoreGive(kunciInfo);
+    if (lama) { aturGalat(""); mintaInfo |= INFO_PODCAST; }
+    if (episodeDari != podcastDipilih) podcastMain = -1;
+  }
+  if (h == H_MUROTTAL && murottalKe > 0) halamanHal = (murottalKe - 1) / 3;
+  if (h == H_WIFI && !statusSambung) mulaiPindai();
+}
+
+void periksaTahap4() {                                    // dipanggil terus dari perbaruiLayar()
+  if (halaman == H_TERBANG) langkahTerbang();
+  if (tZondTTT && (long)(millis() - tZondTTT) >= 0) { tZondTTT = 0; langkahZondTTT(); cekAkhirTTT(); gambarUlang = true; }
+  cekPindai();
+  cekSambung();
+  if (murottalKe > 0 && (laguHabis || urlHabis)) {        // surah selesai: lanjut ke surah berikutnya
+    bool milik = laguHabis ? strncmp(laguFile, "/murottal/", 10) == 0 : urlDiputar == hashTeks(urlSurah(murottalKe).c_str());
+    if (milik) {
+      laguHabis = urlHabis = false;
+      if (murottalKe < 114) putarSurah(murottalKe + 1); else murottalKe = -1;
+      gambarUlang = true;
+    }
+  }
+  if (urlHabis) {
+    urlHabis = false;
+    if (podcastMain >= 0 && urlDiputar == podcastHash) { podcastMain = -1; gambarUlang = true; }
+  }
+  if (terbaik2048 > disimpan2048 && millis() - tSimpan2048 > 30000) {
+    tSimpan2048 = millis(); simpanTerbaik("t2048", terbaik2048); disimpan2048 = terbaik2048;
+  }
+}
+
+void ubahVolume(int d) {
+  int v = constrain(volSekarang + d, 0, 21); kirimAudio(A_VOL, String(v)); volSekarang = v; toast("Volume " + String(v));
+}
+
+void tombolTahap4(int id) {
+  switch (halaman) {
+    case H_TTT:
+      if (id >= 10 && id < 19 && !hasilTTT && !tZondTTT && !papanTTT[id - 10]) {
+        papanTTT[id - 10] = 1; cekAkhirTTT();
+        if (!hasilTTT) tZondTTT = millis() + 500;
+      } else if (id == 20) { sulitTTT = !sulitTTT; skorTTT[0] = skorTTT[1] = skorTTT[2] = 0; baruTTT(); }
+      else if (id == 21) baruTTT();
+      break;
+    case H_2048:
+      if (id == 35) { if (terbaik2048 > disimpan2048) { simpanTerbaik("t2048", terbaik2048); disimpan2048 = terbaik2048; } baru2048(); }
+      else if (id >= 31 && id <= 34) { const int A[4] = {2, 0, 3, 1}; geser2048(A[id - 31]); }
+      break;
+    case H_PODCAST:
+      if (id >= 100 && id - 100 < JUMLAH_PODCAST) { podcastDipilih = id - 100; buka(H_EPISODE); }
+      break;
+    case H_EPISODE:
+      if (id >= 100) putarEpisode(id - 100);
+      else if (id == 70) kirimAudio(A_JEDA);
+      else if (id == 71) { kirimAudio(A_STOP); podcastMain = -1; }
+      else if (id == 25 || id == 26) ubahVolume(id == 26 ? 2 : -2);
+      break;
+    case H_MUROTTAL:
+      if (id >= 100) putarSurah(id - 100 + 1);
+      else if (id == 72) {
+        qariKe = (qariKe + 1) % JUMLAH_QARI;
+        Preferences q; q.begin("robot", false); q.putUChar("qari", qariKe); q.end();
+        toast(String("Qari ") + DAFTAR_QARI[qariKe][0] + " (mulai surah berikutnya)");
+      } else if (id == 73) kirimAudio(A_JEDA);
+      else if (id == 74) { kirimAudio(A_STOP); murottalKe = -1; }
+      break;
+    case H_WIFI:
+      if (id >= 100 && id - 100 < (int)daftarWiFi.size()) {
+        const JaringanWiFi& j = daftarWiFi[id - 100];
+        wifiDipilih = j.ssid;
+        if (j.kunci) bukaKetik(K_WIFI, "Sandi " + j.ssid);
+        else sambungWiFi(j.ssid, "", true);
+      } else if (id == 80) mulaiPindai();
+      else if (id == 81) {
+        Preferences q; q.begin("robot", false); q.remove("wifiN"); q.remove("wifiP"); q.end();
+        sambungWiFi(WIFI_NAMA, WIFI_PASSWORD, false);
+      }
+      break;
+    case H_KETIK:
+      if (id >= 10 && id < 40) {
+        int b = (id - 10) / 10, k = (id - 10) % 10;
+        if (k < (int)strlen(BARIS_KETIK[modeKetik][b]) && teksKetik.length() < 63) {
+          teksKetik += hurufKetik(b, k);
+          if (modeKetik == 0) hurufBesar = false;            // huruf besar hanya untuk satu huruf
+        }
+      } else if (id == 40) { if (modeKetik == 0) hurufBesar = !hurufBesar; else modeKetik = modeKetik == 1 ? 2 : 1; }
+      else if (id == 41) { if (teksKetik.length()) teksKetik.remove(teksKetik.length() - 1); }
+      else if (id == 42) modeKetik = modeKetik == 0 ? 1 : 0;
+      else if (id == 43) { if (teksKetik.length() < 63) teksKetik += ' '; }
+      else if (id == 44) selesaiKetik();
+      break;
+  }
+  gambarUlang = true;
+}
+
 // ---- gambar isi halaman (selain Beranda) ----
 void gambarIsi() {
   kanvas.fillScreen(TFT_BLACK);
@@ -4432,7 +5223,7 @@ void gambarIsi() {
     case H_KALENDER: gambarKalender(); break;
     case H_KURS: gambarKurs(); break;
     case H_WIKI: gambarWiki(); break;
-    default: gambarAlat(); break;
+    default: if (halaman >= H_TTT) gambarTahap4(); else gambarAlat(); break;
   }
   if (millis() < toastSampai) {
     kanvas.setFont(&fonts::FreeSansBold9pt7b);
@@ -4451,7 +5242,7 @@ void buka(int h) {
   if (h != H_SETELAN) konfirmasiRestart = false;
   if (!((h == H_WIKI && tujuanDengar == 1) || (h == H_TERJEMAH && tujuanDengar == 2) || (h == H_CATATAN && tujuanDengar == 3))) tujuanDengar = 0;
   if (rekamMemo && h != H_REKAM) { rekamMemo = false; memoSelesai = true; }   // keluar saat merekam: rekaman disimpan
-  if (h != halaman) bukaAlat(h);
+  if (h != halaman) { bukaAlat(h); bukaTahap4(h); }
   uint8_t minta = 0;                                       // data Info yang belum ada atau sudah lama
   if (h == H_CUACA && !cuaca.ada) minta |= INFO_CUACA;
   if (h == H_SHOLAT && (!sholat.ada || sholat.tanggal != tanggalHariIni())) minta |= INFO_SHOLAT;
@@ -4476,6 +5267,11 @@ void kembali() {
     case H_ALARM: case H_TIMER: case H_KALKU: case H_SENTER: case H_TERJEMAH: case H_CATATAN: case H_REKAM: case H_GALERI:
       kembaliKeSub(2); break;
     case H_ALARMBARU: buka(H_ALARM); break;
+    case H_PODCAST: case H_MUROTTAL: kembaliKeSub(0); break;
+    case H_EPISODE: buka(H_PODCAST); break;
+    case H_TTT: case H_2048: case H_TERBANG: kembaliKeSub(3); break;
+    case H_WIFI: buka(H_SETELAN); halamanHal = 1; break;
+    case H_KETIK: kembaliDariKetik(); break;
     default: buka(H_BERANDA);
   }
 }
@@ -4484,6 +5280,9 @@ void jalankanTombol(int id) {
   if (id == B_KEMBALI) { kembali(); return; }
   if (id == B_ATAS) { halamanHal--; gambarUlang = true; return; }
   if (id == B_BAWAH) { halamanHal++; gambarUlang = true; return; }
+  if (id == B_LOMPATMUNDUR) { halamanHal = max(0, halamanHal - 5); gambarUlang = true; return; }
+  if (id == B_LOMPATMAJU) { halamanHal += 5; gambarUlang = true; return; }
+  if (halaman >= H_TTT) { tombolTahap4(id); return; }
   if (halaman >= H_ALARM) { tombolAlat(id); return; }
   switch (halaman) {
     case H_BERANDA:
@@ -4563,7 +5362,8 @@ void jalankanTombol(int id) {
         Preferences q; q.begin("robot", false); bool p = !q.getUChar("putar", 0); q.putUChar("putar", p); q.end();
         xSemaphoreTake(kunciSPI, portMAX_DELAY); lcd.setRotation(lcd.getRotation() ^ 2); lcd.fillScreen(TFT_BLACK); xSemaphoreGive(kunciSPI);
         bilahUlang = true;
-      } else if (i == 6) {
+      } else if (i == 7) buka(H_WIFI);
+      else if (i == 6) {
         xSemaphoreTake(kunciSPI, portMAX_DELAY); kalibrasiSentuh(true); xSemaphoreGive(kunciSPI);
         bilahUlang = true;
       } else if (i == 9) {
@@ -4615,7 +5415,9 @@ void jalankanTombol(int id) {
       break;
     case H_WIKI:
       if (id == 88) { xSemaphoreTake(kunciInfo, portMAX_DELAY); String t = wikiIsi; xSemaphoreGive(kunciInfo); if (t.length()) ucapkan(t); }
-      else if (id == 89) { tujuanDengar = 1; kirimAudio(A_STOP); mintaDengar = true; halamanHal = 0; }
+      else if (id == 89) { wikiPilih = false; tujuanDengar = 1; kirimAudio(A_STOP); mintaDengar = true; halamanHal = 0; }
+      else if (id == 87) { wikiPilih = false; bukaKetik(K_WIKI, "Ketik topik Wikipedia"); return; }
+      else if (id == 90) wikiPilih = true;
       gambarUlang = true;
       break;
   }
@@ -4644,12 +5446,14 @@ void tanganiSentuh() {
   static int calon = -3, ulang = 0;
   static bool menempel = false, sudahUlang = false;
   static unsigned long tTahan = 0, tUlang = 0;
+  static int32_t awalX = 0, awalY = 0, akhirX = 0, akhirY = 0;   // titik awal dan akhir sentuhan (usap di 2048)
+  if (ada) { akhirX = x; akhirY = y; }
   if (baca == calon) { if (ulang < 100) ulang++; } else { calon = baca; ulang = 1; }
   if (ulang < 4) return;
   if (calon != -2) {
     tSentuh = millis();
     if (!menempel) {
-      menempel = true;
+      menempel = true; awalX = x; awalY = y;
       Serial.printf("[sentuh] x %d, y %d, tombol %d\n", (int)x, (int)y, calon);
       tAktif = millis();                                     // layar dipakai: jangan pasang wajah mengantuk
       if (layarRedup) { layarRedup = false; abaikanSentuh = true; aturKecerahan(); return; }   // sentuhan pertama hanya membangunkan
@@ -4666,6 +5470,10 @@ void tanganiSentuh() {
     int id = tombolDitekan; tombolDitekan = -1;
     bool abaikan = abaikanSentuh; abaikanSentuh = false;
     gambarUlang = true; if (id == B_KEMBALI) bilahUlang = true;
+    if (!abaikan && halaman == H_2048 && awalX < 216 && awalY >= ISI_Y) {   // usap di papan 2048
+      int dx = akhirX - awalX, dy = akhirY - awalY;
+      if (max(abs(dx), abs(dy)) > 30) { geser2048(abs(dx) > abs(dy) ? (dx > 0 ? 1 : 0) : (dy > 0 ? 3 : 2)); id = -1; }
+    }
     if (!abaikan && id >= 0 && !sudahUlang) jalankanTombol(id);
     sudahUlang = false;
   }
@@ -4724,7 +5532,9 @@ void perbaruiLayar() {
     buka(H_BERGERAK);
   }
   periksaAlat();
-  bool tetap = halaman == H_BERANDA || halaman == H_BERGERAK || halaman == H_HITUNG || (halaman == H_MUSIK && musikJalan()) || alatTetap();
+  periksaTahap4();
+  bool tetap = halaman == H_BERANDA || halaman == H_BERGERAK || halaman == H_HITUNG || (halaman == H_MUSIK && musikJalan()) || alatTetap() ||
+               tetapTahap4();
   if (!tetap && millis() - tSentuh > 45000) buka(H_BERANDA);
   if (pesanMasuk) {
     pesanMasuk = false;
@@ -4750,7 +5560,7 @@ void perbaruiLayar() {
   }
   unsigned long jeda = halaman == H_HITUNG ? 200 : (halaman == H_MUSIK || halaman == H_BERGERAK) ? 500 :
                        halaman == H_STATUS ? (tabStatus ? 5000 : 1000) : halaman == H_RADIO ? 2000 :
-                       halaman == H_SHOLAT ? 10000 : halaman >= H_ALARM ? jedaAlat() : 0;
+                       halaman == H_SHOLAT ? 10000 : halaman >= H_TTT ? jedaTahap4() : halaman >= H_ALARM ? jedaAlat() : 0;
   bool toastHabis = toastSampai && millis() >= toastSampai;
   if (toastHabis) toastSampai = 0;
   if (gambarUlang || toastHabis || (jeda && millis() - tIsi > jeda)) { gambarUlang = false; tIsi = millis(); gambarIsi(); }
@@ -5058,6 +5868,7 @@ void setup() {
   pakaiSuaraAI = pref.getUChar("suara", 1) != 0;
   pengingatSholat = pref.getUChar("sholat", 1);
   bahasaTerjemah = pref.getUChar("bhs", 0) % JUMLAH_BAHASA;
+  qariKe = pref.getUChar("qari", 0) % JUMLAH_QARI;
   suaraHariIni = pref.getUInt("tsN", 0);
   if (pilihanAI >= AI_JUMLAH || !aiTersedia(pilihanAI)) pilihanAI = AI_OTOMATIS;
   pref.end();
@@ -5100,8 +5911,19 @@ void setup() {
   perbaruiLayar();
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);   // WiFi tidak tidur: pengumuman mDNS (port jaringan di Arduino IDE) dan panel web lebih andal
-  WiFi.begin(WIFI_NAMA, WIFI_PASSWORD);
-  for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) delay(500);
+  // WiFi yang dipilih di layar (Setelan → WiFi) dicoba dulu; kalau gagal, WiFi dari kode.
+  { Preferences q; q.begin("robot", true); String n = q.getString("wifiN", ""), s = q.getString("wifiP", ""); q.end();
+    if (n.length()) {
+      WiFi.begin(n.c_str(), s.c_str());
+      for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) delay(500);
+      if (WiFi.status() != WL_CONNECTED) { Serial.println("[wifi] WiFi pilihan layar (" + n + ") gagal, coba WiFi dari kode"); WiFi.disconnect(); delay(200); }
+    }
+  }
+  if (WiFi.status() != WL_CONNECTED) {
+    WiFi.begin(WIFI_NAMA, WIFI_PASSWORD);
+    for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) delay(500);
+  }
+  wifiAwal = WiFi.status() == WL_CONNECTED;
   if (WiFi.status() == WL_CONNECTED) {
     Serial.print("IP otak: "); Serial.println(WiFi.localIP());
     configTzTime(ZONA_WAKTU, "pool.ntp.org", "time.google.com");   // jam dari internet, berjalan sendiri di latar
@@ -5121,7 +5943,7 @@ void setup() {
     bot.sendMessage(TELEGRAM_CHATID, String(NAMA_ROBOT) + " menyala. Ketik /bantuan\nPanel kontrol: " + panel + alasanRestart());
     setStatus("Siap");
     ucapkan(String("Halo, aku ") + NAMA_ROBOT + ". Aku siap.");
-  } else setStatus("WiFi gagal. Cek nama dan password");
+  } else setStatus("WiFi gagal. Pilih WiFi di Setelan");
 
   xTaskCreatePinnedToCore(tugasAudio, "audio", 16384, nullptr, 3, nullptr, 1);
   xTaskCreatePinnedToCore(tugasJaringan, "jaringan", 16384, nullptr, 1, nullptr, 0);
