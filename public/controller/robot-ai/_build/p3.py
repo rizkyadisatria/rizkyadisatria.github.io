@@ -16,9 +16,10 @@ def halaman():
     isi += section('peta', 'Gambaran', 'Pin otak (ESP32-S3)', f'''
 <div class="two">{photo(IMG + 's3_ekspansi_anot.jpg', 'Papan ekspansi ESP32-S3 dengan nomor bagian')}<div>{leg}</div></div>''' + table(
         ['Bagian', 'Pin modul', 'GPIO S3'],
-        [['Bus SPI bersama', 'SCK / MOSI / MISO', f'{pin("IO12")} / {pin("IO11")} / {pin("IO13")} lewat breadboard'],
+        [['Bus SPI layar + sentuhan', 'SCK / MOSI / MISO', f'{pin("IO12")} / {pin("IO11")} / {pin("IO13")} lewat breadboard'],
          ['Layar TFT', 'CS, DC, RESET', f'{pin("IO10")}, {pin("IO9")}, {pin("IO8")}'],
-         ['Sentuhan', 'T_CS', pin('IO14')], ['SD card', 'SD_CS', pin('IO21')],
+         ['Sentuhan', 'T_CS', pin('IO14')],
+         ['SD card (jalur sendiri)', 'SD_SCK / SD_MOSI / SD_MISO / SD_CS', f'{pin("IO39")} / {pin("IO40")} / {pin("IO41")} / {pin("IO21")} langsung'],
          ['Speaker MAX98357A', 'BCLK, LRC, DIN', f'{pin("IO4")}, {pin("IO5")}, {pin("IO7")}'],
          ['Mikrofon INMP441', 'SCK, WS, SD', f'{pin("IO15")}, {pin("IO16")}, {pin("IO6")}'],
          ['Ke badan', 'TX, RX', f'{pin("IO17")} → D16 DevKit, {pin("IO18")} ← D17 DevKit']],
@@ -72,11 +73,12 @@ def halaman():
         'Di laptop, cek format kartu: kartu 32 GB biasanya sudah <b>FAT32</b>. Kalau tertulis exFAT atau NTFS, format ulang sebagai FAT32 (isi kartu terhapus, pindahkan dulu).',
         'Salin satu atau dua lagu MP3 ke folder utama, nama pendek tanpa spasi (misalnya <code>lagu1.mp3</code>).',
         'Di tepi kanan layarmu ada 4 lubang kosong bertuliskan (dari atas) SD_SCK, SD_MISO, SD_MOSI, SD_CS. Solder 4 pin header di situ.',
-        f'Sambung: {pin("SD_SCK")} → kolom 2 (<span class="pin">d2</span>), {pin("SD_MOSI")} → kolom 5 (<span class="pin">d5</span>), {pin("SD_MISO")} → kolom 8 (<span class="pin">d8</span>), {pin("SD_CS")} → pin S <b>IO21</b>.',
+        f'Sambung langsung ke pin S papan ekspansi, tidak lewat breadboard: {pin("SD_SCK")} → <b>IO39</b>, {pin("SD_MOSI")} → <b>IO40</b>, {pin("SD_MISO")} → <b>IO41</b>, {pin("SD_CS")} → <b>IO21</b>. SD sengaja diberi jalur sendiri, terpisah dari layar dan sentuhan: kartu SD yang belum siap bisa mengganggu jalur bersama, dan itu membuat SD kadang tidak terdeteksi.',
+        'Dulu panduan ini menyambung SD_SCK, SD_MOSI, dan SD_MISO ke kolom 2, 5, dan 8 (<span class="pin">d2</span>, <span class="pin">d5</span>, <span class="pin">d8</span>). Kalau rakitanmu masih begitu, cabut ketiga kabel itu dari breadboard dan pindahkan ke IO39, IO40, IO41. Kabel layar dan sentuhan di kolom 2, 5, 8 tetap.',
         'Masukkan kartu SD ke slot di belakang layar sampai berbunyi klik, kontak emas menghadap ke papan. Upload kode tes.',
     ], code=kode_tes('tes_sd'),
         ok_='Serial Monitor menulis ukuran SD dan daftar file, dan layar menampilkan nama file.',
-        gagal=['SD GAGAL: format FAT32 (bukan exFAT), cek SD_CS ke IO21, coba kartu lain. Kartu di atas 32 GB biasanya exFAT.', 'Layar bekerja tapi SD gagal hanya saat layar dinyalakan: SDO(MISO) layar mungkin tersambung. Cabut.',
+        gagal=['SD GAGAL: format FAT32 (bukan exFAT), cek SD_CS ke IO21, coba kartu lain. Kartu di atas 32 GB biasanya exFAT.', 'SD gagal setelah pindah jalur: saat menyala, Serial Monitor robot_otak menulis tes pin <code>SD_SCK</code>, <code>SD_MOSI</code>, <code>SD_MISO</code>. <code>ok</code> atau <code>ditarik ke 3,3 V</code> itu normal (sebagian modul punya resistor penarik). Kalau tertulis TERHUBUNG KE GND, kabelnya salah tancap.',
                'Kadang terbaca, kadang tidak, padahal kabelnya bunyi saat tes bip: nyalakan <b>Tools → Core Debug Level → Error</b>. Kalau muncul <code>Card Failed! cmd: 0x37</code> atau <code>0x29</code>, kabelnya benar tetapi kartu tidak mau siap. Tombol RST dan upload tidak mematikan daya kartu, jadi cabut USB dan matikan saklar 10 detik, lalu nyalakan lagi. Pasang kapasitor elektrolit 100-470 µF di rel 3,3 V dekat modul layar (kaki + ke rel merah), karena kartu menarik arus besar saat mulai. Kalau tetap gagal, format ulang dengan SD Card Formatter (FAT32) atau ganti kartu.',
                'Lagu berhenti di tengah atau layar berkedip saat lagu dari SD diputar: pembacaan SD terganggu. <code>robot_otak</code> sudah memakai 10 MHz dan melanjutkan lagu sendiri kalau SD macet; kapasitor di rel 3,3 V juga membantu.'])
 
@@ -128,8 +130,9 @@ def halaman():
     isi += section('daftar', 'Cek ulang', 'Daftar kabel otak', table(
         ['Dari', 'Ke'],
         [['Blok 3V3 S3', 'rel merah breadboard 2'], ['GND S3', 'rel biru'], ['IO12 / IO11 / IO13', 'a2 / a5 / a8'],
-         ['TFT VCC, LED', 'rel merah'], ['TFT GND', 'rel biru'], ['TFT SCK, T_CLK, SD_SCK', 'b2, c2, d2'], ['TFT SDI(MOSI), T_DIN, SD_MOSI', 'b5, c5, d5'],
-         ['T_DO, SD_MISO', 'c8, d8'], ['TFT SDO(MISO), T_IRQ', 'tidak disambung'], ['TFT CS, DC, RESET', 'IO10, IO9, IO8'], ['T_CS', 'IO14'], ['SD_CS', 'IO21'],
+         ['TFT VCC, LED', 'rel merah'], ['TFT GND', 'rel biru'], ['TFT SCK, T_CLK', 'b2, c2'], ['TFT SDI(MOSI), T_DIN', 'b5, c5'],
+         ['T_DO', 'c8'], ['TFT SDO(MISO), T_IRQ', 'tidak disambung'], ['TFT CS, DC, RESET', 'IO10, IO9, IO8'], ['T_CS', 'IO14'],
+         ['SD_SCK, SD_MOSI, SD_MISO, SD_CS', 'IO39, IO40, IO41, IO21 (langsung)'],
          ['MAX98357A (pin di e12-e18)', 'tertancap di breadboard 2'], ['a18 (Vin) / a17 (GND)', 'rel merah (mode jalan: pin 5V papan S3) / rel biru'], ['a13, a12, a14 (BCLK, LRC, DIN)', 'IO4, IO5, IO7'],
          ['INMP441 (f26-f28 SCK, WS, L/R; e26-e28 SD, VDD, GND)', 'tertancap di breadboard 2, menyeberangi parit'], ['a27 (VDD) / a28 (GND)', 'rel merah 3,3 V / rel biru'], ['j28 (L/R)', 'b28 (kolom GND)'], ['j26, j27, a26 (SCK, WS, SD)', 'IO15, IO16, IO6'],
          ['IO17, IO18, G', 'DevKit D16, D17, G']]))

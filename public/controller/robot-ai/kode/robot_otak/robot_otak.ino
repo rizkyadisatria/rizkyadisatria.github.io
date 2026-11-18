@@ -42,6 +42,7 @@
 #include <base64.h>
 #include "mbedtls/base64.h"
 #include "esp_heap_caps.h"
+#include "driver/gpio.h"
 #include <ESP_I2S.h>
 #include "Audio.h"
 
@@ -86,6 +87,9 @@ const char* DAFTAR_RADIO[] = {
 #define TFT_RST    8
 #define TOUCH_CS  14
 #define SD_CS     21
+#define SD_SCK    39    // SD card di jalur SPI sendiri (4 pad SD_ di tepi layar), terpisah dari layar dan sentuhan.
+#define SD_MOSI   40    // Isi SD_SCK dengan -1 kalau SD masih ikut jalur layar (IO12/11/13, cara lama).
+#define SD_MISO   41
 #define AMP_BCLK   4    // MAX98357A
 #define AMP_LRC    5
 #define AMP_DIN    7
@@ -481,15 +485,21 @@ void infoAudio(Audio::msg_t m) {
   Serial.printf("[audio] %s: %s\n", m.s ? m.s : "", m.msg ? m.msg : "");
 }
 
+// SD di jalur sendiri tidak perlu bergantian dengan layar. Kalau masih ikut jalur layar, wajib lewat kunciSPI.
+const bool SD_BERBAGI = SD_SCK < 0;
+SPIClass spiSD(HSPI);                              // jalur SPI kedua S3, khusus SD card
+void kunciSD() { if (SD_BERBAGI) xSemaphoreTake(kunciSPI, portMAX_DELAY); }
+void lepasSD() { if (SD_BERBAGI) xSemaphoreGive(kunciSPI); }
+
 void tugasAudio(void*) {
   std::vector<String> antreTTS;
-  bool pakaiSD = false;          // kunci bus SPI hanya saat memutar dari SD (layar memakai bus yang sama)
+  bool pakaiSD = false;          // sedang memutar dari SD
   String laguSekarang;           // untuk menyambung ulang kalau pembacaan SD macet
   uint32_t posLalu = 0; unsigned long tPosBerubah = 0;
   for (;;) {
     PerintahAudio p;
     while (xQueueReceive(antrianAudio, &p, 0) == pdTRUE) {
-      xSemaphoreTake(kunciSPI, portMAX_DELAY);
+      kunciSD();
       switch (p.jenis) {
         case A_FILE: antreTTS.clear(); pakaiSD = true; laguSekarang = p.isi; audio.connecttoFS(SD, p.isi); break;
         case A_URL:  antreTTS.clear(); pakaiSD = false; audio.connecttohost(p.isi); break;
@@ -498,7 +508,7 @@ void tugasAudio(void*) {
         case A_STOP: antreTTS.clear(); audio.stopSong(); break;
         case A_VOL:  volSekarang = constrain(atoi(p.isi), 0, 21); audio.setVolume(volSekarang); break;
       }
-      xSemaphoreGive(kunciSPI);
+      lepasSD();
     }
     if (!audio.isRunning() && !antreTTS.empty()) {
       String s = antreTTS.front(); antreTTS.erase(antreTTS.begin());
@@ -515,9 +525,9 @@ void tugasAudio(void*) {
     }
     if (!audio.isRunning() && antreTTS.empty()) sedangBicara = false;
     audioJalan = audio.isRunning() || !antreTTS.empty();
-    if (pakaiSD) xSemaphoreTake(kunciSPI, portMAX_DELAY);
+    if (pakaiSD) kunciSD();
     audio.loop();
-    if (pakaiSD) xSemaphoreGive(kunciSPI);
+    if (pakaiSD) lepasSD();
     // Pembacaan SD kadang macet di tengah lagu (gangguan di kabel SPI): posisi file berhenti naik.
     // Pasang ulang SD lalu lanjutkan lagu dari detik terakhir.
     if (pakaiSD && audio.isRunning()) {
@@ -528,7 +538,7 @@ void tugasAudio(void*) {
         Serial.printf("[audio] SD macet di detik %u, pasang ulang SD dan lanjutkan\n", (unsigned)detik);
         audio.stopSong();
         adaSD = false; pasangSD();
-        if (adaSD) { xSemaphoreTake(kunciSPI, portMAX_DELAY); audio.connecttoFS(SD, laguSekarang.c_str(), detik); xSemaphoreGive(kunciSPI); }
+        if (adaSD) { kunciSD(); audio.connecttoFS(SD, laguSekarang.c_str(), detik); lepasSD(); }
         else { pakaiSD = false; setStatus("SD card terlepas"); }
         posLalu = 0; tPosBerubah = millis();
       }
@@ -1784,17 +1794,23 @@ void mainSuit(const String& chat) {
 enum JenisTugas { T_SUARA };
 struct Tugas { JenisTugas jenis; };
 
-// Pasang SD card. Kabel SD lewat breadboard dan berbagi jalur dengan layar, jadi kecepatan tinggi kadang gagal:
-// coba beberapa kali, makin pelan. 10 MHz pun masih jauh cukup untuk FLAC. Dipanggil lagi kalau SD belum terbaca.
+// Pasang SD card. Kabel lewat breadboard, jadi kecepatan tinggi kadang gagal: coba beberapa kali, makin pelan.
+// 4 MHz pun masih cukup untuk FLAC. Dipanggil lagi kalau SD belum terbaca.
 bool pasangSD() {
   if (adaSD) return true;
-  const uint32_t frek[] = {10000000, 4000000, 4000000};   // 10 MHz cukup untuk FLAC; lebih cepat sering error di kabel jumper
-  xSemaphoreTake(kunciSPI, portMAX_DELAY);
+  static bool spiSiap = false;
+  if (!SD_BERBAGI && !spiSiap) {
+    spiSD.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+    gpio_pullup_en((gpio_num_t)SD_MISO);                   // kartu SD butuh penarik ke atas di MISO
+    spiSiap = true;
+  }
+  const uint32_t frek[] = {10000000, 4000000, 1000000};
+  kunciSD();
   for (uint32_t f : frek) {
     SD.end();
-    digitalWrite(TFT_CS, HIGH); digitalWrite(TOUCH_CS, HIGH);   // layar dan sentuh tidak boleh ikut menjawab
+    if (SD_BERBAGI) { digitalWrite(TFT_CS, HIGH); digitalWrite(TOUCH_CS, HIGH); }   // layar dan sentuhan tidak boleh ikut menjawab
     delay(50);
-    bool ok = SD.begin(SD_CS, SPI, f) && SD.cardType() != CARD_NONE;
+    bool ok = SD.begin(SD_CS, SD_BERBAGI ? SPI : spiSD, f) && SD.cardType() != CARD_NONE;
     Serial.printf("[sd] coba %u MHz: %s\n", (unsigned)(f / 1000000), ok ? "berhasil" : "gagal");
     if (ok) {
       adaSD = true;
@@ -1802,7 +1818,7 @@ bool pasangSD() {
       break;
     }
   }
-  xSemaphoreGive(kunciSPI);
+  lepasSD();
   if (!adaSD) Serial.println("SD card tidak terbaca (boleh, hanya untuk musik). Cek kartu terpasang penuh dan kabel SD_");
   return adaSD;
 }
@@ -1820,12 +1836,12 @@ bool fileLagu(String n) {
 String daftarLagu() {
   if (!pasangSD()) return "SD card tidak terbaca. Cek kartu terpasang penuh, lalu coba lagi.";
   String s;
-  xSemaphoreTake(kunciSPI, portMAX_DELAY);
+  kunciSD();
   File root = SD.open("/");
   for (File f = root.openNextFile(); f; f = root.openNextFile())
     if (!f.isDirectory() && fileLagu(f.name())) s += String(f.name()) + "\n";
   root.close();
-  xSemaphoreGive(kunciSPI);
+  lepasSD();
   return s.length() ? s : "Belum ada lagu di folder utama SD card (mp3, flac, wav, m4a, aac, ogg, opus).";
 }
 
@@ -2553,9 +2569,11 @@ void tugasWeb(void*) {
 //   "0/0" = terhubung ke GND, "1/1" = terhubung ke 3,3 V (CS dengan resistor penarik di modul juga 1/1, itu normal)
 void diagPinLayar() {
   struct { const char* nama; int pin; } p[] = {{"SCK  IO12", TFT_SCK}, {"MOSI IO11", TFT_MOSI}, {"MISO IO13", TFT_MISO},
-    {"CS   IO10", TFT_CS}, {"DC   IO9 ", TFT_DC}, {"RST  IO8 ", TFT_RST}, {"T_CS IO14", TOUCH_CS}, {"SDCS IO21", SD_CS}};
+    {"CS   IO10", TFT_CS}, {"DC   IO9 ", TFT_DC}, {"RST  IO8 ", TFT_RST}, {"T_CS IO14", TOUCH_CS}, {"SDCS IO21", SD_CS},
+    {"SD_SCK  ", SD_SCK}, {"SD_MOSI ", SD_MOSI}, {"SD_MISO ", SD_MISO}};
   Serial.printf("[layar] alasan menyala: %d (1 = saklar/daya baru, 3 = RST/upload, 9 = brownout)\n", (int)esp_reset_reason());
   for (auto& x : p) {
+    if (x.pin < 0) continue;                               // SD ikut jalur layar
     pinMode(x.pin, INPUT_PULLUP);   delay(2); int a = digitalRead(x.pin);
     pinMode(x.pin, INPUT_PULLDOWN); delay(2); int b = digitalRead(x.pin);
     pinMode(x.pin, INPUT);

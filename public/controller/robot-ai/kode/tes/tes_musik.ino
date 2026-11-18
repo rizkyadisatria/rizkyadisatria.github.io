@@ -22,6 +22,11 @@
 #define TFT_RST    8
 #define TOUCH_CS  14
 #define SD_CS     21
+#define SD_SCK    39    // SD card di jalur SPI sendiri (pad SD_ di tepi layar), terpisah dari layar
+#define SD_MOSI   40
+#define SD_MISO   41
+#include "driver/gpio.h"
+SPIClass spiSD(HSPI);
 #define AMP_BCLK   4
 #define AMP_LRC    5
 #define AMP_DIN    7
@@ -324,8 +329,10 @@ void setup() {
 
   // SD card (sesudah layar, karena memakai kabel SPI yang sama)
   SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI);
-  if (!SD.begin(SD_CS, SPI, 20000000))
-    berhenti("SD GAGAL. Cek kabel SD_CS ke IO21, SD_SCK ke d2, SD_MOSI ke d5, SD_MISO ke d8, dan format kartu FAT32.");
+  spiSD.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+  gpio_pullup_en((gpio_num_t)SD_MISO);
+  if (!SD.begin(SD_CS, spiSD, 10000000))
+    berhenti("SD GAGAL. Cek kabel SD_CS ke IO21, SD_SCK ke IO39, SD_MOSI ke IO40, SD_MISO ke IO41, dan format kartu FAT32.");
   Serial.printf("SD terbaca, ukuran %llu MB\n", SD.cardSize() / 1048576);
 
   File root = SD.open("/");

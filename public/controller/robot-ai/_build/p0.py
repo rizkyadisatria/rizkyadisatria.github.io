@@ -148,7 +148,8 @@ def isi():
         ['Servo pan, tilt', 'D23, D4'], ['HC-SR04 depan TRIG, ECHO', 'D18, D19 (pembagi)'], ['HC-SR04 belakang TRIG, ECHO', 'D14, D35 (pembagi)'],
         ['I2C SDA, SCL', 'D21, D22'], ['DHT11 (tanpa BME280)', 'D5'], ['Tombol STOP', 'D39 + 10k pull-up'], ['Baterai', 'D34 (20k/10k)'], ['UART RX2, TX2', 'D16, D17']])
     pins_otak = table(['Fungsi', 'ESP32-S3'], [
-        ['SPI SCK, MOSI, MISO', 'IO12, IO11, IO13'], ['TFT CS, DC, RESET', 'IO10, IO9, IO8'], ['Sentuhan T_CS', 'IO14'], ['SD_CS', 'IO21'],
+        ['SPI layar + sentuhan SCK, MOSI, MISO', 'IO12, IO11, IO13'], ['TFT CS, DC, RESET', 'IO10, IO9, IO8'], ['Sentuhan T_CS', 'IO14'],
+        ['SD card SCK, MOSI, MISO, CS', 'IO39, IO40, IO41, IO21'],
         ['Speaker BCLK, LRC, DIN', 'IO4, IO5, IO7'], ['Mikrofon SCK, WS, SD', 'IO15, IO16, IO6'], ['UART TX, RX', 'IO17, IO18']])
     o += section('pin', 'Ringkasan', 'Semua pin dalam satu tempat', f'<div class="two"><div class="panel"><h3>Badan</h3>{pins_badan}</div><div class="panel"><h3>Otak</h3>{pins_otak}</div></div><p class="cap">ESP32-CAM tidak butuh kabel sinyal: hanya 5 V dan GND. Pin kameranya sudah tetap di papan.</p>')
 

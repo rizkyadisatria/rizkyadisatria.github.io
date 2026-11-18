@@ -344,14 +344,14 @@ def spi_bus():
         s += line([(190, y), (300, y)], c, 4)
     s += box(640, 40, 220, 100, 'Layar (TFT)', ['SCK, SDI(MOSI)', 'SDO(MISO) TIDAK disambung'], fill='#8c1d18', stroke='#ffb4ab')
     s += box(640, 160, 220, 100, 'Sentuhan', ['T_CLK, T_DIN, T_DO'], fill='#8c1d18', stroke='#ffb4ab')
-    s += box(640, 280, 220, 100, 'SD card (4 pad atas)', ['SD_SCK, SD_MOSI, SD_MISO'], fill='#8c1d18', stroke='#ffb4ab')
+    s += box(640, 280, 220, 100, 'SD card: jalur sendiri', ['SD_SCK IO39, SD_MOSI IO40', 'SD_MISO IO41, SD_CS IO21'], fill='#3a2a12', stroke='#ffd8a8')
     # SCK ke TFT, touch, SD
-    s += line([(500, 124), (640, 70)], 'kuning', 3) + line([(500, 128), (640, 180)], 'kuning', 3) + line([(500, 132), (640, 300)], 'kuning', 3)
-    s += line([(500, 206), (640, 95)], 'biru', 3) + line([(500, 210), (640, 205)], 'biru', 3) + line([(500, 214), (640, 325)], 'biru', 3)
-    s += line([(500, 288), (640, 230)], 'hijau', 3) + line([(500, 292), (640, 350)], 'hijau', 3)
-    s += text(20, 30, 'Tiga kabel SPI dipakai bersama oleh layar, sentuhan, dan SD. Satu kolom breadboard = satu titik sambungan.', 12.5, fill='#e8efe9')
-    s += text(20, 400, 'Yang membedakan siapa yang diajak bicara: pin CS masing-masing (TFT_CS = IO10, T_CS = IO14, SD_CS = IO21), kabel langsung.', 12, fill='#ffd8a8')
-    return svg(W, H, s, 'Bus SPI bersama untuk layar, sentuhan dan SD')
+    s += line([(500, 124), (640, 70)], 'kuning', 3) + line([(500, 128), (640, 180)], 'kuning', 3)
+    s += line([(500, 206), (640, 95)], 'biru', 3) + line([(500, 210), (640, 205)], 'biru', 3)
+    s += line([(500, 290), (640, 230)], 'hijau', 3)
+    s += text(20, 30, 'Tiga kabel SPI dipakai bersama oleh layar dan sentuhan. SD card punya 4 kabel sendiri, langsung ke S3.', 12.5, fill='#e8efe9')
+    s += text(20, 400, 'Yang membedakan layar dan sentuhan: pin CS masing-masing (TFT_CS = IO10, T_CS = IO14), kabel langsung.', 12, fill='#ffd8a8')
+    return svg(W, H, s, 'Bus SPI layar dan sentuhan; SD card di jalur sendiri')
 
 
 def motor():

@@ -12,7 +12,6 @@ ec12a8dff617	Three columns become the SPI bus: wires from the S pin <b>IO12</b> 
 7d5f12fbc5e2	On the laptop, check the card format: a 32 GB card is usually already <b>FAT32</b>. If it says exFAT or NTFS, reformat as FAT32 (the card's contents are erased, move them off first).
 dd7481e773e2	Copy one or two MP3 songs to the main folder, with short names and no spaces (for example <code>lagu1.mp3</code>).
 ec8e52e86f3b	On the right edge of your display are 4 empty holes labeled (from the top) SD_SCK, SD_MISO, SD_MOSI, SD_CS. Solder 4 pin headers there.
-f28abb8a253a	Connect: <span class="pin">SD_SCK</span> → column 2 (<span class="pin">d2</span>), <span class="pin">SD_MOSI</span> → column 5 (<span class="pin">d5</span>), <span class="pin">SD_MISO</span> → column 8 (<span class="pin">d8</span>), <span class="pin">SD_CS</span> → the S pin <b>IO21</b>.
 5c752ef2a828	Insert the SD card into the slot on the back of the display until it clicks, the gold contacts facing the board. Upload the test code.
 e22e1f206871	Your MAX98357A already has pin headers and a screw terminal, so no soldering is needed. The pin names are printed on the front (LRC, BCLK, DIN, GAIN, SD, GND, Vin).
 d417a9a24f43	First check the ohms of your boxed speaker: look at the sticker on the back, or measure its two wires with a multimeter on the 200 Ω scale. About 3-4 Ω means a 4 Ω speaker, about 6-8 Ω means 8 Ω. Both are safe for the MAX98357A (4-8 Ω).

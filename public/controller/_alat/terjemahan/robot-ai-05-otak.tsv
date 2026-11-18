@@ -8,7 +8,6 @@ d059d84dce1f	<b>3</b> and <b>4</b>: three columns for each GPIO. <b>Yellow = S (
 834e1314ae6d	<b>5</b> Straight yellow header near the socket: a direct connection to the S3 pins as they are.
 7ebdf1f24b10	<b>6</b> DC jack 6.5-9 V: <b>not used</b>. <b>7</b> USB symbol: the S3's USB-C port faces this way when installed.
 e5ed6b7c7dbd	Module pins
-89f4d653cd50	Shared SPI bus
 fa9184a0c6bc	SCK / MOSI / MISO
 066d41a27064	<span class="pin">IO12</span> / <span class="pin">IO11</span> / <span class="pin">IO13</span> through the breadboard
 b54f1ade2223	TFT display
@@ -47,7 +46,6 @@ bd442d7aadb1	The SD card on the back of the display
 a6fd5a44491f	<span class="py">OK to lock in</span> The four soldered SD header pins, the FAT32 format and the songs on the card.
 673949e7f5d7	<span class="pn">Not yet</span> Nothing is mounted to the plate at this stage.
 db9b3ed49141	SD GAGAL: format as FAT32 (not exFAT), check SD_CS to IO21, try another card. Cards above 32 GB are usually exFAT.
-cdba847d520a	The display works but the SD fails only when the display is on: the display's SDO(MISO) may be connected. Unplug it.
 8a75c8860229	Your boxed speaker. The round 8 Ω 3 W speaker is the spare.
 86d5b079a03b	Your MAX98357A: 4-8 Ω, 3 W, Vin 2.5-5.5 V.
 09981ce8767e	<b>Why this way?</b> The MAX98357A receives digital sound (I2S) and amplifies it straight to the speaker. GAIN pin left open = 9 dB gain, SD pin left open = on. On the finished robot, Vin is moved to 5 V to make it louder.
@@ -74,8 +72,6 @@ bdb68b156181	red rail of breadboard 2
 f23fbee5dccb	TFT VCC, LED
 20123d6a61a2	red rail
 da5f145e1576	TFT GND
-a29914375f7b	TFT SCK, T_CLK, SD_SCK
-1ff10ff2e0b2	TFT SDI(MOSI), T_DIN, SD_MOSI
 cae3d16c462f	TFT SDO(MISO), T_IRQ
 2421ed91ab82	not connected
 4de51bbd705b	S3 expansion board

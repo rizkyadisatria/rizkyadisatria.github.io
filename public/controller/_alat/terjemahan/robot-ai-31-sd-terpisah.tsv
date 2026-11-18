@@ -1,0 +1,13 @@
+a05e298d48f9	SPI for screen + touch SCK, MOSI, MISO
+e9408d160e40	SD card SCK, MOSI, MISO, CS
+808163b0b622	SPI bus for screen + touch
+1746c9f5feb0	SD card (own bus)
+dba24555d09c	SD_SCK / SD_MOSI / SD_MISO / SD_CS
+70cc8d825e9b	<span class="pin">IO39</span> / <span class="pin">IO40</span> / <span class="pin">IO41</span> / <span class="pin">IO21</span> direct
+0e709f95f68f	Connect directly to the S pins of the expansion board, not through the breadboard: <span class="pin">SD_SCK</span> → <b>IO39</b>, <span class="pin">SD_MOSI</span> → <b>IO40</b>, <span class="pin">SD_MISO</span> → <b>IO41</b>, <span class="pin">SD_CS</span> → <b>IO21</b>. The SD card deliberately gets its own bus, separate from the screen and touch: an SD card that is not ready yet can disturb a shared bus, which makes the SD sometimes go undetected.
+06395ded5366	This guide used to connect SD_SCK, SD_MOSI, and SD_MISO to columns 2, 5, and 8 (<span class="pin">d2</span>, <span class="pin">d5</span>, <span class="pin">d8</span>). If your build is still wired that way, pull those three wires out of the breadboard and move them to IO39, IO40, IO41. The screen and touch wires in columns 2, 5, 8 stay.
+8ffdea881c95	SD fails after moving the bus: at power-on, the robot_otak Serial Monitor prints a pin test for <code>SD_SCK</code>, <code>SD_MOSI</code>, <code>SD_MISO</code>. <code>ok</code> or <code>ditarik ke 3,3 V</code> is normal (some modules have pull-up resistors). If it says TERHUBUNG KE GND, the wire is in the wrong place.
+d32bcc818435	TFT SCK, T_CLK
+734a2b62e121	TFT SDI(MOSI), T_DIN
+f0aee5564826	SD_SCK, SD_MOSI, SD_MISO, SD_CS
+6e4dbc7987db	IO39, IO40, IO41, IO21 (direct)

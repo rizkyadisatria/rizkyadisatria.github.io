@@ -14,6 +14,11 @@
 #define TFT_RST    8
 #define TOUCH_CS  14
 #define SD_CS     21
+#define SD_SCK    39    // SD card di jalur SPI sendiri (pad SD_ di tepi layar), terpisah dari layar
+#define SD_MOSI   40
+#define SD_MISO   41
+#include "driver/gpio.h"
+SPIClass spiSD(HSPI);
 
 // Modul merah 320 x 240 biasanya memakai chip ILI9342C. Library mengirim pengaturan daya dan gamma
 // ILI9341 kalau kita pilih panel ILI9341, dan itu membuat warna pucat. Panel ini mengirim pengaturan ILI9342C.
@@ -124,8 +129,10 @@ void setup() {
   lcd.init(); lcd.setRotation(arah); lcd.fillScreen(TFT_BLACK);   // layar dulu, baru SD
   lcd.setTextColor(TFT_WHITE); lcd.setFont(&fonts::Font2);
   SPI.begin(TFT_SCK, TFT_MISO, TFT_MOSI);
-  if (!SD.begin(SD_CS, SPI, 20000000)) {
-    Serial.println("SD GAGAL. Cek kabel SD_CS ke GPIO 21 dan format FAT32.");
+  spiSD.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
+  gpio_pullup_en((gpio_num_t)SD_MISO);
+  if (!SD.begin(SD_CS, spiSD, 10000000)) {
+    Serial.println("SD GAGAL. Cek kabel SD_CS ke IO21, SD_SCK ke IO39, SD_MOSI ke IO40, SD_MISO ke IO41, dan format FAT32.");
     lcd.drawString("SD GAGAL", 10, 10);
     return;
   }
@@ -142,6 +149,6 @@ void setup() {
 
 void loop() {   // ulangi hasilnya supaya tetap terlihat walau Serial Monitor dibuka terlambat
   Serial.println(sdOk ? "SD terbaca. Daftar file dicetak sekali di awal; tekan RST untuk melihatnya lagi."
-                      : "SD GAGAL. Cek kabel SD_CS ke GPIO 21 dan format FAT32.");
+                      : "SD GAGAL. Cek kabel SD_CS ke IO21, SD_SCK ke IO39, SD_MOSI ke IO40, SD_MISO ke IO41, dan format FAT32.");
   delay(3000);
 }
