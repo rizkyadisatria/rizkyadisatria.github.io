@@ -42,6 +42,7 @@
 #include <ArduinoJson.h>
 #include <base64.h>
 #include "mbedtls/base64.h"
+#include "mbedtls/platform.h"
 #include "esp_heap_caps.h"
 #include "driver/gpio.h"
 #include <ESP_I2S.h>
@@ -6229,11 +6230,24 @@ void muatLayar() {
   p.end();
 }
 
+// mbedTLS (semua sambungan HTTPS: Telegram, AI, suara, cuaca) bawaannya hanya memakai RAM internal, yang tinggal
+// sedikit setelah layar, audio, dan mikrofon jalan ("SSL - Memory allocation failed"). Buffer besarnya (sampai 16 KB
+// per sambungan) dipindah ke PSRAM; potongan kecil tetap di RAM internal supaya cepat. Kalau salah satu penuh, pakai yang lain.
+void* callocTls(size_t n, size_t ukuran) {
+  void* p = nullptr;
+  if (n * ukuran >= 1024) p = heap_caps_calloc(n, ukuran, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (!p) p = heap_caps_calloc(n, ukuran, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  if (!p) p = heap_caps_calloc(n, ukuran, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  return p;
+}
+void freeTls(void* p) { heap_caps_free(p); }
+
 void setup() {
   Serial.begin(115200);
   delay(300);
   Serial.println("\n=== ROBOT OTAK ===");
   Serial.printf("PSRAM: %u byte (harus sekitar 8 juta)\n", ESP.getPsramSize());
+  if (ESP.getPsramSize()) mbedtls_platform_set_calloc_free(callocTls, freeTls);   // sebelum sambungan HTTPS pertama
   Serial1.begin(115200, SERIAL_8N1, BADAN_RX, BADAN_TX);
   kunciSPI = xSemaphoreCreateMutex(); kunciUART = xSemaphoreCreateMutex(); kunciFoto = xSemaphoreCreateMutex();
   antrianAudio = xQueueCreate(12, sizeof(PerintahAudio));

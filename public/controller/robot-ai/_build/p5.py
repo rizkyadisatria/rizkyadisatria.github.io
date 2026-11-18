@@ -160,6 +160,7 @@ def halaman():
         gagal=['Bot mengirim "Suara Edge gagal (kode 403)" terus-menerus: Microsoft mengubah token atau versi yang diterima. Robot memakai suara Google sambil menunggu. Cek library edge-tts di GitHub (rany2/edge-tts): kalau ada versi baru, salin isi <code>CHROMIUM_FULL_VERSION</code> dari <code>constants.py</code> ke <code>EDGE_VERSI</code> di kode otak, lalu upload ulang.',
                'Kode -107 (jam belum tersinkron): robot belum mendapat jam dari internet. Biasanya hilang sendiri beberapa detik setelah WiFi tersambung.',
                'Kode -108 (tidak ada audio): nama di <code>SUARA_EDGE</code> salah ketik. Huruf besar-kecilnya harus persis, misalnya <code>id-ID-ArdiNeural</code>.',
+               'Pesan galat berisi <code>TLS: SSL - Memory allocation failed</code>: RAM internal ESP32-S3 tidak cukup untuk sambungan aman. Kode otak memindahkan buffer sambungan aman ke PSRAM saat menyala, jadi pastikan <b>Tools → PSRAM: OPI PSRAM</b> dan Serial Monitor menulis <code>PSRAM: 8388608 byte</code>. Kalau masih muncul, upload ulang kode otak terbaru.',
                'Kode -1, -2, atau -109: sambungan ke server putus atau lambat. Robot mencoba sekali lagi, lalu memakai suara Google 2 menit sebelum mencoba Edge lagi.',
                'Serial Monitor menulis <code>penyimpanan flash TIDAK ADA</code>: Partition Scheme masih Huge APP. Ganti ke 16M Flash (3MB APP/9.9MB FATFS) lalu upload lewat USB.'])
 
