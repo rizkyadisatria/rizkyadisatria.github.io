@@ -2,7 +2,6 @@
 e9d85ec2adfc	Screen: <b>Beranda</b> (home)
 3bdeed6bcbf0	Zond's face, clock, battery, and two big buttons: BICARA (talk) and MENU. The face only shows on the home screen. At night, after 2 minutes unused, the face is replaced by a big clock. Other screens return to home by themselves after 45 seconds without a touch
 fa3f9ee430fa	Screen: <b>MENU</b>
-bcd5bf286746	six tiles: Musik (SD songs, radio), Info (robot status), Alat (motion modes, camera), Main (rock-paper-scissors), Pesan (messages), and Setelan (settings). Tiles that are still grey come in the next stage. Buttons act when your finger lifts; the ◀ button at top left goes back
 7457bc68be37	Screen: Musik → <b>Lagu SD</b>
 4ed871c6ec91	title, time bar, previous / play-pause / next, shuffle, repeat, volume, and the song list. The next song plays by itself when one finishes
 eca7ee9192a6	Screen: Info → <b>Status robot</b>

@@ -1,0 +1,15 @@
+c1970e93660f	six tiles: Musik (SD songs, radio), Info (robot status, weather, prayer times, news, calendar, exchange rates, Wikipedia), Alat (motion modes, camera), Main (rock-paper-scissors), Pesan (messages), and Setelan (settings). Tiles that are still grey come in the next stage. Buttons act when your finger lifts; the ◀ button at top left goes back
+1441e6060de7	Screen: Info → <b>Cuaca</b> (weather)
+8ab49d7b89a3	current temperature, the next 12 hours (temperature and rain-chance bars), and the next 3 days, from Open-Meteo for the location in <code>CUACA_LAT</code>/<code>CUACA_LON</code>
+2081eb86e92c	Screen: Info → <b>Jadwal sholat</b> (prayer times), or Telegram <code>/sholat</code>
+9728ec854f56	today's prayer times with a countdown to the next one and the Hijri date, calculated by api.aladhan.com using the Indonesian Ministry of Religious Affairs method for the same location as the weather. The Pengingat (reminder) button: off, voice ("Sudah masuk waktu Dzuhur"), or voice + adhan from the SD card (<code>/adzan.mp3</code>; Subuh uses <code>/adzan_subuh.mp3</code> if present). The AI also knows this schedule, so you can ask "jam berapa maghrib?" (what time is maghrib?)
+f826d3016bf5	Screen: Info → <b>Berita</b> (news)
+5ce878f86b89	latest news headlines from the Antara, CNN Indonesia, or Antara Technology RSS feeds (pick in the top tabs). Tap a headline to read its summary, BACAKAN to hear it. The source list is <code>SUMBER_BERITA</code> in the code
+1097862bb0c0	Screen: Info → <b>Kalender</b> (calendar)
+416fa9239fac	monthly calendar, today highlighted in blue. Public holidays and collective leave days for 2026-2027 follow the joint ministerial decree (SKB 3 Menteri) (list in <code>DAFTAR_LIBUR</code>; add the next year once its decree is published)
+23a14b92563e	Screen: Info → <b>Kurs</b> (exchange rates), or Telegram <code>/kurs</code>
+e29d7d3575ce	rupiah rates for USD, EUR, SGD, MYR, SAR, JPY (per 100), CNY, AUD from ExchangeRate-API (free, updated once a day, mid-market rates, not bank buy/sell rates)
+402b44f1614a	Screen: Info → <b>Wikipedia</b>, or Telegram <code>/wiki Gunung Rinjani</code>
+0c409ce62cd8	tap CARI DENGAN SUARA (search by voice) and say the topic; the article summary shows on the screen and can be read aloud. Results from AI searches ("siapa Sultan Hasanuddin?") also appear here
+d7603f866ff9	Prayer times differ 1-3 minutes from your local mosque: fill <code>SHOLAT_KOREKSI</code> with extra minutes for Imsak, Subuh, Sunrise, Dzuhur, Ashar, Maghrib, Sunset, Isya, Midnight, separated by commas. Example <code>"2,2,-2,2,2,2,0,2,0"</code> adds 2 minutes to prayer times and subtracts 2 minutes from sunrise.
+443521c759cd	News, exchange rates, or prayer times say "gagal diambil (kode -1)" (failed to fetch): the WiFi is weak or the site is busy. Leave and reopen the screen a few minutes later.

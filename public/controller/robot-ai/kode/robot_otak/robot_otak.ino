@@ -71,6 +71,7 @@ const uint8_t ARAH_LAYAR    = 6;                      // 6 = slot SD di atas, 4 
 #define SUARA_MODEL      "gemini-3.8-flash-tts"   // lebih cepat tapi sedikit kurang natural: gemini-3.8-flash-lite-tts
 #define SUARA_GAYA       "santai dan ramah"       // gaya bicara (bahasa bebas). Kosong = biasa
 #define LAYAR_LED        -1                       // isi 38 kalau kabel LED layar dipindah ke IO38 (kecerahan bisa diatur)
+#define SHOLAT_KOREKSI   ""                       // koreksi menit jadwal sholat, misalnya "2,2,-2,2,2,2,0,2,0" (lihat panduan)
 const char* NAMA_PEMILIK    = "Rizky";
 const int   VOLUME_AWAL     = 12;                     // 0..21
 // Stasiun untuk tombol RADIO di layar (ketuk lagi = stasiun berikutnya). Alamat stream MP3/AAC,
@@ -167,6 +168,9 @@ protected:
 #ifndef LAYAR_LED
 #define LAYAR_LED -1
 #endif
+#ifndef SHOLAT_KOREKSI
+#define SHOLAT_KOREKSI ""
+#endif
 
 class LGFX : public lgfx::LGFX_Device {
   PanelKu _panel;
@@ -223,7 +227,7 @@ Preferences pref;
 WiFiClientSecure tgClient;
 UniversalTelegramBot bot(TELEGRAM_TOKEN, tgClient);
 
-SemaphoreHandle_t kunciSPI, kunciUART, kunciFoto;   // kunciFoto: satu pemakai foto dalam satu waktu
+SemaphoreHandle_t kunciSPI, kunciUART, kunciFoto, kunciInfo = nullptr;   // kunciFoto: satu pemakai foto dalam satu waktu
 QueueHandle_t antrianAudio, antrianTugas, antrianKirim;   // antrianKirim: pesan Telegram dari tugas lain
 SemaphoreHandle_t kunciAlarm;
 
@@ -687,7 +691,11 @@ String teksJam() {
 }
 
 // ======================= CUACA (Open-Meteo, gratis tanpa API key) =======================
-struct Cuaca { bool ada = false; float suhu = 0, tertinggi = 0, terendah = 0; int lembap = 0, kode = 0, hujan = 0; };
+struct Cuaca {
+  bool ada = false; float suhu = 0, tertinggi = 0, terendah = 0; int lembap = 0, kode = 0, hujan = 0;
+  int hariKode[4] = {0}, hariHujan[4] = {0}; float hariMaks[4] = {0}, hariMin[4] = {0};   // [0] hari ini, [1] besok, ...
+  int nJam = 0, jamAwal = 0, jamHujan[12] = {0}; float jamSuhu[12] = {0};               // 12 jam ke depan
+};
 Cuaca cuaca;                                 // diisi tugas jaringan tiap 30 menit
 
 // Kode cuaca WMO dari Open-Meteo -> kata Indonesia.
@@ -711,7 +719,8 @@ bool ambilCuaca() {
   HTTPClient http;
   http.begin(c, String("https://api.open-meteo.com/v1/forecast?latitude=") + CUACA_LAT + "&longitude=" + CUACA_LON +
                 "&current=temperature_2m,relative_humidity_2m,weather_code"
-                "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1");
+                "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=4"
+                "&hourly=temperature_2m,precipitation_probability&forecast_hours=12");
   http.setTimeout(10000);
   int kode = http.GET();
   String resp = kode == 200 ? http.getString() : String();
@@ -726,8 +735,24 @@ bool ambilCuaca() {
   c2.tertinggi = r["daily"]["temperature_2m_max"][0] | 0.0f;
   c2.terendah = r["daily"]["temperature_2m_min"][0] | 0.0f;
   c2.hujan = r["daily"]["precipitation_probability_max"][0] | 0;
+  for (int i = 0; i < 4; i++) {
+    c2.hariKode[i] = r["daily"]["weather_code"][i] | 0;
+    c2.hariMaks[i] = r["daily"]["temperature_2m_max"][i] | 0.0f;
+    c2.hariMin[i] = r["daily"]["temperature_2m_min"][i] | 0.0f;
+    c2.hariHujan[i] = r["daily"]["precipitation_probability_max"][i] | 0;
+  }
+  const char* jam0 = r["hourly"]["time"][0] | "";             // "2026-11-18T18:00"
+  c2.jamAwal = strlen(jam0) >= 13 ? atoi(jam0 + 11) : 0;
+  for (int i = 0; i < 12; i++) {
+    if (r["hourly"]["temperature_2m"][i].isNull()) break;
+    c2.jamSuhu[i] = r["hourly"]["temperature_2m"][i] | 0.0f;
+    c2.jamHujan[i] = r["hourly"]["precipitation_probability"][i] | 0;
+    c2.nJam = i + 1;
+  }
   c2.ada = c2.kode >= 0;
+  if (kunciInfo) xSemaphoreTake(kunciInfo, portMAX_DELAY);
   cuaca = c2;
+  if (kunciInfo) xSemaphoreGive(kunciInfo);
   Serial.printf("[cuaca] %s %.0f C, %s\n", CUACA_KOTA, c2.suhu, namaCuaca(c2.kode));
   return c2.ada;
 }
@@ -921,6 +946,287 @@ void ekspresiOtomatis() {
     bool sepi = millis() - tAktif > 120000 && !audioJalan;
     ekspresi = lemah ? LEMAH : (malam && sepi) ? NGANTUK : NORMAL;
   }
+}
+
+// ======================= INFO: JADWAL SHOLAT, BERITA, KURS, WIKIPEDIA, TANGGAL MERAH =======================
+// Data diambil tugas jaringan (inti 0) dan dibaca layar (inti 1), jadi penulisan dan pembacaan memakai kunciInfo.
+volatile uint8_t mintaInfo = 0;                     // permintaan dari layar, dikerjakan tugas jaringan
+volatile bool infoBaru = false;                     // ada data baru: layar digambar ulang
+enum { INFO_CUACA = 1, INFO_SHOLAT = 2, INFO_BERITA = 4, INFO_KURS = 8 };
+String galatInfo;                                   // pesan galat terakhir untuk ditampilkan (baca/tulis lewat kunciInfo)
+void aturGalat(const String& g) { xSemaphoreTake(kunciInfo, portMAX_DELAY); galatInfo = g; xSemaphoreGive(kunciInfo); if (g.length()) Serial.println("[info] " + g); }
+
+// ---- jadwal sholat (api.aladhan.com, metode 20 = Kementerian Agama RI, lokasi = CUACA_LAT/LON) ----
+struct JadwalSholat { bool ada = false; uint32_t tanggal = 0; char waktu[7][6]; char hijri[40]; };
+JadwalSholat sholat;
+const char* NAMA_SHOLAT[7] = {"Imsak", "Subuh", "Terbit", "Dzuhur", "Ashar", "Maghrib", "Isya"};
+const char* KUNCI_SHOLAT[7] = {"Imsak", "Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"};
+const char* BULAN_HIJRIAH[12] = {"Muharram", "Safar", "Rabiul Awal", "Rabiul Akhir", "Jumadil Awal", "Jumadil Akhir",
+                                 "Rajab", "Syakban", "Ramadan", "Syawal", "Zulkaidah", "Zulhijah"};
+uint8_t pengingatSholat = 1;                        // 0 mati, 1 suara, 2 suara lalu adzan dari SD (/adzan.mp3)
+
+uint32_t tanggalHariIni() { struct tm t; return jamSiap(t) ? angkaTanggal(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday) : 0; }
+
+bool ambilSholat() {
+  struct tm t;
+  if (!jamSiap(t)) return false;
+  char url[220];
+  snprintf(url, sizeof(url), "https://api.aladhan.com/v1/timings/%02d-%02d-%04d?latitude=%s&longitude=%s&method=20%s%s",
+           t.tm_mday, t.tm_mon + 1, t.tm_year + 1900, CUACA_LAT, CUACA_LON, strlen(SHOLAT_KOREKSI) ? "&tune=" : "", SHOLAT_KOREKSI);
+  WiFiClientSecure c; c.setInsecure();
+  HTTPClient http;
+  http.begin(c, url);
+  http.setTimeout(10000);
+  int kode = http.GET();
+  String resp = kode == 200 ? http.getString() : String();
+  http.end();
+  if (kode != 200) { Serial.printf("[sholat] kode %d\n", kode); aturGalat("Jadwal sholat gagal diambil (kode " + String(kode) + ")"); return false; }
+  JsonDocument saring;
+  for (int i = 0; i < 7; i++) saring["data"]["timings"][KUNCI_SHOLAT[i]] = true;
+  saring["data"]["date"]["hijri"]["day"] = true;
+  saring["data"]["date"]["hijri"]["month"]["number"] = true;
+  saring["data"]["date"]["hijri"]["year"] = true;
+  JsonDocument r;
+  if (deserializeJson(r, resp, DeserializationOption::Filter(saring))) return false;
+  JadwalSholat j;
+  for (int i = 0; i < 7; i++) {
+    const char* w = r["data"]["timings"][KUNCI_SHOLAT[i]] | "--:--";
+    strlcpy(j.waktu[i], w, 6);                         // "04:12 (WITA)" -> "04:12"
+  }
+  int bln = r["data"]["date"]["hijri"]["month"]["number"] | 0;
+  snprintf(j.hijri, sizeof(j.hijri), "%s %s %s H", (const char*)(r["data"]["date"]["hijri"]["day"] | ""),
+           bln >= 1 && bln <= 12 ? BULAN_HIJRIAH[bln - 1] : "", (const char*)(r["data"]["date"]["hijri"]["year"] | ""));
+  j.tanggal = angkaTanggal(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday);
+  j.ada = true;
+  xSemaphoreTake(kunciInfo, portMAX_DELAY); sholat = j; xSemaphoreGive(kunciInfo);
+  Serial.printf("[sholat] Subuh %s, Dzuhur %s, Maghrib %s\n", j.waktu[1], j.waktu[3], j.waktu[5]);
+  return true;
+}
+
+// Menit sejak tengah malam dari "HH:MM"; -1 kalau tidak valid.
+int menitDari(const char* w) { int h, m; return sscanf(w, "%d:%d", &h, &m) == 2 ? h * 60 + m : -1; }
+
+// Sholat berikutnya (1 Subuh, 3 Dzuhur, 4 Ashar, 5 Maghrib, 6 Isya; Imsak dan Terbit dilewati). -1 kalau sudah lewat Isya.
+int sholatBerikut(int menitSekarang) {
+  const int URUT[5] = {1, 3, 4, 5, 6};
+  for (int k : URUT) if (menitDari(sholat.waktu[k]) > menitSekarang) return k;
+  return -1;
+}
+
+String teksSholat() {
+  if (!sholat.ada) return "Jadwal sholat belum ada (butuh WiFi dan jam).";
+  String t = String("Jadwal sholat ") + CUACA_KOTA + " hari ini (" + sholat.hijri + "):";
+  for (int i = 0; i < 7; i++) t += String("\n") + NAMA_SHOLAT[i] + "  " + sholat.waktu[i];
+  return t;
+}
+
+// Dipanggil terus dari loop(): ucapkan masuknya waktu sholat, lalu adzan kalau dipilih.
+void cekSholat() {
+  static unsigned long t = 0;
+  static uint32_t sudahTanggal = 0; static int sudahKe = -1;
+  if (millis() - t < 1000) return;
+  t = millis();
+  struct tm j;
+  if (!pengingatSholat || !sholat.ada || !jamSiap(j)) return;
+  uint32_t hariIni = angkaTanggal(j.tm_year + 1900, j.tm_mon + 1, j.tm_mday);
+  if (sholat.tanggal != hariIni) return;
+  int sekarang = j.tm_hour * 60 + j.tm_min;
+  const int URUT[5] = {1, 3, 4, 5, 6};
+  for (int k : URUT) {
+    if (menitDari(sholat.waktu[k]) != sekarang || (sudahTanggal == hariIni && sudahKe == k)) continue;
+    sudahTanggal = hariIni; sudahKe = k;
+    kirimAudio(A_STOP);
+    ucapkan(String("Sudah masuk waktu ") + NAMA_SHOLAT[k] + ".");
+    if (pengingatSholat == 2) { bunyiTertunda = k == 1 ? 4 : 3; tBunyiTertunda = millis(); }   // adzan setelah kalimat selesai
+    setStatus(String("Waktu ") + NAMA_SHOLAT[k] + " " + sholat.waktu[k]);
+  }
+}
+
+// ---- berita (RSS) ----
+struct Berita { String judul, isi, waktu; };
+std::vector<Berita> berita;
+int sumberBerita = 0; unsigned long tBerita = 0;
+const char* SUMBER_BERITA[][2] = {
+  {"Antara", "https://www.antaranews.com/rss/terkini.xml"},
+  {"CNN Indonesia", "https://www.cnnindonesia.com/nasional/rss"},
+  {"Teknologi", "https://www.antaranews.com/rss/tekno.xml"},
+};
+const int JUMLAH_SUMBER_BERITA = sizeof(SUMBER_BERITA) / sizeof(SUMBER_BERITA[0]);
+
+// Isi tag XML pertama antara a dan b, misalnya <title>...</title>. Kosong kalau tidak ada.
+String ambilTag(const char* a, const char* b, const char* tag) {
+  size_t n = strlen(tag);
+  for (const char* p = a; p && p < b; p++) {
+    p = strstr(p, "<"); if (!p || p >= b) break;
+    if (strncmp(p + 1, tag, n) == 0 && (p[n + 1] == '>' || p[n + 1] == ' ')) {
+      const char* isi = strchr(p, '>'); if (!isi || isi >= b) break;
+      isi++;
+      char tutup[24]; snprintf(tutup, sizeof(tutup), "</%s>", tag);
+      const char* akhir = strstr(isi, tutup); if (!akhir || akhir > b) break;
+      String s; s.reserve(akhir - isi);
+      for (const char* q = isi; q < akhir; q++) s += *q;
+      return s;
+    }
+  }
+  return String();
+}
+
+// Buang CDATA, tag HTML, dan ubah entitas (&amp; &#8220; ...) jadi huruf biasa.
+String bersihkanHTML(const String& masuk) {
+  String t = masuk;
+  t.replace("<![CDATA[", ""); t.replace("]]>", "");
+  String o; o.reserve(t.length());
+  bool dalamTag = false;
+  for (unsigned int i = 0; i < t.length(); i++) {
+    char c = t[i];
+    if (c == '<') { dalamTag = true; continue; }
+    if (c == '>') { dalamTag = false; o += ' '; continue; }
+    if (dalamTag) continue;
+    if (c == '&') {
+      int titik = t.indexOf(';', i);
+      if (titik > 0 && titik - (int)i <= 8) {
+        String e = t.substring(i + 1, titik), ganti;
+        int kode = -1;
+        if (e.startsWith("#x") || e.startsWith("#X")) kode = strtol(e.c_str() + 2, nullptr, 16);
+        else if (e.startsWith("#")) kode = e.substring(1).toInt();
+        if (e == "amp") ganti = "&"; else if (e == "quot" || e == "ldquo" || e == "rdquo") ganti = "\"";
+        else if (e == "apos" || e == "lsquo" || e == "rsquo") ganti = "'"; else if (e == "lt") ganti = "<";
+        else if (e == "gt") ganti = ">"; else if (e == "nbsp") ganti = " "; else if (e == "hellip") ganti = "...";
+        else if (e == "ndash" || e == "mdash") ganti = "-";
+        else if (kode == 8216 || kode == 8217) ganti = "'"; else if (kode == 8220 || kode == 8221) ganti = "\"";
+        else if (kode == 8211 || kode == 8212) ganti = "-"; else if (kode == 8230) ganti = "...";
+        else if (kode > 0 && kode < 128) ganti = String((char)kode); else if (kode >= 128) ganti = " ";
+        if (ganti.length()) { o += ganti; i = titik; continue; }
+      }
+    }
+    o += (c == '\n' || c == '\r' || c == '\t') ? ' ' : c;
+  }
+  while (o.indexOf("  ") >= 0) o.replace("  ", " ");
+  o.trim();
+  return o;
+}
+
+bool ambilBerita() {
+  WiFiClientSecure c; c.setInsecure();
+  HTTPClient http;
+  http.begin(c, SUMBER_BERITA[sumberBerita][1]);
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  http.setUserAgent("Mozilla/5.0 (Zond robot)");
+  http.setTimeout(15000);
+  int kode = http.GET();
+  PenampungPSRAM jaw;
+  if (kode == 200) http.writeToStream(&jaw);
+  http.end();
+  if (kode != 200 || !jaw.buf) { aturGalat("Berita gagal diambil (kode " + String(kode) + ")"); return false; }
+  std::vector<Berita> baru;
+  char* p = (char*)jaw.buf;
+  while (baru.size() < 20 && (p = strstr(p, "<item")) != nullptr) {
+    char* akhir = strstr(p, "</item>"); if (!akhir) break;
+    Berita b;
+    b.judul = bersihkanHTML(ambilTag(p, akhir, "title"));
+    b.isi = bersihkanHTML(ambilTag(p, akhir, "description"));
+    String w = ambilTag(p, akhir, "pubDate");              // "Tue, 17 Nov 2026 10:08:33 +0700"
+    b.waktu = w.length() > 22 ? w.substring(5, 22) : w;
+    if (b.isi.startsWith(b.judul)) b.isi = b.isi.substring(b.judul.length());
+    b.isi.trim();
+    if (b.judul.length()) baru.push_back(b);
+    p = akhir + 7;
+  }
+  xSemaphoreTake(kunciInfo, portMAX_DELAY); berita.swap(baru); tBerita = millis(); xSemaphoreGive(kunciInfo);
+  Serial.printf("[berita] %s: %u berita\n", SUMBER_BERITA[sumberBerita][0], (unsigned)berita.size());
+  return true;
+}
+
+// ---- kurs rupiah (open.er-api.com, gratis tanpa kunci, diperbarui sekali sehari) ----
+const char* KODE_KURS[8] = {"USD", "EUR", "SGD", "MYR", "SAR", "JPY", "CNY", "AUD"};
+struct Kurs { bool ada = false; double idr[8]; uint32_t diperbarui = 0; unsigned long t = 0; };
+Kurs kurs;
+
+bool ambilKurs() {
+  WiFiClientSecure c; c.setInsecure();
+  HTTPClient http;
+  http.begin(c, "https://open.er-api.com/v6/latest/USD");
+  http.setTimeout(10000);
+  int kode = http.GET();
+  String resp = kode == 200 ? http.getString() : String();
+  http.end();
+  if (kode != 200) { aturGalat("Kurs gagal diambil (kode " + String(kode) + ")"); return false; }
+  JsonDocument saring;
+  saring["time_last_update_unix"] = true;
+  saring["rates"]["IDR"] = true;
+  for (int i = 0; i < 8; i++) saring["rates"][KODE_KURS[i]] = true;
+  JsonDocument r;
+  if (deserializeJson(r, resp, DeserializationOption::Filter(saring))) return false;
+  double idr = r["rates"]["IDR"] | 0.0;
+  if (idr <= 0) return false;
+  Kurs k;
+  for (int i = 0; i < 8; i++) { double v = r["rates"][KODE_KURS[i]] | 0.0; k.idr[i] = v > 0 ? idr / v : 0; }
+  k.diperbarui = r["time_last_update_unix"] | 0;
+  k.ada = true; k.t = millis();
+  xSemaphoreTake(kunciInfo, portMAX_DELAY); kurs = k; xSemaphoreGive(kunciInfo);
+  return true;
+}
+
+// 18273.2 -> "18.273"
+String angkaRibuan(double v) {
+  char b[24]; snprintf(b, sizeof(b), "%.0f", v);
+  String s = b, o;
+  int n = s.length();
+  for (int i = 0; i < n; i++) { o += s[i]; if ((n - 1 - i) % 3 == 0 && i < n - 1) o += '.'; }
+  return o;
+}
+
+String teksKurs() {
+  if (!kurs.ada) return "Kurs belum ada.";
+  String t = "Kurs rupiah (ExchangeRate-API):";
+  for (int i = 0; i < 8; i++) t += String("\n") + (i == 5 ? "100 " : "1 ") + KODE_KURS[i] + " = Rp" + angkaRibuan(kurs.idr[i] * (i == 5 ? 100 : 1));
+  return t;
+}
+
+// ---- Wikipedia di layar: hasil pencarian terakhir (dari suara, /wiki, atau AI) ----
+String wikiJudul, wikiIsi;
+volatile int tujuanDengar = 0;                      // 1 = kalimat berikutnya dipakai untuk mencari di Wikipedia
+
+// hasil dari cariWikipedia(): "Judul (Wikipedia id): isi"
+void simpanWiki(const String& cari, const String& hasil) {
+  xSemaphoreTake(kunciInfo, portMAX_DELAY);
+  int a = hasil.indexOf("): ");
+  if (!hasil.length()) { wikiJudul = cari; wikiIsi = "Tidak ditemukan di Wikipedia."; }
+  else if (a > 0) { wikiJudul = hasil.substring(0, hasil.lastIndexOf(" (", a)); wikiIsi = hasil.substring(a + 3); }
+  else { wikiJudul = cari; wikiIsi = hasil; }
+  xSemaphoreGive(kunciInfo);
+  infoBaru = true;
+}
+
+// ---- tanggal merah: SKB 3 Menteri (setneg.go.id). Tambahkan tahun berikutnya setelah SKB-nya terbit. ----
+struct Libur { uint32_t tanggal; const char* nama; bool cuti; };
+const Libur DAFTAR_LIBUR[] = {
+  {20260101, "Tahun Baru 2026 Masehi", false}, {20260116, "Isra Mikraj", false}, {20260216, "Cuti bersama Imlek", true},
+  {20260217, "Tahun Baru Imlek", false}, {20260318, "Cuti bersama Nyepi", true}, {20260319, "Hari Suci Nyepi", false},
+  {20260320, "Cuti bersama Idulfitri", true}, {20260321, "Idulfitri 1447 H", false}, {20260322, "Idulfitri 1447 H", false},
+  {20260323, "Cuti bersama Idulfitri", true}, {20260324, "Cuti bersama Idulfitri", true}, {20260403, "Wafat Yesus Kristus", false},
+  {20260405, "Paskah", false}, {20260501, "Hari Buruh", false}, {20260514, "Kenaikan Yesus Kristus", false},
+  {20260515, "Cuti bersama Kenaikan", true}, {20260527, "Iduladha 1447 H", false}, {20260528, "Cuti bersama Iduladha", true},
+  {20260531, "Waisak", false}, {20260601, "Hari Lahir Pancasila", false}, {20260616, "Tahun Baru Islam 1448 H", false},
+  {20260817, "Proklamasi Kemerdekaan", false}, {20260825, "Maulid Nabi", false}, {20261224, "Cuti bersama Natal", true},
+  {20261225, "Natal", false},
+  {20270101, "Tahun Baru 2027 Masehi", false}, {20270105, "Isra Mikraj", false}, {20270205, "Cuti bersama Imlek", true},
+  {20270206, "Tahun Baru Imlek", false}, {20270308, "Hari Suci Nyepi", false}, {20270309, "Cuti bersama Idulfitri", true},
+  {20270310, "Idulfitri 1448 H", false}, {20270311, "Idulfitri 1448 H", false}, {20270312, "Cuti bersama Idulfitri", true},
+  {20270315, "Cuti bersama Idulfitri", true}, {20270325, "Cuti bersama Wafat Yesus", true}, {20270326, "Wafat Yesus Kristus", false},
+  {20270328, "Paskah", false}, {20270501, "Hari Buruh", false}, {20270506, "Kenaikan Yesus Kristus", false},
+  {20270517, "Iduladha 1448 H", false}, {20270518, "Cuti bersama Iduladha", true}, {20270519, "Cuti bersama Waisak", true},
+  {20270520, "Waisak", false}, {20270601, "Hari Lahir Pancasila", false}, {20270606, "Tahun Baru Islam 1449 H", false},
+  {20270815, "Maulid Nabi", false}, {20270817, "Proklamasi Kemerdekaan", false}, {20271224, "Cuti bersama Natal", true},
+  {20271225, "Natal", false}, {20271226, "Isra Mikraj", false},
+};
+const int JUMLAH_LIBUR = sizeof(DAFTAR_LIBUR) / sizeof(DAFTAR_LIBUR[0]);
+const int TAHUN_LIBUR_TERAKHIR = 2027;
+
+// 0 = bukan libur, 1 = libur nasional, 2 = cuti bersama
+int jenisLibur(uint32_t tgl) {
+  for (int i = 0; i < JUMLAH_LIBUR; i++) if (DAFTAR_LIBUR[i].tanggal == tgl) return DAFTAR_LIBUR[i].cuti ? 2 : 1;
+  return 0;
 }
 
 // ======================= RIWAYAT BATERAI =======================
@@ -1408,6 +1714,8 @@ String promptSistem() {
     "Kosongkan aksi kalau tidak perlu. "
     "Badanmu otomatis menolak maju kalau ada halangan dekat, jadi tidak perlu khawatir menabrak. "
     "Data sensor terbaru: " + ringkasSensor() + ". " + teksCuaca(true) +
+    (sholat.ada ? String(" Jadwal sholat hari ini: Subuh ") + sholat.waktu[1] + ", Dzuhur " + sholat.waktu[3] + ", Ashar " +
+                  sholat.waktu[4] + ", Maghrib " + sholat.waktu[5] + ", Isya " + sholat.waktu[6] + "." : String()) +
     (teksJam().length() ? String(" Sekarang ") + teksTanggal() + ", jam " + teksJam() + "." : String());
 }
 
@@ -1698,6 +2006,7 @@ String jalankanJawaban(const String& jawaban, const String& pertanyaanAsli, bool
   if (cari.length()) {
     setStatus("Mencari: " + cari);
     String hasil = cariWikipedia(cari);
+    simpanWiki(cari, hasil);                               // juga tampil di layar (Info -> Wikipedia)
     String q2 = pertanyaanAsli + "\n\n(Hasil pencarian Wikipedia untuk \"" + cari + "\": " +
                 (hasil.length() ? hasil : String("tidak ditemukan")) +
                 ")\nJawab pertanyaan di atas memakai hasil ini kalau cocok, dengan kata-katamu sendiri. Jangan memakai aksi cari lagi.";
@@ -1893,7 +2202,7 @@ const char* BANTUAN =
   "/foto  kirim foto kamera\n/lihat [pertanyaan]  AI melihat lewat kamera\n/bilang teks  robot mengucapkan teks\n"
   "/panel  alamat panel kontrol web\n/dengar on|off  mendengar terus (boros) atau hanya saat BICARA\n/ai  pilih otak AI (gemini, gemma, groq, haiku)\n/lagu  daftar lagu di SD\n/putar nama lagu (cukup sebagian)\n/radio url\n/diam  hentikan suara\n/volume 0-21\n"
   "/ikuti  ikuti benda di depan\n/jaga  berjaga, kirim foto kalau ada gerakan\n/jelajah [menit]  jalan-jalan sendiri (bawaan 5 menit)\n/biasa  kembali normal\n"
-  "/baterai  isi dan perkiraan sisa baterai\n/pesan teks  tampilkan pesan di layar\n/suara  suara bicara (/suara gemini atau /suara google)\n\n"
+  "/baterai  isi dan perkiraan sisa baterai\n/pesan teks  tampilkan pesan di layar\n/sholat  jadwal sholat hari ini\n/kurs  kurs rupiah\n/wiki topik  cari di Wikipedia\n/suara  suara bicara (/suara gemini atau /suara google)\n\n"
   "Pesan biasa tanpa / = ngobrol dengan AI (bisa menyuruh bergerak).";
 
 void tanganiPesan(const telegramMessage& m) {
@@ -2009,6 +2318,19 @@ void tanganiPesan(const telegramMessage& m) {
   else if (cmd == "/jaga")   { gantiMode(M_JAGA);  bot.sendMessage(chat, "Mode jaga aktif dalam 4 detik. Aku kirim foto kalau ada gerakan di depan. /biasa untuk berhenti."); }
   else if (cmd == "/biasa")  { gantiMode(M_BIASA); bot.sendMessage(chat, "Kembali ke mode biasa."); }
   else if (cmd == "/bilang") { ucapkan(arg); bot.sendMessage(chat, "Oke."); }
+  else if (cmd == "/sholat") {
+    if (arg == "mati" || arg == "suara" || arg == "adzan") {
+      pengingatSholat = arg == "mati" ? 0 : arg == "suara" ? 1 : 2;
+      Preferences q; q.begin("robot", false); q.putUChar("sholat", pengingatSholat); q.end();
+    }
+    const char* P[3] = {"mati", "suara", "suara + adzan dari SD (/adzan.mp3)"};
+    bot.sendMessage(chat, teksSholat() + "\n\nPengingat: " + P[pengingatSholat % 3] + ". Ubah: /sholat mati, /sholat suara, /sholat adzan");
+  }
+  else if (cmd == "/kurs") { if (!kurs.ada || millis() - kurs.t > 21600000UL) ambilKurs(); bot.sendMessage(chat, teksKurs()); }
+  else if (cmd == "/wiki") {
+    if (!arg.length()) bot.sendMessage(chat, "Tulis topiknya, misalnya: /wiki Gunung Rinjani");
+    else { bot.sendChatAction(chat, "typing"); String h = cariWikipedia(arg); simpanWiki(arg, h); bot.sendMessage(chat, h.length() ? h : String("Tidak ditemukan di Wikipedia.")); }
+  }
   else if (cmd == "/pesan") {
     if (!arg.length()) bot.sendMessage(chat, "Tulis isinya, misalnya: /pesan Makan malam sudah siap");
     else { tambahPesan(m.from_name.length() ? m.from_name : String("Telegram"), arg); bot.sendMessage(chat, "Pesan tampil di layar Zond."); }
@@ -2049,6 +2371,7 @@ void tugasJaringan(void*) {
       bool adaNama = kata.length() && cariNama(kata, sisa);
       if (kata.length() == 0) {
         if (!butuhNama) { setStatus(strlen(GROQ_API_KEY) ? "Tidak terdengar jelas" : "GROQ_API_KEY belum diisi"); ekspresi = NORMAL; }
+        if (!butuhNama && tujuanDengar) { tujuanDengar = 0; infoBaru = true; }
       } else if (butuhNama && !adaNama) {
         Serial.println("[dengar] tanpa nama, diabaikan: " + kata);
       } else if (adaNama && sisa.length() == 0) {         // hanya memanggil nama: tunggu perintahnya
@@ -2056,6 +2379,11 @@ void tugasJaringan(void*) {
         else Serial.println("[dengar] hanya nama lagi, diabaikan");   // supaya gema/bising tidak membuat putaran
         jendelaSampai = millis() + 9000;
         ekspresi = DENGAR; setStatus("Ya? Silakan bicara");
+      } else if (tujuanDengar == 1 && !butuhNama) {          // layar Wikipedia menunggu topik
+        tujuanDengar = 0; jendelaSampai = 0;
+        ekspresi = PIKIR; setStatus("Mencari: " + kata);
+        simpanWiki(kata, cariWikipedia(kata));
+        ekspresi = NORMAL; setStatus("Wikipedia: " + kata);
       } else {
         jendelaSampai = 0;
         ekspresi = PIKIR; setStatus("Kamu: " + kata);
@@ -2081,6 +2409,19 @@ void tugasJaringan(void*) {
       int a = aksiTertunda; aksiTertunda = 0;
       if (a == 1) lihatSekeliling(TELEGRAM_CHATID);
       else if (a == 2) mainSuit(TELEGRAM_CHATID);
+    }
+    if (mintaInfo) {                                     // data yang diminta layar
+      uint8_t m = mintaInfo; mintaInfo = 0;
+      if (m & INFO_CUACA) ambilCuaca();
+      if (m & INFO_SHOLAT) ambilSholat();
+      if (m & INFO_BERITA) ambilBerita();
+      if (m & INFO_KURS) ambilKurs();
+      infoBaru = true;
+    }
+    static unsigned long tSholat = 0;                    // jadwal sholat sekali sehari; coba lagi 2 menit kalau gagal
+    uint32_t hariIni = tanggalHariIni();
+    if (hariIni && (!sholat.ada || sholat.tanggal != hariIni) && (!tSholat || millis() - tSholat > 120000UL)) {
+      tSholat = millis(); if (ambilSholat()) infoBaru = true;
     }
     static unsigned long tCuaca = 0;                     // cuaca tiap 30 menit; coba lagi 2 menit kalau gagal
     if (!tCuaca || millis() - tCuaca > (cuaca.ada ? 1800000UL : 120000UL)) { tCuaca = millis(); ambilCuaca(); }
@@ -2237,7 +2578,8 @@ const uint16_t W_UBIN[6] = {WARNA(130, 60, 190), WARNA(30, 110, 200), WARNA(20, 
 const int BILAH_H = 28, ISI_Y = 28, ISI_H = 212, MUKA_H = 144;
 LGFX_Sprite bilah(&lcd), kanvas(&lcd), muka(&lcd), bawah(&lcd);   // muka dan bawah: khusus Beranda
 
-enum { H_BERANDA, H_MENU, H_SUB, H_MUSIK, H_DAFTARLAGU, H_RADIO, H_STATUS, H_PESAN, H_SETELAN, H_MODE, H_HITUNG, H_BERGERAK };
+enum { H_BERANDA, H_MENU, H_SUB, H_MUSIK, H_DAFTARLAGU, H_RADIO, H_STATUS, H_PESAN, H_SETELAN, H_MODE, H_HITUNG, H_BERGERAK,
+       H_CUACA, H_SHOLAT, H_BERITA, H_BACA, H_KALENDER, H_KURS, H_WIKI };
 // id tombol: 1-9 umum, 10-99 khusus halaman, 100 ke atas = baris daftar
 enum { B_KEMBALI = 1, B_STOP, B_MUKA, B_BICARA, B_MENU, B_ATAS, B_BAWAH };
 int halaman = H_BERANDA, halamanSub = 0, halamanHal = 0, tabStatus = 0;
@@ -2293,6 +2635,7 @@ int pesanBelumDibaca() {
 std::vector<String> laguSD;
 int laguKe = -1, radioKe = -1;
 bool acakLagu = false, ulangLagu = false;
+volatile bool putarSekali = false;                         // adzan: jangan lanjut ke lagu berikutnya setelah selesai
 
 void muatDaftarLagu() {
   laguSD.clear();
@@ -2310,7 +2653,7 @@ void muatDaftarLagu() {
 
 void putarLaguKe(int i) {
   if (i < 0 || i >= (int)laguSD.size()) return;
-  laguKe = i; radioKe = -1;
+  laguKe = i; radioKe = -1; putarSekali = false;
   kirimAudio(A_FILE, "/" + laguSD[i]);
   setStatus("Lagu " + String(i + 1) + "/" + String(laguSD.size()) + ": " + laguSD[i]);
 }
@@ -2351,8 +2694,16 @@ String asciiSaja(const String& t) {
   String o; o.reserve(t.length());
   for (unsigned int i = 0; i < t.length(); i++) {
     uint8_t c = t[i];
-    if (c < 0x80) o += (char)c;
-    else if ((c & 0xC0) == 0xC0) o += '?';                 // awal huruf UTF-8; byte lanjutan dibuang
+    if (c < 0x80) { o += (char)c; continue; }
+    if (c == 0xE2 && i + 2 < t.length() && (uint8_t)t[i + 1] == 0x80) {        // tanda baca "pintar"
+      uint8_t d = t[i + 2];
+      if (d == 0x98 || d == 0x99) { o += '\''; i += 2; continue; }
+      if (d == 0x9C || d == 0x9D) { o += '"'; i += 2; continue; }
+      if (d == 0x93 || d == 0x94) { o += '-'; i += 2; continue; }
+      if (d == 0xA6) { o += "..."; i += 2; continue; }
+    }
+    if (c == 0xC2 && i + 1 < t.length() && (uint8_t)t[i + 1] == 0xA0) { o += ' '; i++; continue; }
+    if ((c & 0xC0) == 0xC0) o += '?';                      // awal huruf UTF-8 lain; byte lanjutan dibuang
   }
   return o;
 }
@@ -2459,6 +2810,13 @@ String judulHalaman() {
     case H_PESAN: return "Pesan";
     case H_SETELAN: return "Setelan";
     case H_MODE: return "Mode gerak";
+    case H_CUACA: return String("Cuaca ") + CUACA_KOTA;
+    case H_SHOLAT: return "Jadwal sholat";
+    case H_BERITA: return "Berita";
+    case H_BACA: return "Berita";
+    case H_KALENDER: return "Kalender";
+    case H_KURS: return "Kurs rupiah";
+    case H_WIKI: return "Wikipedia";
     default: return "";
   }
 }
@@ -2589,8 +2947,8 @@ void gambarBawahBeranda() {
 // ---- halaman menu dan sub-menu ----
 struct ItemMenu { const char* nama; int16_t tujuan; };        // tujuan: halaman, -1 = menyusul, -2 kamera, -3 suit
 const ItemMenu MENU_MUSIK[] = {{"Lagu SD", H_MUSIK}, {"Radio", H_RADIO}, {"Podcast", -1}, {"Murottal", -1}};
-const ItemMenu MENU_INFO[]  = {{"Status robot", H_STATUS}, {"Cuaca", -1}, {"Jadwal sholat", -1}, {"Berita", -1},
-                               {"Kalender", -1}, {"Kurs", -1}, {"Wikipedia", -1}};
+const ItemMenu MENU_INFO[]  = {{"Status robot", H_STATUS}, {"Cuaca", H_CUACA}, {"Jadwal sholat", H_SHOLAT}, {"Berita", H_BERITA},
+                               {"Kalender", H_KALENDER}, {"Kurs", H_KURS}, {"Wikipedia", H_WIKI}};
 const ItemMenu MENU_ALAT[]  = {{"Mode gerak", H_MODE}, {"Kamera", -2}, {"Alarm", -1}, {"Timer", -1}, {"Kalkulator", -1},
                                {"Senter", -1}, {"Penerjemah", -1}, {"Catatan", -1}, {"Rekam suara", -1}, {"Galeri foto", -1}};
 const ItemMenu MENU_MAIN[]  = {{"Suit", -3}, {"Tic-tac-toe", -1}, {"2048", -1}, {"Ketuk terbang", -1}};
@@ -2898,6 +3256,280 @@ void gambarBergerak() {
   kanvas.drawString(potongLebar(kanvas, teksStatus, 300).c_str(), 160, 164);
 }
 
+// ---- halaman Info: cuaca, jadwal sholat, berita, kalender, kurs, Wikipedia ----
+std::vector<String> barisTeks;                       // hasil pecahBaris()
+
+// Pecah teks jadi baris-baris selebar `lebar` piksel dengan font yang sedang dipakai sprite s.
+void pecahBaris(LGFX_Sprite& s, const String& teks, int lebar) {
+  barisTeks.clear();
+  String t = asciiSaja(teks), baris;
+  int i = 0, n = t.length();
+  while (i <= n) {
+    int j = t.indexOf(' ', i); if (j < 0) j = n;
+    String kata = t.substring(i, j);
+    String coba = baris.length() ? baris + " " + kata : kata;
+    if (s.textWidth(coba.c_str()) > lebar && baris.length()) { barisTeks.push_back(baris); baris = kata; }
+    else baris = coba;
+    i = j + 1;
+  }
+  if (baris.length()) barisTeks.push_back(baris);
+}
+
+// Ikon cuaca dari kode WMO: matahari, awan, hujan, petir, kabut. r = ukuran.
+void ikonCuaca(LGFX_Sprite& s, int kode, int cx, int cy, int r) {
+  uint16_t kuning = TFT_YELLOW, awan = WARNA(200, 210, 220), biru = WARNA(80, 160, 255);
+  bool matahari = kode <= 2, berawan = kode >= 1;
+  if (matahari) {
+    int mx = kode == 0 ? cx : cx - r / 3, my = kode == 0 ? cy : cy - r / 3, rr = kode == 0 ? r * 5 / 10 : r * 4 / 10;
+    for (int i = 0; i < 8; i++) { float a = i * PI / 4; s.drawLine(mx + cosf(a) * (rr + 3), my + sinf(a) * (rr + 3), mx + cosf(a) * (rr + r / 4), my + sinf(a) * (rr + r / 4), kuning); }
+    s.fillCircle(mx, my, rr, kuning);
+  }
+  if (berawan) {
+    uint16_t w = kode >= 3 ? WARNA(150, 160, 170) : awan;
+    s.fillCircle(cx - r / 3, cy + r / 6, r / 3, w); s.fillCircle(cx + r / 6, cy - r / 8, r * 4 / 10, w);
+    s.fillCircle(cx + r / 2, cy + r / 6, r / 3, w); s.fillRoundRect(cx - r * 2 / 3, cy + r / 6, r * 3 / 2, r / 3, r / 6, w);
+  }
+  if ((kode >= 51 && kode <= 67) || (kode >= 80 && kode <= 82))
+    for (int i = 0; i < 3; i++) s.drawLine(cx - r / 3 + i * r / 3, cy + r * 6 / 10, cx - r / 2 + i * r / 3, cy + r * 9 / 10, biru);
+  if (kode >= 95) s.fillTriangle(cx, cy + r / 2, cx - r / 6, cy + r, cx + r / 5, cy + r * 7 / 10, kuning);
+  if (kode == 45 || kode == 48) for (int i = 0; i < 3; i++) s.drawFastHLine(cx - r * 2 / 3, cy + r / 2 + i * 5, r * 4 / 3, awan);
+}
+
+void tulisMemuat(const char* apa) {
+  kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE); kanvas.setTextDatum(middle_center);
+  kanvas.drawString(apa, 160, 90);
+  xSemaphoreTake(kunciInfo, portMAX_DELAY); String g = galatInfo; xSemaphoreGive(kunciInfo);
+  if (g.length()) {
+    kanvas.setFont(&fonts::Font2); kanvas.setTextColor(TFT_ORANGE);
+    kanvas.drawString(potongLebar(kanvas, g, 300).c_str(), 160, 120);
+  }
+}
+
+const char* HARI_PENDEK[7] = {"Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"};
+
+void gambarCuaca() {
+  xSemaphoreTake(kunciInfo, portMAX_DELAY);
+  Cuaca c = cuaca;
+  xSemaphoreGive(kunciInfo);
+  if (!c.ada) { tulisMemuat(WiFi.status() == WL_CONNECTED ? "Memuat cuaca..." : "Cuaca butuh WiFi"); return; }
+  ikonCuaca(kanvas, c.kode, 40, 34, 34);
+  kanvas.setFont(&fonts::Font7); kanvas.setTextDatum(top_left); kanvas.setTextColor(TFT_WHITE);
+  char b[48]; snprintf(b, sizeof(b), "%.0f", c.suhu);
+  kanvas.drawString(b, 86, 6);
+  int xs = 86 + kanvas.textWidth(b) + 4;
+  kanvas.drawCircle(xs + 4, 10, 4, TFT_WHITE);
+  kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.drawString("C", xs + 10, 6);
+  kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE);
+  String nama = namaCuaca(c.kode); nama.setCharAt(0, toupper(nama[0]));
+  int xk = max(186, xs + 30);                              // kolom kanan, setelah angka suhu
+  kanvas.drawString(potongLebar(kanvas, nama, 314 - xk).c_str(), xk, 6);
+  kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP);
+  snprintf(b, sizeof(b), "%.0f-%.0f C, lembap %d%%", c.terendah, c.tertinggi, c.lembap);
+  kanvas.drawString(potongLebar(kanvas, b, 314 - xk).c_str(), xk, 28);
+  snprintf(b, sizeof(b), "Peluang hujan %d%%", c.hujan);
+  kanvas.drawString(potongLebar(kanvas, b, 314 - xk).c_str(), xk, 44);
+  // 12 jam ke depan: batang peluang hujan, suhu, jam
+  kanvas.drawFastHLine(6, 126, 308, W_GARIS);
+  for (int i = 0; i < c.nJam && i < 12; i++) {
+    int x = 8 + i * 25, h = c.jamHujan[i] * 40 / 100;
+    if (h > 0) kanvas.fillRect(x + 4, 126 - h, 16, h, c.jamHujan[i] >= 50 ? WARNA(60, 140, 255) : WARNA(40, 80, 140));
+    kanvas.setTextDatum(top_center); kanvas.setTextColor(TFT_WHITE);
+    kanvas.drawString(String((int)roundf(c.jamSuhu[i])).c_str(), x + 12, 70);
+    kanvas.setTextColor(W_REDUP);
+    kanvas.drawString(String((c.jamAwal + i) % 24).c_str(), x + 12, 128);
+  }
+  // 3 hari ke depan
+  struct tm t; bool jam = jamSiap(t);
+  for (int i = 1; i <= 3 && i < 4; i++) {
+    int x = 6 + (i - 1) * 104, y = 148;
+    kanvas.fillRoundRect(x, y, 100, 60, 8, W_TOMBOL);
+    kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextDatum(top_left); kanvas.setTextColor(TFT_WHITE);
+    kanvas.drawString(i == 1 ? "Besok" : jam ? HARI_PENDEK[(t.tm_wday + i) % 7] : "-", x + 8, y + 6);
+    ikonCuaca(kanvas, c.hariKode[i], x + 78, y + 18, 14);
+    kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP);
+    snprintf(b, sizeof(b), "%.0f-%.0f C", c.hariMin[i], c.hariMaks[i]); kanvas.drawString(b, x + 8, y + 26);
+    snprintf(b, sizeof(b), "hujan %d%%", c.hariHujan[i]); kanvas.drawString(b, x + 8, y + 42);
+  }
+}
+
+void gambarSholat() {
+  xSemaphoreTake(kunciInfo, portMAX_DELAY);
+  JadwalSholat j = sholat;
+  xSemaphoreGive(kunciInfo);
+  struct tm t;
+  if (!j.ada || !jamSiap(t)) { tulisMemuat(WiFi.status() == WL_CONNECTED ? "Memuat jadwal sholat..." : "Jadwal sholat butuh WiFi"); return; }
+  int sekarang = t.tm_hour * 60 + t.tm_min, k = -1;
+  const int URUT[5] = {1, 3, 4, 5, 6};
+  for (int u : URUT) if (menitDari(j.waktu[u]) > sekarang) { k = u; break; }
+  kanvas.setTextDatum(top_left);
+  if (k >= 0) {
+    kanvas.setFont(&fonts::FreeSansBold12pt7b); kanvas.setTextColor(TFT_WHITE);
+    kanvas.drawString((String(NAMA_SHOLAT[k]) + "  " + j.waktu[k]).c_str(), 10, 6);
+    kanvas.setFont(&fonts::Font2); kanvas.setTextColor(TFT_GREEN);
+    kanvas.drawString((teksDurasi(menitDari(j.waktu[k]) - sekarang) + " lagi").c_str(), 10, 32);
+  } else {
+    kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE);
+    kanvas.drawString("Sholat hari ini sudah lewat", 10, 10);
+  }
+  kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP); kanvas.setTextDatum(top_right);
+  kanvas.drawString(j.hijri, 310, 8);
+  kanvas.drawString(CUACA_KOTA, 310, 26);
+  for (int i = 0; i < 7; i++) {
+    int y = 52 + i * 18;
+    bool lewat = menitDari(j.waktu[i]) <= sekarang, ini = i == k;
+    if (ini) kanvas.fillRoundRect(6, y, 308, 17, 4, W_HIJAU);
+    kanvas.setTextColor(ini ? TFT_WHITE : lewat ? WARNA(100, 108, 118) : TFT_WHITE);
+    kanvas.setTextDatum(top_left); kanvas.drawString(NAMA_SHOLAT[i], 16, y + 1);
+    kanvas.setTextDatum(top_right); kanvas.drawString(j.waktu[i], 304, y + 1);
+  }
+  const char* PENGINGAT[3] = {"Pengingat: mati", "Pengingat: suara", "Pengingat: suara + adzan"};
+  tombol(kanvas, ISI_Y, 85, 6, 180, 308, 30, PENGINGAT[pengingatSholat % 3], pengingatSholat ? W_BIRU : W_TOMBOL, true);
+}
+
+// Judul tebal, keterangan kecil, lalu isi yang dibagi per halaman. Baris bawah: ▲, tombol tengah (dibuat pemanggil), ▼.
+void gambarTeksPanjang(const String& judul, const String& ket, const String& isi) {
+  kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE); kanvas.setTextDatum(top_left);
+  pecahBaris(kanvas, judul, 300);
+  int y = 4;
+  for (size_t i = 0; i < barisTeks.size() && i < 2; i++) { kanvas.drawString(barisTeks[i].c_str(), 10, y); y += 19; }
+  if (ket.length()) { kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP); kanvas.drawString(potongLebar(kanvas, ket, 300).c_str(), 10, y); y += 17; }
+  kanvas.drawFastHLine(10, y + 2, 300, W_GARIS);
+  y += 6;
+  kanvas.setFont(&fonts::FreeSans9pt7b); kanvas.setTextColor(TFT_WHITE);
+  pecahBaris(kanvas, isi, 300);
+  int per = max(1, (176 - y) / 19), hal = max(1, ((int)barisTeks.size() + per - 1) / per);
+  halamanHal = constrain(halamanHal, 0, hal - 1);
+  for (int i = 0; i < per; i++) {
+    int k = halamanHal * per + i; if (k >= (int)barisTeks.size()) break;
+    kanvas.drawString(barisTeks[k].c_str(), 10, y + i * 19);
+  }
+  tombol(kanvas, ISI_Y, B_ATAS, 6, 180, 60, 30, "", W_TOMBOL, halamanHal > 0);
+  if (halamanHal > 0) kanvas.fillTriangle(36, 186, 26, 202, 46, 202, warnaIkon(B_ATAS));
+  tombol(kanvas, ISI_Y, B_BAWAH, 254, 180, 60, 30, "", W_TOMBOL, halamanHal < hal - 1);
+  if (halamanHal < hal - 1) kanvas.fillTriangle(274, 186, 294, 186, 284, 202, warnaIkon(B_BAWAH));
+}
+
+int beritaDipilih = 0;
+void gambarBerita() {
+  for (int i = 0; i < JUMLAH_SUMBER_BERITA; i++)
+    tombol(kanvas, ISI_Y, 86 + i, 6 + i * 104, 2, 100, 28, SUMBER_BERITA[i][0], i == sumberBerita ? W_BIRU : W_TOMBOL, true);
+  xSemaphoreTake(kunciInfo, portMAX_DELAY);
+  int n = berita.size();
+  if (!n) { xSemaphoreGive(kunciInfo); tulisMemuat(WiFi.status() == WL_CONNECTED ? "Memuat berita..." : "Berita butuh WiFi"); return; }
+  const int PER = 3;
+  int hal = (n + PER - 1) / PER;
+  halamanHal = constrain(halamanHal, 0, hal - 1);
+  for (int k = 0; k < PER; k++) {
+    int i = halamanHal * PER + k; if (i >= n) break;
+    int y = 34 + k * 48, id = 100 + i;
+    bool tekan = id == tombolDitekan;
+    kanvas.fillRoundRect(6, y, 308, 44, 8, tekan ? W_TEKAN : W_TOMBOL);
+    kanvas.setFont(&fonts::Font2); kanvas.setTextColor(tekan ? TFT_BLACK : TFT_WHITE); kanvas.setTextDatum(top_left);
+    pecahBaris(kanvas, berita[i].judul, 292);
+    for (size_t b = 0; b < barisTeks.size() && b < 2; b++) {
+      String s = barisTeks[b];
+      if (b == 1 && barisTeks.size() > 2) s = potongLebar(kanvas, s + " " + barisTeks[2], 292);
+      kanvas.drawString(s.c_str(), 14, y + 5 + b * 18);
+    }
+    daftarkan(id, 6, y + ISI_Y, 308, 44);
+  }
+  xSemaphoreGive(kunciInfo);
+  if (hal > 1) navigasiHalaman(hal);
+}
+
+void gambarBaca() {
+  xSemaphoreTake(kunciInfo, portMAX_DELAY);
+  Berita b = beritaDipilih < (int)berita.size() ? berita[beritaDipilih] : Berita();
+  xSemaphoreGive(kunciInfo);
+  gambarTeksPanjang(b.judul, String(SUMBER_BERITA[sumberBerita][0]) + "  -  " + b.waktu, b.isi.length() ? b.isi : String("(tanpa ringkasan)"));
+  tombol(kanvas, ISI_Y, 88, 72, 180, 176, 30, "BACAKAN", W_BIRU, true);
+}
+
+int kalTahun = 0, kalBulan = 0;                      // bulan yang ditampilkan kalender (1-12)
+void gambarKalender() {
+  struct tm t; bool ada = jamSiap(t);
+  if (!kalTahun) { kalTahun = ada ? t.tm_year + 1900 : 2026; kalBulan = ada ? t.tm_mon + 1 : 1; }
+  tombol(kanvas, ISI_Y, 80, 6, 2, 50, 28, "<", W_TOMBOL, true);
+  tombol(kanvas, ISI_Y, 81, 264, 2, 50, 28, ">", W_TOMBOL, true);
+  kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextDatum(middle_center); kanvas.setTextColor(TFT_WHITE);
+  kanvas.drawString((String(NAMA_BULAN[kalBulan - 1]) + " " + String(kalTahun)).c_str(), 160, 16);
+  struct tm awal = {}; awal.tm_year = kalTahun - 1900; awal.tm_mon = kalBulan - 1; awal.tm_mday = 1; awal.tm_hour = 12;
+  mktime(&awal);
+  int mulai = awal.tm_wday;
+  struct tm akhir = {}; akhir.tm_year = kalTahun - 1900; akhir.tm_mon = kalBulan; akhir.tm_mday = 0; akhir.tm_hour = 12;
+  mktime(&akhir);
+  int jumlahHari = akhir.tm_mday;
+  kanvas.setFont(&fonts::Font2);
+  for (int d = 0; d < 7; d++) {
+    kanvas.setTextColor(d == 0 ? TFT_RED : W_REDUP);
+    kanvas.drawString(HARI_PENDEK[d], 28 + d * 44, 40);
+  }
+  uint32_t hariIni = ada ? angkaTanggal(t.tm_year + 1900, t.tm_mon + 1, t.tm_mday) : 0;
+  String keterangan[4]; int nKet = 0;
+  for (int h = 1; h <= jumlahHari; h++) {
+    int sel = mulai + h - 1, x = 28 + (sel % 7) * 44, y = 60 + (sel / 7) * 18;
+    uint32_t tgl = angkaTanggal(kalTahun, kalBulan, h);
+    int libur = jenisLibur(tgl);
+    if (tgl == hariIni) kanvas.fillRoundRect(x - 17, y - 8, 34, 17, 6, W_BIRU);
+    kanvas.setTextColor(libur == 1 || sel % 7 == 0 ? WARNA(255, 90, 90) : libur == 2 ? TFT_ORANGE : TFT_WHITE);
+    kanvas.drawString(String(h).c_str(), x, y);
+    if (libur && nKet < 4) {
+      for (int i = 0; i < JUMLAH_LIBUR; i++)
+        if (DAFTAR_LIBUR[i].tanggal == tgl) { keterangan[nKet++] = String(h) + "  " + DAFTAR_LIBUR[i].nama; break; }
+    }
+  }
+  kanvas.setTextDatum(top_left);
+  int y0 = 60 + ((mulai + jumlahHari - 1) / 7) * 18 + 12;
+  if (kalTahun > TAHUN_LIBUR_TERAKHIR) {
+    kanvas.setTextColor(W_REDUP); kanvas.drawString("Tanggal merah tahun ini belum ada di kode.", 10, y0);
+  }
+  for (int i = 0; i < nKet && y0 + i * 16 < 196; i++) {
+    kanvas.setTextColor(keterangan[i].indexOf("Cuti") >= 0 ? TFT_ORANGE : WARNA(255, 120, 120));
+    kanvas.drawString(potongLebar(kanvas, keterangan[i], 300).c_str(), 10, y0 + i * 16);
+  }
+}
+
+void gambarKurs() {
+  xSemaphoreTake(kunciInfo, portMAX_DELAY);
+  Kurs k = kurs;
+  xSemaphoreGive(kunciInfo);
+  if (!k.ada) { tulisMemuat(WiFi.status() == WL_CONNECTED ? "Memuat kurs..." : "Kurs butuh WiFi"); return; }
+  for (int i = 0; i < 8; i++) {
+    int x = 6 + (i % 2) * 157, y = 4 + (i / 2) * 42;
+    kanvas.fillRoundRect(x, y, 151, 38, 8, W_TOMBOL);
+    kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_CYAN); kanvas.setTextDatum(middle_left);
+    kanvas.drawString((String(i == 5 ? "100 " : "") + KODE_KURS[i]).c_str(), x + 8, y + 20);
+    kanvas.setTextColor(TFT_WHITE); kanvas.setTextDatum(middle_right);
+    kanvas.drawString(("Rp" + angkaRibuan(k.idr[i] * (i == 5 ? 100 : 1))).c_str(), x + 144, y + 20);
+  }
+  kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP); kanvas.setTextDatum(top_left);
+  if (k.diperbarui) {
+    time_t w = k.diperbarui; struct tm t; localtime_r(&w, &t);
+    char b[48]; snprintf(b, sizeof(b), "Diperbarui %d %.3s %d, %02d:%02d", t.tm_mday, NAMA_BULAN[t.tm_mon], t.tm_year + 1900, t.tm_hour, t.tm_min);
+    kanvas.drawString(b, 10, 174);
+  }
+  kanvas.drawString("Sumber: ExchangeRate-API (open.er-api.com)", 10, 192);
+}
+
+void gambarWiki() {
+  xSemaphoreTake(kunciInfo, portMAX_DELAY);
+  String j = wikiJudul, isi = wikiIsi;
+  xSemaphoreGive(kunciInfo);
+  if (tujuanDengar == 1 || !j.length()) {
+    kanvas.setFont(&fonts::FreeSansBold9pt7b); kanvas.setTextColor(TFT_WHITE); kanvas.setTextDatum(middle_center);
+    kanvas.drawString(tujuanDengar == 1 ? "Sebutkan topiknya..." : "Cari apa saja di Wikipedia", 160, 50);
+    kanvas.setFont(&fonts::Font2); kanvas.setTextColor(W_REDUP);
+    kanvas.drawString("Ketuk tombol di bawah, lalu sebutkan topiknya,", 160, 76);
+    kanvas.drawString("misalnya \"Gunung Rinjani\".", 160, 94);
+    kanvas.drawString("Dari Telegram: /wiki topik", 160, 112);
+    tombol(kanvas, ISI_Y, 89, 40, 136, 240, 56, tujuanDengar == 1 ? "MENDENGAR..." : "CARI DENGAN SUARA", W_HIJAU, tujuanDengar != 1);
+    return;
+  }
+  gambarTeksPanjang(j, "Wikipedia", isi);
+  tombol(kanvas, ISI_Y, 88, 72, 180, 86, 30, "BACAKAN", W_BIRU, true);
+  tombol(kanvas, ISI_Y, 89, 162, 180, 86, 30, "CARI", W_HIJAU, true);
+}
+
 // ---- gambar isi halaman (selain Beranda) ----
 void gambarIsi() {
   kanvas.fillScreen(TFT_BLACK);
@@ -2918,6 +3550,13 @@ void gambarIsi() {
     case H_MODE: gambarMode(); break;
     case H_HITUNG: gambarHitung(); break;
     case H_BERGERAK: gambarBergerak(); break;
+    case H_CUACA: gambarCuaca(); break;
+    case H_SHOLAT: gambarSholat(); break;
+    case H_BERITA: gambarBerita(); break;
+    case H_BACA: gambarBaca(); break;
+    case H_KALENDER: gambarKalender(); break;
+    case H_KURS: gambarKurs(); break;
+    case H_WIKI: gambarWiki(); break;
   }
   if (millis() < toastSampai) {
     kanvas.setFont(&fonts::FreeSansBold9pt7b);
@@ -2934,6 +3573,14 @@ void buka(int h) {
   if (h == H_DAFTARLAGU && laguKe >= 0) halamanHal = laguKe / 4; else if (h != halaman) halamanHal = 0;
   if (h == H_PESAN && pesanBelumDibaca() > 0) pesanDilihat = 0;
   if (h != H_SETELAN) konfirmasiRestart = false;
+  if (h != H_WIKI) tujuanDengar = 0;
+  uint8_t minta = 0;                                       // data Info yang belum ada atau sudah lama
+  if (h == H_CUACA && !cuaca.ada) minta |= INFO_CUACA;
+  if (h == H_SHOLAT && (!sholat.ada || sholat.tanggal != tanggalHariIni())) minta |= INFO_SHOLAT;
+  if (h == H_BERITA && (berita.empty() || millis() - tBerita > 900000UL)) minta |= INFO_BERITA;
+  if (h == H_KURS && (!kurs.ada || millis() - kurs.t > 21600000UL)) minta |= INFO_KURS;
+  if (h == H_KALENDER && h != halaman) kalTahun = 0;     // kembali ke bulan ini
+  if (minta) { aturGalat(""); mintaInfo |= minta; }
   halaman = h;
   tombolDitekan = -1; jumlahTombolLayar = 0;
   gambarUlang = bilahUlang = true;
@@ -2946,6 +3593,8 @@ void kembali() {
     case H_DAFTARLAGU: buka(H_MUSIK); break;
     case H_STATUS: halamanSub = 1; buka(H_SUB); break;
     case H_MODE: halamanSub = 2; buka(H_SUB); break;
+    case H_CUACA: case H_SHOLAT: case H_BERITA: case H_KALENDER: case H_KURS: case H_WIKI: halamanSub = 1; buka(H_SUB); break;
+    case H_BACA: { int hl = beritaDipilih / 3; buka(H_BERITA); halamanHal = hl; break; }
     default: buka(H_BERANDA);
   }
 }
@@ -3050,6 +3699,42 @@ void jalankanTombol(int id) {
       break;
     case H_HITUNG:
       if (id == 70) buka(H_MODE);
+      break;
+    case H_SHOLAT:
+      if (id == 85) {
+        pengingatSholat = (pengingatSholat + 1) % 3;
+        Preferences q; q.begin("robot", false); q.putUChar("sholat", pengingatSholat); q.end();
+        if (pengingatSholat == 2) toast("Adzan diputar dari SD: /adzan.mp3");
+        gambarUlang = true;
+      }
+      break;
+    case H_BERITA:
+      if (id >= 86 && id < 86 + JUMLAH_SUMBER_BERITA) {
+        if (sumberBerita != id - 86) {
+          sumberBerita = id - 86;
+          xSemaphoreTake(kunciInfo, portMAX_DELAY); berita.clear(); xSemaphoreGive(kunciInfo);
+          halamanHal = 0; aturGalat(""); mintaInfo |= INFO_BERITA;
+        }
+        gambarUlang = true;
+      } else if (id >= 100) { beritaDipilih = id - 100; buka(H_BACA); }
+      break;
+    case H_BACA:
+      if (id == 88) {
+        xSemaphoreTake(kunciInfo, portMAX_DELAY);
+        String t = beritaDipilih < (int)berita.size() ? berita[beritaDipilih].judul + ". " + berita[beritaDipilih].isi : String();
+        xSemaphoreGive(kunciInfo);
+        if (t.length()) ucapkan(t);
+      }
+      break;
+    case H_KALENDER:
+      if (id == 80) { if (--kalBulan < 1) { kalBulan = 12; kalTahun--; } }
+      else if (id == 81) { if (++kalBulan > 12) { kalBulan = 1; kalTahun++; } }
+      gambarUlang = true;
+      break;
+    case H_WIKI:
+      if (id == 88) { xSemaphoreTake(kunciInfo, portMAX_DELAY); String t = wikiIsi; xSemaphoreGive(kunciInfo); if (t.length()) ucapkan(t); }
+      else if (id == 89) { tujuanDengar = 1; kirimAudio(A_STOP); mintaDengar = true; halamanHal = 0; }
+      gambarUlang = true;
       break;
   }
 }
@@ -3158,7 +3843,13 @@ void perbaruiLayar() {
     ucapkan(String("Ada pesan dari ") + daftarPesan[0].dari + ".");
     bilahUlang = gambarUlang = true;
   }
-  if (laguHabis) { laguHabis = false; if (ulangLagu && laguKe >= 0) putarLaguKe(laguKe); else laguBerikut(1); gambarUlang = true; }
+  if (infoBaru) { infoBaru = false; if (halaman >= H_CUACA) gambarUlang = true; }
+  if (laguHabis) {
+    laguHabis = false;
+    if (putarSekali) putarSekali = false;
+    else if (ulangLagu && laguKe >= 0) putarLaguKe(laguKe); else laguBerikut(1);
+    gambarUlang = true;
+  }
   if (LAYAR_LED >= 0) aturKecerahan();
 
   if (bilahUlang || millis() - tBilah > 1000) { bilahUlang = false; tBilah = millis(); gambarBilah(); }
@@ -3170,7 +3861,8 @@ void perbaruiLayar() {
     return;
   }
   unsigned long jeda = halaman == H_HITUNG ? 200 : (halaman == H_MUSIK || halaman == H_BERGERAK) ? 500 :
-                       halaman == H_STATUS ? (tabStatus ? 5000 : 1000) : halaman == H_RADIO ? 2000 : 0;
+                       halaman == H_STATUS ? (tabStatus ? 5000 : 1000) : halaman == H_RADIO ? 2000 :
+                       halaman == H_SHOLAT ? 10000 : 0;
   bool toastHabis = toastSampai && millis() >= toastSampai;
   if (toastHabis) toastSampai = 0;
   if (gambarUlang || toastHabis || (jeda && millis() - tIsi > jeda)) { gambarUlang = false; tIsi = millis(); gambarIsi(); }
@@ -3447,6 +4139,7 @@ void setup() {
   antrianKirim = xQueueCreate(6, sizeof(PesanKirim));
   kunciAlarm = xSemaphoreCreateMutex();
   kunciPesan = xSemaphoreCreateMutex();
+  kunciInfo = xSemaphoreCreateMutex();
   muatAlarm();
   muatPesan();
 
@@ -3457,6 +4150,7 @@ void setup() {
   dengarTerus = pref.getUChar("dengar", 0) != 0;                        // bawaan mati: hemat jatah suara-ke-teks
   fiturKamera = pref.getUChar("kamAI", 0) != 0;                         // lihat sekeliling dan suit: bawaan mati
   pakaiSuaraAI = pref.getUChar("suara", 1) != 0;
+  pengingatSholat = pref.getUChar("sholat", 1);
   suaraHariIni = pref.getUInt("tsN", 0);
   if (pilihanAI >= AI_JUMLAH || !aiTersedia(pilihanAI)) pilihanAI = AI_OTOMATIS;
   pref.end();
@@ -3533,11 +4227,16 @@ void loop() {
   catatBaterai();
   ekspresiOtomatis();
   cekAlarm();
+  cekSholat();
   // radio/lagu dari alarm diputar setelah pengingat selesai diucapkan
   if (bunyiTertunda && millis() - tBunyiTertunda > 2000 && !audioJalan) {
     int b = bunyiTertunda; bunyiTertunda = 0;
     if (b == 1 && WiFi.status() == WL_CONNECTED) kirimAudio(A_URL, DAFTAR_RADIO[0]);
     else if (b == 2) tekanTombol(T_LAGU);
+    else if (b == 3 || b == 4) {                           // adzan dari SD; Subuh memakai /adzan_subuh.mp3 kalau ada
+      kunciSD(); bool subuh = b == 4 && adaSD && SD.exists("/adzan_subuh.mp3"); bool ada = adaSD && SD.exists("/adzan.mp3"); lepasSD();
+      if (subuh || ada) { putarSekali = true; kirimAudio(A_FILE, subuh ? "/adzan_subuh.mp3" : "/adzan.mp3"); }
+    }
   }
   perbaruiLayar();
   delay(5);
