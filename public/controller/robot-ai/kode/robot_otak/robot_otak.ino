@@ -857,6 +857,12 @@ bool bicaraSuaraAI(const String& teks, const String& bhs) {
   if (!suaraAIAktif() || WiFi.status() != WL_CONNECTED) return false;
   unsigned long t0 = millis();
   if (modeSuara == S_EDGE) {
+    // Token Edge dihitung dari jam. Tepat setelah menyala (salam pembuka) jam internet belum datang: tunggu sebentar.
+    for (int i = 0; i < 50 && time(nullptr) < 1700000000; i++) delay(100);
+    if (time(nullptr) < 1700000000) {
+      Serial.println("[suara] jam internet belum datang, kalimat ini memakai suara Google");
+      return false;                                     // bukan galat Edge: tanpa pesan Telegram dan tanpa istirahat
+    }
     String suara = suaraEdgeUntuk(bhs);
     int h = unduhSuaraEdge(teks, suara);
     if (h != 0) {
